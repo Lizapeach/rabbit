@@ -1,0 +1,245 @@
+@font-face {
+  font-family: "MyFont";
+  src: url("../assets/fonts/arialroundedmtprocyr_bold.otf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "MyFont", Arial, sans-serif;
+}
+
+:root {
+  /* Базовые цвета */
+  --color-transparent: transparent;
+  --color-white: #ffffff;
+
+  /* Основные цвета страницы */
+  --color-paper: #faebca;
+  --color-paper-light: #f7d29a;
+
+  /* Текст */
+  --color-text-main: #3b240a;
+  --color-text-soft: #7b6d66;
+  --color-text-muted: #94867e;
+  --color-text-panel: #4f433d;
+  --color-text-notification: #655952;
+  --color-text-clear-button: #5f524b;
+  --color-text-category-icon: #4b413c;
+  --color-text-arrow: #5d514b;
+  --color-text-plus: #6b5f59;
+  --color-text-members: #9a8d85;
+  --color-text-achievement-icon: #5e514b;
+
+  /* Обводки */
+  --color-border-main: #e7dad2;
+  --color-border-soft: #f0e6e0;
+  --color-border-topbar: #e5d8d0;
+  --color-border-control: #e2d3cb;
+  --color-border-button: #e9dcd4;
+  --color-border-category-card: #efe3dc;
+  --color-border-notification-item: #f0e7e1;
+  --color-border-inner-divider: #f3e9e3;
+  --color-border-card-glass: rgba(255, 255, 255, 0.6);
+
+  /* Фоны блоков */
+  --color-topbar-bg: rgba(255, 255, 255, 0.72);
+  --color-card-bg: rgba(255, 255, 255, 0.54);
+  --color-card-border: rgba(255, 255, 255, 0.6);
+  --color-hero-bg: rgba(255, 255, 255, 0.52);
+  --color-panel-bg: rgba(255, 255, 255, 0.54);
+  --color-category-card-bg: rgba(51, 13, 132, 0.78);
+  --color-achievement-card-bg: rgba(255, 255, 255, 0.78);
+  --color-card-hover-bg: rgba(255, 255, 255, 0.95);
+  --color-notifications-bg: rgba(255, 255, 255, 0.96);
+  --color-inner-block-bg: #fcfaf8;
+  --color-control-bg: #fcfaf8;
+  --color-button-bg: #ffffff;
+  --color-button-hover-bg: #fffdfc;
+
+  /* Уведомления */
+  --color-notification: #e8c4b7;
+  --color-notification-item-bg: #fcfaf8;
+  --color-notification-clear-bg: #f8f3ee;
+  --color-notification-clear-hover-bg: #ffffff;
+
+  /* Разделители */
+  --color-divider: #e4cfc4;
+
+  /* Цвета категорий */
+  --color-category-reading: #d8cde3;
+  --color-category-sport: #c7d8c0;
+  --color-category-nutrition: #e8c4b7;
+  --color-category-cleaning: #e7d8bf;
+
+  /* Достижения */
+  --color-achievement-gradient-from: #e8c4b7;
+  --color-achievement-gradient-to: #d7e2cf;
+  --color-achievement-icon-highlight: rgba(255, 255, 255, 0.45);
+
+  /* Скролл */
+  --color-scrollbar-track: #f3e9e3;
+  --color-scrollbar-thumb: #d8c7bd;
+  --color-scrollbar-thumb-hover: #c7b4aa;
+
+  /* Тени */
+  --color-shadow-topbar: rgba(59, 48, 43, 0.08);
+  --color-shadow-small: rgba(59, 48, 43, 0.04);
+  --color-shadow-soft: rgba(59, 48, 43, 0.05);
+  --color-shadow-card: rgba(59, 48, 43, 0.06);
+  --color-shadow-hover: rgba(59, 48, 43, 0.07);
+  --color-shadow-strong-hover: rgba(59, 48, 43, 0.1);
+  --color-shadow-notifications: rgba(41, 35, 31, 0.13);
+  --color-shadow-neutral: rgba(0, 0, 0, 0.06);
+}
+
+.click-spark {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.click-spark__canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 999;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.animated-scroll-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.animated-scroll-list__item {
+  transform-origin: center;
+}
+
+.animated-scroll-list__gradient {
+  position: absolute;
+  left: 0;
+  right: 8px;
+  z-index: 5;
+  height: 42px;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.animated-scroll-list__gradient--top {
+  top: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--color-card-bg),
+    var(--color-transparent)
+  );
+}
+
+.animated-scroll-list__gradient--bottom {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    var(--color-card-bg),
+    var(--color-transparent)
+  );
+}
+
+.border-glow {
+  position: relative;
+  border-radius: var(--glow-radius, 34px);
+}
+
+.border-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+
+  background: radial-gradient(
+    180px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgb(218, 33, 12),
+    rgba(180, 120, 80, 0.55) 35%,
+    transparent 70%
+  );
+
+  -webkit-mask:
+    linear-gradient(#631010 0 0) content-box,
+    linear-gradient(#e02f2f 0 0);
+
+  mask:
+    linear-gradient(#fd1d1d 0 0) content-box,
+    linear-gradient(#de3131 0 0);
+
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  pointer-events: none;
+  z-index: 3;
+}
+
+.ripple-button {
+  --ripple-button-ripple-color: rgba(79, 67, 61, 0.16);
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ripple-button__content {
+  position: relative;
+  z-index: 2;
+  display: contents;
+}
+
+.ripple-button__ripples {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.ripple-button__ripple {
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+  background: var(--ripple-button-ripple-color);
+  transform: scale(0);
+  opacity: 0.9;
+  animation: ripple-button-wave 0.65s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes ripple-button-wave {
+  0% {
+    transform: scale(0);
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-button__ripple {
+    animation-duration: 0.01ms;
+  }
+}
