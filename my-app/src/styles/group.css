@@ -94,17 +94,19 @@
 }
 
 .group-panel--overview {
-  padding: 32px;
+  min-height: 430px;
+  padding: 36px 32px;
 }
 
 .group-overview-grid {
   display: grid;
+  align-items: stretch;
   gap: 32px;
 }
 
 .group-character-space {
   position: relative;
-  min-height: 280px;
+  min-height: 340px;
   border: 1px dashed var(--color-border-control);
   border-radius: 30px;
   background:
@@ -178,6 +180,7 @@
 .group-task-board {
   position: relative;
   min-width: 0;
+  min-height: 340px;
   padding: 48px 20px 22px;
   border: 1px solid var(--color-border-soft);
   border-radius: 30px;
@@ -284,7 +287,7 @@
 }
 
 .task-list {
-  max-height: 372px;
+  max-height: 414px;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 8px;
@@ -455,7 +458,7 @@
 
 .special-task-card__button--done {
   border-color: #e7d7a7;
-  background: #f5e4a7;
+  background: #c19804;
   color: #5f4b18;
 }
 
@@ -472,14 +475,23 @@
   color: #6c5924;
 }
 
+.special-task-card__image-frame {
+  width: 100%;
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(231, 215, 167, 0.86);
+  border-radius: 18px;
+  background: #fff8d9;
+  box-shadow: 0 8px 18px var(--color-shadow-soft);
+}
+
 .special-task-card__image {
   width: 100%;
-  height: 132px;
-  margin-top: 14px;
+  height: auto;
+  max-width: 100%;
   display: block;
-  object-fit: cover;
-  border-radius: 18px;
-  box-shadow: 0 8px 18px var(--color-shadow-soft);
+  object-fit: contain;
+  border-radius: 17px;
 }
 
 .friend-stack {
@@ -1400,7 +1412,10 @@
     padding-right: 32px;
   }
 
-  .group-panel--overview,
+  .group-panel--overview {
+    padding: 36px 32px;
+  }
+
   .group-panel--calendar,
   .group-panel--notes {
     padding: 32px;
@@ -1446,7 +1461,12 @@
     border-radius: 30px;
   }
 
+  .group-character-space {
+    min-height: 300px;
+  }
+
   .group-task-board {
+    min-height: 0;
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -2146,4 +2166,81 @@ button {
   width: 100%;
   height: 100%;
   line-height: 1;
+}
+
+/* === Fix: profile photos stay perfectly round in small avatar circles === */
+.friend-stack__avatar,
+.friend-stack__add,
+.analytics-line-chart__member {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  min-height: 50px;
+  max-width: 50px;
+  max-height: 50px;
+  flex: 0 0 50px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.group-color-row__avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  max-width: 32px;
+  max-height: 32px;
+  flex: 0 0 32px;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.group-member-avatar__image {
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 50%;
+}
+
+.group-member-avatar__symbol {
+  flex: 0 0 100%;
+  border-radius: inherit;
+}
+
+@media (max-width: 760px) {
+  .analytics-line-chart__member {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    max-width: 44px;
+    max-height: 44px;
+    flex-basis: 44px;
+  }
+}
+
+/* === Fix: the main member icon above tasks stays square, not round === */
+.member-heading__avatar {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  min-height: 46px;
+  max-width: 46px;
+  max-height: 46px;
+  flex: 0 0 46px;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.member-heading__avatar .group-member-avatar__image,
+.member-heading__avatar .group-member-avatar__symbol {
+  border-radius: inherit;
 }

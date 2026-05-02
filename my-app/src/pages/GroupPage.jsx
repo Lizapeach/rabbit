@@ -1465,10 +1465,11 @@ function SpecialTaskCard({ taskState, disabled, isOwnTask, rewardCoins, onOpenUp
               У каждого участника это задание отмечается только в его личном профиле.
             </div>
           )}
-          {done && taskState?.completedAt && (
-            <div className="special-task-card__meta">Выполнено: {taskState.completedAt}</div>
+          {photo && (
+            <div className="special-task-card__image-frame">
+              <img src={photo} alt="Подтверждение задания" className="special-task-card__image" />
+            </div>
           )}
-          {photo && <img src={photo} alt="Подтверждение задания" className="special-task-card__image" />}
         </div>
       </div>
     </div>
