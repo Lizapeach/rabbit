@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "pixi-live2d-display": "^0.4.0",
-    "pixi.js": "^6.5.10",
-    "react-router-dom": "^7.14.2"
-  }
-}
