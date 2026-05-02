@@ -723,7 +723,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
         x: Math.min(Math.max(noteEditor.x - 76, 12), Math.max(12, boardWidth - 190)),
         y: Math.min(Math.max(noteEditor.y - 24, 12), Math.max(12, boardHeight - 130)),
         text: noteEditor.text.trim().slice(0, 500),
-        authorId: selectedFriendId,
+        authorId: "me",
       },
     ]);
     setNoteEditor(null);

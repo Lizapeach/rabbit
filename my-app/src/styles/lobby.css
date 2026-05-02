@@ -269,10 +269,8 @@ button {
   align-items: center;
   justify-content: center;
 
-  border: 1px solid var(--color-border-control);
   border-radius: 50px;
-  background: var(--color-arrow-bg);
-  color: var(--color-text-arrow);
+  background: #ff6e51;
 
   transition: transform 0.3s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
@@ -348,6 +346,7 @@ button {
   border-radius: 20px;
   background: var(--color-inner-block-bg);
   transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .group-card:last-child {
@@ -653,7 +652,7 @@ button {
     height: 44px;
   }
 }
-/* === Выравнивание блоков категорий и достижений === */
+
 .panel-card--categories,
 .panel-card--achievements {
   display: flex;
