@@ -6,6 +6,7 @@ import achievementIcon from "../assets/icons/achievement.svg";
 import AnimatedContent from "../components/AnimatedContent";
 import AnimatedScrollList from "../components/AnimatedScrollList";
 import BorderGlow from "../components/BorderGlow";
+import GroupFormModal from "../components/GroupFormModal";
 
 import "../styles/lobby.css";
 
@@ -141,6 +142,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     nutrition: false,
     cleaning: false,
   });
+  const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
 
   const createdCategoryObjects = useMemo(
     () => ALL_CATEGORIES.filter((category) => createdCategories.includes(category.id)),
@@ -182,6 +184,10 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     },
     [openGroupPage]
   );
+
+  const handleGroupFormSubmit = useCallback((payload) => {
+    console.log("Group form submitted:", payload);
+  }, []);
 
   return (
     <ClickSpark>
@@ -308,9 +314,9 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                       <div className="add-category">
                         <button
                           type="button"
-                          onClick={() => {}}
+                          onClick={() => setIsGroupFormOpen(true)}
                           className="add-category__button"
-                          aria-label="Добавить категорию"
+                          aria-label="Добавить группу"
                         >
                           <span className="add-category__plus" />
                         </button>
@@ -356,6 +362,12 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
             </section>
           </main>
         </div>
+
+        <GroupFormModal
+          isOpen={isGroupFormOpen}
+          onClose={() => setIsGroupFormOpen(false)}
+          onSubmit={handleGroupFormSubmit}
+        />
       </div>
     </ClickSpark>
   );
