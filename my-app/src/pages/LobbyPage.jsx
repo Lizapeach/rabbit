@@ -117,14 +117,20 @@ const ACHIEVEMENTS = [
     desc: "Первые привычки успешно добавлены и активны.",
   },
   {
-    title: "Мягкий старт",
-    desc: "Первые привычки успешно добавлены и активны.",
+    title: "Командный темп",
+    desc: "Внутри одной группы неделя прошла без общего провала.",
   },
   {
-    title: "Мягкий старт",
-    desc: "Первые привычки успешно добавлены и активны.",
+    title: "Нежная настойчивость",
+    desc: "Серия закрытых задач продолжает расти каждый день.",
   },
 ];
+
+const RECORD_STREAK = {
+  days: 29,
+  category: "Чтение",
+  group: "Буба",
+};
 
 function getInitial(name) {
   const trimmedName = String(name || "").trim();
@@ -288,7 +294,9 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                                         role="button"
                                         tabIndex={0}
                                         onClick={() => openGroupPage(category, group)}
-                                        onKeyDown={(event) => handleGroupKeyDown(event, category, group)}
+                                        onKeyDown={(event) =>
+                                          handleGroupKeyDown(event, category, group)
+                                        }
                                         aria-label={`Открыть группу ${group.name}`}
                                       >
                                         <div className="group-card__top">
@@ -326,38 +334,69 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                 </AnimatedContent>
               </div>
 
-              <aside className="achievements-panel">
-                <AnimatedContent distance={80} duration={0.8} delay={0.3}>
-                  <BorderGlow>
-                    <div className="panel-card panel-card--achievements">
-                      <div className="section-label">Достижения</div>
-                      <h2 className="section-title">Личные достижения</h2>
-                      <p className="section-description">
-                        Здесь собраны все личные достижения пользователя в одном мягком и понятном блоке.
-                      </p>
+              <aside className="content-grid__side">
+                <div className="record-panel">
+                  <AnimatedContent distance={80} duration={0.8} delay={0.22}>
+                    <BorderGlow>
+                      <div className="panel-card panel-card--record">
+                        <div className="section-label">Результат</div>
+                        <h2 className="section-title section-title--record">Рекордная серия</h2>
 
-                      <AnimatedScrollList className="achievement-list">
-                        {ACHIEVEMENTS.map((item, index) => (
-                          <div key={`${item.title}-${index}`} className="achievement-card">
-                            <div className="achievement-card__content">
-                              <div className="achievement-card__icon">
+                        <div className="record-streak">
+                          <div className="record-streak__inner">
+                            <div className="record-streak__days">
+                              <div className="record-streak__card-label">Дней</div>
+                              <div className="record-streak__value">{RECORD_STREAK.days}</div>
+                            </div>
+
+                            <div className="record-streak__details">
+                              <div className="record-streak__meta-card">
+                                <div className="record-streak__card-label">Категория</div>
+                                <div className="record-streak__meta-value">{RECORD_STREAK.category}</div>
+                              </div>
+
+                              <div className="record-streak__meta-card">
+                                <div className="record-streak__card-label">Группа</div>
+                                <div className="record-streak__meta-value">{RECORD_STREAK.group}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </BorderGlow>
+                  </AnimatedContent>
+                </div>
+
+                <div className="achievements-panel">
+                  <AnimatedContent distance={80} duration={0.8} delay={0.3}>
+                    <BorderGlow>
+                      <div className="panel-card panel-card--achievements">
+                        <div className="section-label">Достижения</div>
+                        <h2 className="section-title">Личные достижения</h2>
+
+                        <AnimatedScrollList className="achievement-list">
+                          {ACHIEVEMENTS.map((item, index) => (
+                            <div key={`${item.title}-${index}`} className="achievement-card">
+                              <div className="achievement-card__content">
+                                <div className="achievement-card__icon">
                                   <img
                                     src={achievementIcon}
                                     alt="Иконка достижения"
                                     className="achievement-card__icon-image"
                                   />
                                 </div>
-                              <div>
-                                <div className="achievement-card__title">{item.title}</div>
-                                <div className="achievement-card__desc">{item.desc}</div>
+                                <div>
+                                  <div className="achievement-card__title">{item.title}</div>
+                                  <div className="achievement-card__desc">{item.desc}</div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </AnimatedScrollList>
-                    </div>
-                  </BorderGlow>
-                </AnimatedContent>
+                          ))}
+                        </AnimatedScrollList>
+                      </div>
+                    </BorderGlow>
+                  </AnimatedContent>
+                </div>
               </aside>
             </section>
           </main>
