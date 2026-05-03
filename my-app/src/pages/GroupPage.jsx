@@ -29,21 +29,27 @@ const friendsData = [
     avatarColor: USER.avatarColor,
     tasks: [
       {
-        id: 1,
-        title: "Прочитать 20 минут",
-        desc: "Небольшой спокойный ритм для концентрации.",
+        id: "reading-pages",
+        type: "template",
+        templateId: "reading-pages",
+        templateValue: "20",
+        title: "Прочитать 20 страниц",
         done: false,
       },
       {
-        id: 2,
-        title: "Сделать короткую заметку",
-        desc: "Сохранить одно впечатление после чтения.",
+        id: "reading-minutes",
+        type: "template",
+        templateId: "reading-minutes",
+        templateValue: "20",
+        title: "Читать 20 минут",
         done: false,
       },
       {
-        id: 3,
-        title: "Проверить серию",
-        desc: "Не пропустить сегодняшний шаг группы.",
+        id: "reading-notes",
+        type: "template",
+        templateId: "reading-notes",
+        templateValue: "3",
+        title: "Выписать 3 мысли из книги",
         done: false,
       },
     ],
@@ -57,21 +63,18 @@ const friendsData = [
     avatarColor: "#c7d8c0",
     tasks: [
       {
-        id: 1,
+        id: "anna-reading-pages",
         title: "Прочитать 10 страниц",
-        desc: "Мягкая цель на сегодня.",
         done: true,
       },
       {
-        id: 2,
+        id: "anna-note",
         title: "Написать вывод",
-        desc: "Короткая фиксация мысли.",
         done: true,
       },
       {
-        id: 3,
+        id: "anna-mark",
         title: "Отметить чтение",
-        desc: "Поддержать общий ритм.",
         done: false,
       },
     ],
@@ -85,21 +88,18 @@ const friendsData = [
     avatarColor: "#e8c4b7",
     tasks: [
       {
-        id: 1,
-        title: "Утреннее чтение",
-        desc: "15 минут без отвлечений.",
+        id: "mira-reading-minutes",
+        title: "Читать 15 минут",
         done: false,
       },
       {
-        id: 2,
+        id: "mira-note",
         title: "Открыть заметку",
-        desc: "Сохранить одну мысль.",
         done: false,
       },
       {
-        id: 3,
+        id: "mira-mark",
         title: "Закрыть привычку",
-        desc: "Отметить выполнение вечером.",
         done: false,
       },
     ],
@@ -113,21 +113,18 @@ const friendsData = [
     avatarColor: "#e7d8bf",
     tasks: [
       {
-        id: 1,
-        title: "Прочитать главу",
-        desc: "Фокус на последовательности.",
+        id: "sofia-reading-chapter",
+        title: "Прочитать 1 главу",
         done: true,
       },
       {
-        id: 2,
+        id: "sofia-break",
         title: "Сделать паузу",
-        desc: "Вернуться к книге вечером.",
         done: true,
       },
       {
-        id: 3,
+        id: "sofia-result",
         title: "Отметить результат",
-        desc: "Поддержать группу.",
         done: true,
       },
     ],
@@ -142,6 +139,15 @@ const uniqueTaskBase = {
 
 const SPECIAL_TASK_REWARD_COINS = 15;
 const MEMBER_COLOR_STORAGE_KEY = "quiet-pages-member-colors";
+
+const PERSONAL_TASK_TEMPLATES = [
+  { id: "reading-pages", before: "Прочитать", after: "страниц" },
+  { id: "reading-minutes", before: "Читать", after: "минут" },
+  { id: "reading-chapter", before: "Прочитать", after: "главу" },
+  { id: "reading-notes", before: "Выписать", after: "мысли из книги" },
+];
+
+const PERSONAL_CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
 
 const getDefaultMemberColors = () =>
   friendsData.reduce((colors, friend) => {
@@ -205,6 +211,131 @@ function renderMemberAvatar(avatar, fallbackLabel = "") {
   }
 
   return <span className="group-member-avatar__symbol">{avatar?.label || fallbackLabel}</span>;
+}
+
+function buildTemplateTaskTitle(template, value) {
+  const preparedValue = String(value || "").trim();
+  const parts = [template.before, preparedValue, template.after]
+    .filter((part) => String(part || "").trim().length > 0)
+    .map((part) => String(part).trim());
+
+  return parts.join(" ");
+}
+
+function createTaskEditorDraft(tasks) {
+  const selectedTaskIds = [];
+  const templateValues = {};
+  const customTaskIds = [];
+  const customTasks = {};
+  let customIndex = 0;
+
+  tasks.forEach((task) => {
+    if (task.type === "template" && task.templateId) {
+      selectedTaskIds.push(task.templateId);
+      templateValues[task.templateId] = task.templateValue || "";
+      return;
+    }
+
+    const customId = task.customTaskId || PERSONAL_CUSTOM_TASK_IDS[customIndex];
+    if (!customId) return;
+
+    customTaskIds.push(customId);
+    customTasks[customId] = task.title || "";
+    customIndex += 1;
+  });
+
+  return {
+    selectedTaskIds,
+    templateValues,
+    customTaskIds,
+    customTasks,
+  };
+}
+
+function validateTaskEditorDraft(draft) {
+  const errors = {
+    templates: {},
+    customTasks: {},
+    common: "",
+  };
+
+  const selectedTemplateIds = draft.selectedTaskIds || [];
+  const selectedCustomIds = draft.customTaskIds || [];
+  const hasAnyTask = selectedTemplateIds.length > 0 || selectedCustomIds.length > 0;
+
+  selectedTemplateIds.forEach((templateId) => {
+    if (!String(draft.templateValues?.[templateId] || "").trim()) {
+      errors.templates[templateId] = true;
+    }
+  });
+
+  selectedCustomIds.forEach((taskId) => {
+    if (!String(draft.customTasks?.[taskId] || "").trim()) {
+      errors.customTasks[taskId] = true;
+    }
+  });
+
+  if (!hasAnyTask) {
+    errors.common = "Выберите хотя бы одно задание";
+  }
+
+  if (Object.keys(errors.templates).length > 0) {
+    errors.common = "Заполните выбранные шаблоны заданий";
+  }
+
+  if (Object.keys(errors.customTasks).length > 0) {
+    errors.common = "Заполните выбранные свои задания";
+  }
+
+  return errors;
+}
+
+function hasTaskEditorErrors(errors) {
+  return Boolean(
+    errors.common ||
+    Object.keys(errors.templates || {}).length > 0 ||
+    Object.keys(errors.customTasks || {}).length > 0
+  );
+}
+
+function buildTasksFromEditorDraft(draft, previousTasks) {
+  const previousById = new Map(previousTasks.map((task) => [task.id, task]));
+  const nextTasks = [];
+
+  (draft.selectedTaskIds || []).forEach((templateId) => {
+    const template = PERSONAL_TASK_TEMPLATES.find((item) => item.id === templateId);
+    if (!template) return;
+
+    const templateValue = String(draft.templateValues?.[templateId] || "").trim();
+    const title = buildTemplateTaskTitle(template, templateValue);
+    const previousTask = previousById.get(templateId);
+
+    nextTasks.push({
+      id: templateId,
+      type: "template",
+      templateId,
+      templateValue,
+      title,
+      done: previousTask?.title === title ? Boolean(previousTask.done) : false,
+    });
+  });
+
+  (draft.customTaskIds || []).forEach((taskId) => {
+    const title = String(draft.customTasks?.[taskId] || "").trim();
+    if (!title) return;
+
+    const previousTask = previousById.get(taskId);
+
+    nextTasks.push({
+      id: taskId,
+      type: "custom",
+      customTaskId: taskId,
+      title,
+      done: previousTask?.title === title ? Boolean(previousTask.done) : false,
+    });
+  });
+
+  return nextTasks;
 }
 
 const createInitialSpecialTasks = () =>
@@ -454,7 +585,13 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   });
   const [draftMemberColors, setDraftMemberColors] = useState(() => memberColors);
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [isTaskEditorOpen, setIsTaskEditorOpen] = useState(false);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const [exitModalStep, setExitModalStep] = useState("confirm");
+  const [adminTransferMemberId, setAdminTransferMemberId] = useState("");
+  const [adminMemberId, setAdminMemberId] = useState("me");
+  const [removedMemberIds, setRemovedMemberIds] = useState([]);
+  const [memberRemoveConfirm, setMemberRemoveConfirm] = useState(null);
   const [specialTasks, setSpecialTasks] = useState(() => createInitialSpecialTasks());
   const [isSpecialUploadOpen, setIsSpecialUploadOpen] = useState(false);
   const [isFriendsExpanded, setIsFriendsExpanded] = useState(false);
@@ -466,6 +603,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [notesMenu, setNotesMenu] = useState(null);
   const [activeNoteMenu, setActiveNoteMenu] = useState(null);
   const [noteEditor, setNoteEditor] = useState(null);
+  const [isClearNotesConfirmOpen, setIsClearNotesConfirmOpen] = useState(false);
 
   const currentDate = useMemo(() => new Date(), []);
   const displayUserName = userProfile?.name || USER.name;
@@ -478,9 +616,14 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
   const zeroTaskDates = useMemo(() => createDemoZeroTaskDates(currentDate), [currentDate]);
 
+  const activeFriendsData = useMemo(
+    () => friendsData.filter((friend) => !removedMemberIds.includes(friend.id)),
+    [removedMemberIds]
+  );
+
   const friendsWithColors = useMemo(
     () =>
-      friendsData.map((friend) => {
+      activeFriendsData.map((friend) => {
         const friendAvatar =
           friend.id === "me"
             ? resolvedUserAvatar
@@ -501,7 +644,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
           color: memberColors[friend.id] || friend.color,
         };
       }),
-    [displayUserEmail, displayUserInitials, displayUserName, memberColors, resolvedUserAvatar]
+    [activeFriendsData, displayUserEmail, displayUserInitials, displayUserName, memberColors, resolvedUserAvatar]
   );
 
   const selectedFriend = useMemo(
@@ -522,11 +665,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
   const hasUnsavedMemberColors = useMemo(
     () =>
-      friendsData.some((friend) =>
+      activeFriendsData.some((friend) =>
         normalizeHexColor(draftMemberColors[friend.id], friend.color) !==
         normalizeHexColor(memberColors[friend.id], friend.color)
       ),
-    [draftMemberColors, memberColors]
+    [activeFriendsData, draftMemberColors, memberColors]
   );
 
   const groupStats = useMemo(() => {
@@ -569,6 +712,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     completedAt: null,
   };
 
+  const adminTransferMembers = useMemo(
+    () => friendsWithColors.filter((member) => member.id !== "me"),
+    [friendsWithColors]
+  );
+
+  const activeAdminTransferMemberId = useMemo(() => {
+    if (adminTransferMembers.some((member) => member.id === adminTransferMemberId)) {
+      return adminTransferMemberId;
+    }
+
+    return adminTransferMembers[0]?.id || "";
+  }, [adminTransferMemberId, adminTransferMembers]);
 
   const weekAnalyticsData = useMemo(
     () => buildAnalyticsSeries(7, currentDate, myTasks, zeroTaskDates, friendsWithColors),
@@ -584,7 +739,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const selectedMemberColorSoft = hexToRgba(selectedMemberColor, 0.22);
 
   const handleMemberColorChange = (memberId, nextColor) => {
-    const memberFallback = friendsData.find((friend) => friend.id === memberId)?.color || "#d8cde3";
+    const memberFallback = activeFriendsData.find((friend) => friend.id === memberId)?.color || "#d8cde3";
     const safeColor = normalizeHexColor(nextColor, memberFallback);
 
     setDraftMemberColors((prev) => ({
@@ -604,7 +759,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   };
 
   const handleSaveMemberColors = () => {
-    const nextColors = friendsData.reduce((colors, friend) => {
+    const nextColors = activeFriendsData.reduce((colors, friend) => {
       colors[friend.id] = normalizeHexColor(draftMemberColors[friend.id], memberColors[friend.id] || friend.color);
       return colors;
     }, {});
@@ -613,8 +768,76 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setDraftMemberColors(nextColors);
   };
 
-  const handleConfirmExitGroup = () => {
+  const handleRequestRemoveMember = (member) => {
+    if (!member || member.id === "me") return;
+
+    setMemberRemoveConfirm(member);
+  };
+
+  const handleConfirmRemoveMember = () => {
+    if (!memberRemoveConfirm || memberRemoveConfirm.id === "me") return;
+
+    const memberId = memberRemoveConfirm.id;
+
+    setRemovedMemberIds((prev) => (prev.includes(memberId) ? prev : [...prev, memberId]));
+    setMemberColors((prev) => {
+      const next = { ...prev };
+      delete next[memberId];
+      return next;
+    });
+    setDraftMemberColors((prev) => {
+      const next = { ...prev };
+      delete next[memberId];
+      return next;
+    });
+
+    if (selectedFriendId === memberId) {
+      setSelectedFriendId("me");
+    }
+
+    if (adminMemberId === memberId) {
+      setAdminMemberId("me");
+    }
+
+    setMemberRemoveConfirm(null);
+    setIsGroupSettingsOpen(false);
+  };
+
+  const handleOpenTaskEditor = () => {
+    setIsGroupSettingsOpen(false);
+    setIsTaskEditorOpen(true);
+  };
+
+  const handleSaveMyTasks = (nextTasks) => {
+    setMyTasks(nextTasks);
+    setIsTaskEditorOpen(false);
+  };
+
+  const handleRequestExitGroup = () => {
+    setExitModalStep("confirm");
+    setAdminTransferMemberId(adminTransferMembers[0]?.id || "");
+    setIsExitConfirmOpen(true);
+  };
+
+  const closeExitConfirm = () => {
     setIsExitConfirmOpen(false);
+    setExitModalStep("confirm");
+  };
+
+  const handleConfirmExitGroup = () => {
+    if (exitModalStep === "confirm") {
+      setExitModalStep("transfer");
+      setAdminTransferMemberId(activeAdminTransferMemberId);
+      return;
+    }
+
+    if (activeAdminTransferMemberId) {
+      setAdminMemberId(activeAdminTransferMemberId);
+      setSelectedFriendId(activeAdminTransferMemberId);
+    }
+
+    setIsExitConfirmOpen(false);
+    setExitModalStep("confirm");
     setIsGroupSettingsOpen(false);
   };
 
@@ -700,10 +923,17 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setNotesMenu(null);
   };
 
-  const clearNotes = () => {
+  const requestClearNotes = () => {
+    setNotesMenu(null);
+    setActiveNoteMenu(null);
+    setIsClearNotesConfirmOpen(true);
+  };
+
+  const confirmClearNotes = () => {
     setNotes([]);
     setNotesMenu(null);
     setActiveNoteMenu(null);
+    setIsClearNotesConfirmOpen(false);
   };
 
   const saveNote = () => {
@@ -1065,20 +1295,6 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                                   {renderMemberAvatar(friend.avatar, friend.initials)}
                                 </button>
                               ))}
-
-                              <button
-                                type="button"
-                                className="friend-stack__add"
-                                style={{
-                                  left: isFriendsExpanded
-                                    ? `${friendsWithColors.length * 46}px`
-                                    : `${friendsWithColors.length * 22}px`,
-                                  opacity: isFriendsExpanded ? 1 : 0,
-                                }}
-                                aria-label="Добавить участника"
-                              >
-                                <span className="friend-stack__plus" />
-                              </button>
                             </div>
                           </div>
 
@@ -1100,7 +1316,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                                 hasChanges={hasUnsavedMemberColors}
                                 onColorChange={handleMemberColorChange}
                                 onSave={handleSaveMemberColors}
-                                onRequestExit={() => setIsExitConfirmOpen(true)}
+                                onEditTasks={handleOpenTaskEditor}
+                                onRequestRemoveMember={handleRequestRemoveMember}
+                                onRequestExit={handleRequestExitGroup}
+                                adminMemberId={adminMemberId}
                               />
                             )}
                           </div>
@@ -1223,7 +1442,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                           <button
                             type="button"
                             data-note-ui="true"
-                            onClick={clearNotes}
+                            onClick={requestClearNotes}
                             className="menu-item menu-item--danger"
                           >
                             Очистить поле
@@ -1251,6 +1470,14 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
           </main>
         </div>
 
+        {isTaskEditorOpen && (
+          <TaskEditorModal
+            tasks={myTasks}
+            onClose={() => setIsTaskEditorOpen(false)}
+            onSave={handleSaveMyTasks}
+          />
+        )}
+
         {isSpecialUploadOpen && (
           <div
             className="modal-backdrop"
@@ -1276,28 +1503,151 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
           <div
             className="modal-backdrop"
             data-note-ui="true"
-            onClick={() => setIsExitConfirmOpen(false)}
+            onClick={closeExitConfirm}
           >
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-card__title">Выйти из группы?</div>
+              {exitModalStep === "confirm" ? (
+                <>
+                  <div className="modal-card__title">Выйти из группы?</div>
+                  <div className="modal-card__text">
+                    Ты больше не будешь видеть задания, заметки и прогресс группы. Перед выходом нужно будет передать права администратора другому участнику.
+                  </div>
+
+                  <div className="modal-card__actions">
+                    <button
+                      type="button"
+                      className="modal-card__button modal-card__button--ghost"
+                      onClick={closeExitConfirm}
+                    >
+                      Остаться
+                    </button>
+                    <button
+                      type="button"
+                      className="modal-card__button modal-card__button--danger"
+                      onClick={handleConfirmExitGroup}
+                    >
+                      Выйти
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="modal-card__title">Передать права администратора</div>
+                  <div className="modal-card__text">
+                    Тогда выберите участника, которому вы хотите передать права администратора.
+                  </div>
+
+                  {adminTransferMembers.length > 0 ? (
+                    <div className="admin-transfer-list">
+                      {adminTransferMembers.map((member) => (
+                        <label
+                          key={member.id}
+                          className={`admin-transfer-option ${
+                            activeAdminTransferMemberId === member.id ? "admin-transfer-option--active" : ""
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="admin-transfer-member"
+                            value={member.id}
+                            checked={activeAdminTransferMemberId === member.id}
+                            onChange={() => setAdminTransferMemberId(member.id)}
+                          />
+                          <span
+                            className="admin-transfer-option__avatar"
+                            style={{ backgroundColor: member.avatar?.color || member.avatarColor }}
+                            aria-hidden="true"
+                          >
+                            {renderMemberAvatar(member.avatar, member.initials)}
+                          </span>
+                          <span className="admin-transfer-option__text">
+                            <strong>{member.name}</strong>
+                            <small>{member.email}</small>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="modal-card__text modal-card__text--warning">
+                      В группе больше нет других участников, поэтому передать права администратора некому.
+                    </div>
+                  )}
+
+                  <div className="modal-card__actions">
+                    <button
+                      type="button"
+                      className="modal-card__button modal-card__button--danger"
+                      onClick={handleConfirmExitGroup}
+                      disabled={adminTransferMembers.length === 0}
+                    >
+                      Выйти
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {memberRemoveConfirm && (
+          <div
+            className="modal-backdrop"
+            data-note-ui="true"
+            onClick={() => setMemberRemoveConfirm(null)}
+          >
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-card__title">Удалить участника?</div>
               <div className="modal-card__text">
-                Ты больше не будешь видеть задания, заметки и прогресс группы. Действие выхода потом нужно будет подключить к серверу или роутеру приложения.
+                Вы точно хотите удалить участника {memberRemoveConfirm.name} из группы?
+                Его задания, цвет и прогресс перестанут учитываться на этой странице.
               </div>
 
               <div className="modal-card__actions">
                 <button
                   type="button"
                   className="modal-card__button modal-card__button--ghost"
-                  onClick={() => setIsExitConfirmOpen(false)}
+                  onClick={() => setMemberRemoveConfirm(null)}
                 >
-                  Остаться
+                  Отмена
                 </button>
                 <button
                   type="button"
                   className="modal-card__button modal-card__button--danger"
-                  onClick={handleConfirmExitGroup}
+                  onClick={handleConfirmRemoveMember}
                 >
-                  Выйти
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isClearNotesConfirmOpen && (
+          <div
+            className="modal-backdrop"
+            data-note-ui="true"
+            onClick={() => setIsClearNotesConfirmOpen(false)}
+          >
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-card__title">Очистить поле?</div>
+              <div className="modal-card__text">
+                Вы точно хотите удалить все записки с поля? Это действие очистит только записки на текущей странице группы.
+              </div>
+
+              <div className="modal-card__actions">
+                <button
+                  type="button"
+                  className="modal-card__button modal-card__button--ghost"
+                  onClick={() => setIsClearNotesConfirmOpen(false)}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="modal-card__button modal-card__button--danger"
+                  onClick={confirmClearNotes}
+                >
+                  Очистить
                 </button>
               </div>
             </div>
@@ -1334,13 +1684,172 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   );
 }
 
+function TaskEditorModal({ tasks, onClose, onSave }) {
+  const [draft, setDraft] = useState(() => createTaskEditorDraft(tasks));
+  const [errors, setErrors] = useState({ templates: {}, customTasks: {}, common: "" });
+
+  const toggleTemplate = (templateId) => {
+    setDraft((prev) => {
+      const currentIds = prev.selectedTaskIds || [];
+      const nextIds = currentIds.includes(templateId)
+        ? currentIds.filter((id) => id !== templateId)
+        : [...currentIds, templateId];
+
+      return {
+        ...prev,
+        selectedTaskIds: nextIds,
+      };
+    });
+  };
+
+  const toggleCustomTask = (taskId) => {
+    setDraft((prev) => {
+      const currentIds = prev.customTaskIds || [];
+      const nextIds = currentIds.includes(taskId)
+        ? currentIds.filter((id) => id !== taskId)
+        : [...currentIds, taskId];
+
+      return {
+        ...prev,
+        customTaskIds: nextIds,
+      };
+    });
+  };
+
+  const updateTemplateValue = (templateId, value) => {
+    setDraft((prev) => ({
+      ...prev,
+      templateValues: {
+        ...prev.templateValues,
+        [templateId]: value,
+      },
+    }));
+  };
+
+  const updateCustomTask = (taskId, value) => {
+    setDraft((prev) => ({
+      ...prev,
+      customTasks: {
+        ...prev.customTasks,
+        [taskId]: value,
+      },
+    }));
+  };
+
+  const handleSave = () => {
+    const nextErrors = validateTaskEditorDraft(draft);
+    setErrors(nextErrors);
+
+    if (hasTaskEditorErrors(nextErrors)) return;
+
+    onSave(buildTasksFromEditorDraft(draft, tasks));
+  };
+
+  return (
+    <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={onClose}>
+      <div className="task-editor-modal" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="task-editor-modal__close" onClick={onClose} aria-label="Закрыть окно">
+          ×
+        </button>
+
+        <div className="task-editor-modal__header">
+          <div className="section-label">Личные задания</div>
+          <h2 className="task-editor-modal__title">Изменить мои задания</h2>
+          <p className="task-editor-modal__text">
+            Эти изменения применяются только к твоему списку. Особое задание не меняется и продолжает жить отдельно.
+          </p>
+        </div>
+
+        <div className="task-editor-scroll">
+          {errors.common && <div className="group-form-error-card">{errors.common}</div>}
+
+          <div className="task-editor-template-list">
+            {PERSONAL_TASK_TEMPLATES.map((template) => {
+              const isChecked = (draft.selectedTaskIds || []).includes(template.id);
+              const hasError = Boolean(errors.templates?.[template.id]);
+
+              return (
+                <label
+                  key={template.id}
+                  className={`task-editor-template ${isChecked ? "task-editor-template--checked" : ""} ${hasError ? "task-editor-template--error" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleTemplate(template.id)}
+                  />
+                  <span className="task-editor-template__dot" />
+                  <span className="task-editor-template__text">
+                    {template.before}
+                    <input
+                      value={draft.templateValues?.[template.id] || ""}
+                      onChange={(event) => updateTemplateValue(template.id, event.target.value)}
+                      placeholder="___"
+                      aria-invalid={hasError}
+                    />
+                    {template.after}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="task-editor-custom-head group-form-custom-head">
+            <span>Вписать своё задание</span>
+            <span className="group-form-info" tabIndex={0} aria-label="Информация о своих заданиях">
+              !
+              <span className="group-form-info__tooltip">За выполнение данных заданий нельзя получить достижение</span>
+            </span>
+          </div>
+
+          <div className="task-editor-custom-list">
+            {PERSONAL_CUSTOM_TASK_IDS.map((id, index) => {
+              const isChecked = (draft.customTaskIds || []).includes(id);
+              const hasError = Boolean(errors.customTasks?.[id]);
+
+              return (
+                <label
+                  key={id}
+                  className={`task-editor-custom-task ${isChecked ? "task-editor-custom-task--checked" : ""} ${hasError ? "task-editor-custom-task--error" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleCustomTask(id)}
+                  />
+                  <span className="task-editor-template__dot" />
+                  <input
+                    value={draft.customTasks?.[id] || ""}
+                    onChange={(event) => updateCustomTask(id, event.target.value)}
+                    placeholder={`Своё задание ${index + 1}`}
+                    aria-invalid={hasError}
+                  />
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="task-editor-modal__footer">
+          <button type="button" className="modal-card__button task-editor-modal__save" onClick={handleSave}>
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GroupSettingsPanel({
   members,
   savedMemberColors,
   hasChanges,
   onColorChange,
   onSave,
+  onEditTasks,
+  onRequestRemoveMember,
   onRequestExit,
+  adminMemberId,
 }) {
   return (
     <div
@@ -1380,26 +1889,48 @@ function GroupSettingsPanel({
                 >
                   {renderMemberAvatar(member.avatar, member.initials)}
                 </span>
-                <span className="group-color-row__name">{label}</span>
+                <span className="group-color-row__text">
+                  <span className="group-color-row__name">{label}</span>
+                  {member.id === adminMemberId && (
+                    <span className="group-color-row__role">Администратор</span>
+                  )}
+                </span>
               </div>
 
               {hasRowChanges && (
                 <span className="group-color-row__unsaved">Цвет ещё не сохранён</span>
               )}
 
-              <input
-                type="color"
-                value={member.color}
-                onChange={(event) => onColorChange(member.id, event.target.value)}
-                className="group-color-swatch"
-                style={{ backgroundColor: member.color }}
-                aria-label={`Изменить цвет: ${label}`}
-                title={member.color}
-              />
+              <div className="group-color-row__controls">
+                <input
+                  type="color"
+                  value={member.color}
+                  onChange={(event) => onColorChange(member.id, event.target.value)}
+                  className="group-color-swatch"
+                  style={{ backgroundColor: member.color }}
+                  aria-label={`Изменить цвет: ${label}`}
+                  title={member.color}
+                />
+
+                {!isOwnProfile && (
+                  <button
+                    type="button"
+                    className="group-color-row__remove"
+                    onClick={() => onRequestRemoveMember(member)}
+                    aria-label={`Удалить участника: ${member.name}`}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      <button type="button" className="group-settings__tasks" onClick={onEditTasks}>
+        Изменить задания
+      </button>
 
       <button type="button" className="group-settings__exit" onClick={onRequestExit}>
         Выйти из группы
@@ -1426,7 +1957,7 @@ function TaskCard({ task, disabled, onToggle }) {
           <div className="task-card__title">
             <TaskDoneAnimation done={task.done}>{task.title}</TaskDoneAnimation>
           </div>
-          <div className="task-card__desc">{task.desc}</div>
+          {task.desc && <div className="task-card__desc">{task.desc}</div>}
         </div>
       </div>
     </div>
