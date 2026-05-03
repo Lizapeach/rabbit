@@ -49,6 +49,7 @@ const MOCK_JOINED_GROUP = {
   name: "Quiet Pages",
   categoryId: "reading",
 };
+const EMPTY_VALIDATION_ERRORS = {};
 
 function createInviteCode() {
   return `HAB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
@@ -59,7 +60,7 @@ function createInviteCode() {
 
 function createInitialForm() {
   return {
-    categoryId: "sport",
+    categoryId: "",
     groupName: "",
     groupDescription: "",
     inviteCode: "",
@@ -69,6 +70,63 @@ function createInitialForm() {
     customTaskId: "",
     customTaskIds: [],
     customTasks: {},
+  };
+}
+
+function isBlank(value) {
+  return !String(value || "").trim();
+}
+
+function validateGroupFormStep(step, flow, form) {
+  const errors = {};
+
+  if (flow === "create" && step === 2) {
+    if (isBlank(form.categoryId)) errors.categoryId = "Выберите категорию";
+    if (isBlank(form.groupName)) errors.groupName = "Впишите название группы";
+    if (isBlank(form.groupDescription)) errors.groupDescription = "Впишите описание группы";
+  }
+
+  if (flow === "join" && step === 2) {
+    if (isBlank(form.inviteCode)) errors.inviteCode = "Впишите код группы";
+  }
+
+  if (step === 3) {
+    const selectedTemplateIds = form.selectedTaskIds || [];
+    const selectedCustomIds = form.customTaskIds || [];
+    const hasSelectedTasks = selectedTemplateIds.length > 0 || selectedCustomIds.length > 0;
+    const templateValueErrors = {};
+    const customTaskErrors = {};
+
+    selectedTemplateIds.forEach((templateId) => {
+      if (isBlank(form.templateValues?.[templateId])) {
+        templateValueErrors[templateId] = true;
+      }
+    });
+
+    selectedCustomIds.forEach((taskId) => {
+      if (isBlank(form.customTasks?.[taskId])) {
+        customTaskErrors[taskId] = true;
+      }
+    });
+
+    if (!hasSelectedTasks) {
+      errors.tasks = "Выберите хотя бы одно задание";
+    }
+
+    if (Object.keys(templateValueErrors).length > 0) {
+      errors.templateValues = templateValueErrors;
+      errors.tasks = "Заполните выбранные шаблоны заданий";
+    }
+
+    if (Object.keys(customTaskErrors).length > 0) {
+      errors.customTasks = customTaskErrors;
+      errors.tasks = "Заполните выбранные свои задания";
+    }
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
   };
 }
 
@@ -84,13 +142,22 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   const [direction, setDirection] = useState(0);
   const [copied, setCopied] = useState(false);
   const [form, setForm] = useState(createInitialForm);
+  const [visibleValidationKey, setVisibleValidationKey] = useState("");
   const [groupCode] = useState(createInviteCode);
   const dialogRef = useRef(null);
 
   const totalSteps = flow === "create" ? 4 : 3;
   const isLastStep = currentStep === totalSteps;
-  const activeCategoryId = flow === "create" ? form.categoryId : MOCK_JOINED_GROUP.categoryId;
+  const activeCategoryId = flow === "create" ? form.categoryId || "sport" : MOCK_JOINED_GROUP.categoryId;
   const activeTemplates = TASK_TEMPLATES[activeCategoryId] || TASK_TEMPLATES.sport;
+  const validationKey = `${flow}:${currentStep}`;
+  const validationResult = useMemo(() => validateGroupFormStep(currentStep, flow, form), [currentStep, flow, form]);
+  const validationErrors = visibleValidationKey === validationKey ? validationResult.errors : EMPTY_VALIDATION_ERRORS;
+
+  const handleFlowChange = useCallback((nextFlow) => {
+    setFlow(nextFlow);
+    setVisibleValidationKey("");
+  }, []);
 
 
   useEffect(() => {
@@ -120,29 +187,31 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   const steps = useMemo(() => {
     if (flow === "create") {
       return [
-        <ChoiceStep key="choice" flow={flow} onFlowChange={setFlow} />,
-        <CreateGroupDetailsStep key="details" form={form} setForm={setForm} />,
+        <ChoiceStep key="choice" flow={flow} onFlowChange={handleFlowChange} />,
+        <CreateGroupDetailsStep key="details" form={form} setForm={setForm} errors={validationErrors} />,
         <TasksStep
           key="tasks"
           templates={activeTemplates}
           form={form}
           setForm={setForm}
+          errors={validationErrors}
         />,
         <InviteCodeStep key="code" code={groupCode} copied={copied} onCopy={() => handleCopyCode(groupCode)} />,
       ];
     }
 
     return [
-      <ChoiceStep key="choice" flow={flow} onFlowChange={setFlow} />,
-      <JoinGroupCodeStep key="join" form={form} setForm={setForm} joinedGroup={MOCK_JOINED_GROUP} />,
+      <ChoiceStep key="choice" flow={flow} onFlowChange={handleFlowChange} />,
+      <JoinGroupCodeStep key="join" form={form} setForm={setForm} joinedGroup={MOCK_JOINED_GROUP} errors={validationErrors} />,
       <TasksStep
         key="tasks"
         templates={activeTemplates}
         form={form}
         setForm={setForm}
+        errors={validationErrors}
       />,
     ];
-  }, [activeTemplates, copied, flow, form, groupCode, handleCopyCode]);
+  }, [activeTemplates, copied, flow, form, groupCode, handleCopyCode, handleFlowChange, validationErrors]);
 
   const updateStep = (nextStep) => {
     setCurrentStep(nextStep);
@@ -155,6 +224,15 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   };
 
   const goNext = () => {
+    const validation = validateGroupFormStep(currentStep, flow, form);
+
+    if (!validation.isValid) {
+      setVisibleValidationKey(validationKey);
+      return;
+    }
+
+    setVisibleValidationKey("");
+
     if (isLastStep) {
       onSubmit?.({
         mode: flow,
@@ -171,7 +249,26 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   };
 
   const handleIndicatorClick = (step) => {
-    setDirection(step > currentStep ? 1 : -1);
+    if (step <= currentStep) {
+      setDirection(step > currentStep ? 1 : -1);
+      setVisibleValidationKey("");
+      updateStep(step);
+      return;
+    }
+
+    for (let stepToCheck = currentStep; stepToCheck < step; stepToCheck += 1) {
+      const validation = validateGroupFormStep(stepToCheck, flow, form);
+
+      if (!validation.isValid) {
+        setDirection(stepToCheck > currentStep ? 1 : -1);
+        setVisibleValidationKey(`${flow}:${stepToCheck}`);
+        updateStep(stepToCheck);
+        return;
+      }
+    }
+
+    setDirection(1);
+    setVisibleValidationKey("");
     updateStep(step);
   };
 
@@ -296,13 +393,14 @@ function ChoiceStep({ flow, onFlowChange }) {
   );
 }
 
-function CreateGroupDetailsStep({ form, setForm }) {
+function CreateGroupDetailsStep({ form, setForm, errors = {} }) {
   const handleCategoryChange = (categoryId) => {
     setForm((prev) => ({
       ...prev,
       categoryId,
       selectedTaskId: "",
       selectedTaskIds: [],
+      templateValues: {},
       customTaskId: "",
       customTaskIds: [],
     }));
@@ -310,33 +408,38 @@ function CreateGroupDetailsStep({ form, setForm }) {
 
   return (
     <StepShell title="Данные группы" className="group-form-step--details">
-      <CategoryDropdown value={form.categoryId} onChange={handleCategoryChange} />
+      <CategoryDropdown value={form.categoryId} onChange={handleCategoryChange} error={errors.categoryId} />
 
-      <label className="group-form-field">
+      <label className={`group-form-field ${errors.groupName ? "group-form-field--error" : ""}`.trim()}>
         <span>Впишите название группы</span>
         <input
           value={form.groupName}
           onChange={(event) => setForm((prev) => ({ ...prev, groupName: event.target.value }))}
           placeholder="Например: Daily Chapter"
+          aria-invalid={Boolean(errors.groupName)}
         />
+        {errors.groupName && <small className="group-form-error">{errors.groupName}</small>}
       </label>
 
-      <label className="group-form-field group-form-field--description">
+      <label className={`group-form-field group-form-field--description ${errors.groupDescription ? "group-form-field--error" : ""}`.trim()}>
         <span>Впишите описание группы</span>
         <textarea
           value={form.groupDescription}
           onChange={(event) => setForm((prev) => ({ ...prev, groupDescription: event.target.value }))}
           placeholder="Коротко опиши цель группы"
           rows={2}
+          aria-invalid={Boolean(errors.groupDescription)}
         />
+        {errors.groupDescription && <small className="group-form-error">{errors.groupDescription}</small>}
       </label>
     </StepShell>
   );
 }
 
-function CategoryDropdown({ value, onChange }) {
+function CategoryDropdown({ value, onChange, error }) {
   const [isOpen, setIsOpen] = useState(false);
-  const activeCategory = CATEGORY_OPTIONS.find((category) => category.id === value) || CATEGORY_OPTIONS[0];
+  const activeCategory = CATEGORY_OPTIONS.find((category) => category.id === value);
+  const hasValue = Boolean(activeCategory);
 
   const handleSelect = (categoryId) => {
     onChange(categoryId);
@@ -344,23 +447,24 @@ function CategoryDropdown({ value, onChange }) {
   };
 
   return (
-    <div className={`group-form-category-select ${isOpen ? "group-form-category-select--open" : ""}`}>
+    <div className={`group-form-category-select ${isOpen ? "group-form-category-select--open" : ""} ${error ? "group-form-category-select--error" : ""}`.trim()}>
       <span className="group-form-category-select__label">Выберите категорию</span>
 
       <button
         type="button"
-        className={`group-form-category-select__button group-form-category-select__button--${activeCategory.id}`}
+        className={`group-form-category-select__button ${hasValue ? `group-form-category-select__button--${activeCategory.id}` : "group-form-category-select__button--empty"}`}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
+        aria-invalid={Boolean(error)}
       >
         <span className="group-form-category-select__left">
           <span
             className="group-form-category-select__icon"
-            style={{ background: CATEGORY_ACCENTS[activeCategory.id] }}
+            style={{ background: hasValue ? CATEGORY_ACCENTS[activeCategory.id] : "var(--color-control-bg)" }}
           >
-            {activeCategory.title.slice(0, 1)}
+            {hasValue ? activeCategory.title.slice(0, 1) : "?"}
           </span>
-          <span className="group-form-category-select__title">{activeCategory.title}</span>
+          <span className="group-form-category-select__title">{hasValue ? activeCategory.title : "Категория не выбрана"}</span>
         </span>
 
         <span
@@ -397,20 +501,23 @@ function CategoryDropdown({ value, onChange }) {
           })}
         </div>
       </div>
+      {error && <small className="group-form-error">{error}</small>}
     </div>
   );
 }
 
-function JoinGroupCodeStep({ form, setForm, joinedGroup }) {
+function JoinGroupCodeStep({ form, setForm, joinedGroup, errors = {} }) {
   return (
     <StepShell title="Код группы" text="Код находится в настройках группы у её создателя.">
-      <label className="group-form-field">
+      <label className={`group-form-field ${errors.inviteCode ? "group-form-field--error" : ""}`.trim()}>
         <span>Впишите код группы</span>
         <input
           value={form.inviteCode}
           onChange={(event) => setForm((prev) => ({ ...prev, inviteCode: event.target.value.toUpperCase() }))}
           placeholder="Например: HAB-A12B-C34D"
+          aria-invalid={Boolean(errors.inviteCode)}
         />
+        {errors.inviteCode && <small className="group-form-error">{errors.inviteCode}</small>}
       </label>
 
       <div className="group-form-hint-card">
@@ -420,7 +527,7 @@ function JoinGroupCodeStep({ form, setForm, joinedGroup }) {
   );
 }
 
-function TasksStep({ templates, form, setForm }) {
+function TasksStep({ templates, form, setForm, errors = {} }) {
   const toggleTemplate = (templateId) => {
     setForm((prev) => {
       const currentIds = prev.selectedTaskIds || [];
@@ -453,32 +560,40 @@ function TasksStep({ templates, form, setForm }) {
 
   return (
     <StepShell className="group-form-step--tasks" title="Личные задания">
-      <div className="group-form-task-scroll">
+      <div className={`group-form-task-scroll ${errors.tasks ? "group-form-task-scroll--error" : ""}`.trim()}>
+        {errors.tasks && <div className="group-form-error-card">{errors.tasks}</div>}
+
         <div className="group-form-template-list">
-          {templates.map((template) => (
-            <label key={template.id} className="group-form-template">
-              <input
-                type="checkbox"
-                checked={(form.selectedTaskIds || []).includes(template.id)}
-                onChange={() => toggleTemplate(template.id)}
-              />
-              <span className="group-form-template__dot" />
-              <span className="group-form-template__text">
-                {template.before}
+          {templates.map((template) => {
+            const isChecked = (form.selectedTaskIds || []).includes(template.id);
+            const hasError = Boolean(errors.templateValues?.[template.id]);
+
+            return (
+              <label key={template.id} className={`group-form-template ${hasError ? "group-form-template--error" : ""}`.trim()}>
                 <input
-                  value={form.templateValues[template.id] || ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      templateValues: { ...prev.templateValues, [template.id]: event.target.value },
-                    }))
-                  }
-                  placeholder="___"
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggleTemplate(template.id)}
                 />
-                {template.after}
-              </span>
-            </label>
-          ))}
+                <span className="group-form-template__dot" />
+                <span className="group-form-template__text">
+                  {template.before}
+                  <input
+                    value={form.templateValues[template.id] || ""}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        templateValues: { ...(prev.templateValues || {}), [template.id]: event.target.value },
+                      }))
+                    }
+                    placeholder="___"
+                    aria-invalid={hasError}
+                  />
+                  {template.after}
+                </span>
+              </label>
+            );
+          })}
         </div>
 
         <div className="group-form-custom-head">
@@ -490,26 +605,32 @@ function TasksStep({ templates, form, setForm }) {
         </div>
 
         <div className="group-form-custom-list">
-          {CUSTOM_TASK_IDS.map((id, index) => (
-            <label key={id} className="group-form-custom-task">
-              <input
-                type="checkbox"
-                checked={(form.customTaskIds || []).includes(id)}
-                onChange={() => toggleCustomTask(id)}
-              />
-              <span className="group-form-template__dot" />
-              <input
-                value={form.customTasks[id] || ""}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    customTasks: { ...prev.customTasks, [id]: event.target.value },
-                  }))
-                }
-                placeholder={`Своё задание ${index + 1}`}
-              />
-            </label>
-          ))}
+          {CUSTOM_TASK_IDS.map((id, index) => {
+            const isChecked = (form.customTaskIds || []).includes(id);
+            const hasError = Boolean(errors.customTasks?.[id]);
+
+            return (
+              <label key={id} className={`group-form-custom-task ${hasError ? "group-form-custom-task--error" : ""}`.trim()}>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggleCustomTask(id)}
+                />
+                <span className="group-form-template__dot" />
+                <input
+                  value={form.customTasks[id] || ""}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      customTasks: { ...(prev.customTasks || {}), [id]: event.target.value },
+                    }))
+                  }
+                  placeholder={`Своё задание ${index + 1}`}
+                  aria-invalid={hasError}
+                />
+              </label>
+            );
+          })}
         </div>
       </div>
     </StepShell>
