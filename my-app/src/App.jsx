@@ -3,11 +3,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import LobbyPage from "./pages/LobbyPage";
 import GroupPage from "./pages/GroupPage";
 import ProfilePage from "./pages/ProfilePage";
+import AuthPage from "./pages/AuthPage";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const TOKEN_STORAGE_KEY = "habbit-auth-token";
 
 const USER = {
   name: "Елизавета",
   email: "elizareads@mail.com",
-  login: "eliza_reads",
   coins: 240,
   registeredAt: "14 марта 2026",
 };
@@ -28,11 +31,12 @@ const PROFILE_DATA_STORAGE_KEY = "habbit-profile-data";
 function getRoute(pathname) {
   const path = pathname.replace(/\/+$/, "") || "/";
 
-  if (path === "/" || path === "/lobby") return "/lobby";
+  if (path === "/" || path === "/auth") return "/auth";
+  if (path === "/lobby") return "/lobby";
   if (path === "/profile") return "/profile";
   if (path.startsWith("/group")) return "/group";
 
-  return "/lobby";
+  return "/auth";
 }
 
 function getInitial(name) {
@@ -43,6 +47,38 @@ function getInitial(name) {
 function normalizeEditableValue(value, fallback) {
   const nextValue = String(value || "").trim();
   return nextValue || fallback;
+}
+
+function formatRegisteredAt(date = new Date()) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatBackendDate(value) {
+  if (!value) return formatRegisteredAt();
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return formatRegisteredAt(date);
+}
+
+function getFiniteNumber(...values) {
+  for (const value of values) {
+    const number = Number(value);
+
+    if (Number.isFinite(number)) {
+      return number;
+    }
+  }
+
+  return null;
 }
 
 function readJsonStorage(key, fallback) {
@@ -56,14 +92,25 @@ function readJsonStorage(key, fallback) {
   }
 }
 
+function saveProfileData(profileData) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(PROFILE_DATA_STORAGE_KEY, JSON.stringify(profileData));
+  } catch {
+    // Данные останутся в состоянии приложения, если браузер запретил localStorage.
+  }
+}
+
 function readStoredProfileData() {
   const fallbackData = {
     name: USER.name,
     email: USER.email,
-    login: USER.login,
     password: "••••••••••",
     coins: USER.coins,
     registeredAt: USER.registeredAt,
+    activeUserAvatarId: null,
+    avatarBgColor: "",
   };
 
   const parsedData = readJsonStorage(PROFILE_DATA_STORAGE_KEY, {});
@@ -72,14 +119,63 @@ function readStoredProfileData() {
     return fallbackData;
   }
 
+  const coins = getFiniteNumber(parsedData.coins, fallbackData.coins);
+
   return {
-    ...fallbackData,
-    ...parsedData,
-    email: fallbackData.email,
+    id: parsedData.id ?? fallbackData.id,
+    name: normalizeEditableValue(parsedData.name, fallbackData.name),
+    email: normalizeEditableValue(parsedData.email, fallbackData.email),
     password: "••••••••••",
-    coins: fallbackData.coins,
-    registeredAt: fallbackData.registeredAt,
+    coins: coins ?? fallbackData.coins,
+    registeredAt: parsedData.registeredAt || fallbackData.registeredAt,
+    activeUserAvatarId: parsedData.activeUserAvatarId ?? fallbackData.activeUserAvatarId,
+    avatarBgColor: parsedData.avatarBgColor || fallbackData.avatarBgColor,
   };
+}
+
+function buildProfileFromBackendUser(user, fallback = readStoredProfileData()) {
+  if (!user || typeof user !== "object") {
+    return fallback;
+  }
+
+  const coins = getFiniteNumber(user.coinsBalance, user.coins, user.coins_balance, fallback.coins);
+
+  return {
+    id: user.id ?? fallback.id,
+    name: normalizeEditableValue(user.name, fallback.name),
+    email: normalizeEditableValue(user.email, fallback.email),
+    password: "••••••••••",
+    coins: coins ?? fallback.coins ?? 0,
+    registeredAt: user.registeredAt
+      ? formatBackendDate(user.registeredAt)
+      : user.registered_at
+        ? formatBackendDate(user.registered_at)
+        : fallback.registeredAt || formatRegisteredAt(),
+    activeUserAvatarId: user.activeUserAvatarId ?? fallback.activeUserAvatarId,
+    avatarBgColor: user.avatarBgColor || fallback.avatarBgColor,
+  };
+}
+
+async function requestCurrentUser() {
+  if (typeof window === "undefined") return null;
+
+  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return null;
+
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Не удалось получить данные пользователя");
+  }
+
+  return buildProfileFromBackendUser(data?.user);
 }
 
 function readStoredAvatarColors() {
@@ -125,7 +221,7 @@ function buildAvatarFromStorage(profileData) {
     id: "monogram",
     type: "monogram",
     label: getInitial(profileData.name),
-    color: avatarColors.monogram || "#ede2da",
+    color: avatarColors.monogram || profileData.avatarBgColor || "#ede2da",
   };
 
   const photoAvatars = uploadedPhotos.map((photo, index) => ({
@@ -167,12 +263,13 @@ function normalizeAvatar(avatar, profileData) {
     id: avatar.id || "monogram",
     type: avatar.type || "monogram",
     label: avatar.label || getInitial(profileData.name),
-    color: avatar.color || "#ede2da",
+    color: avatar.color || profileData.avatarBgColor || "#ede2da",
   };
 }
 
 function App() {
   const [route, setRoute] = useState(() => getRoute(window.location.pathname));
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userProfile, setUserProfile] = useState(readStoredProfileData);
   const [userAvatar, setUserAvatar] = useState(() =>
     buildAvatarFromStorage(readStoredProfileData())
@@ -186,22 +283,97 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const updateProfileData = useCallback((nextProfileData) => {
-    setUserProfile((prev) => ({
-      ...prev,
-      ...nextProfileData,
-      email: prev.email,
-      password: "••••••••••",
-      coins: prev.coins,
-      registeredAt: prev.registeredAt,
-      name: normalizeEditableValue(nextProfileData?.name, prev.name),
-      login: normalizeEditableValue(nextProfileData?.login, prev.login),
-    }));
+  const updateProfileData = useCallback((nextProfileData = {}) => {
+    setUserProfile((prev) => {
+      const nextProfile = {
+        ...prev,
+        name: normalizeEditableValue(nextProfileData.name, prev.name),
+        email: prev.email,
+        password: "••••••••••",
+        coins: prev.coins,
+        registeredAt: prev.registeredAt,
+      };
+
+      saveProfileData(nextProfile);
+      return nextProfile;
+    });
+  }, []);
+
+  const handleAuthSuccess = useCallback((nextProfileData = {}) => {
+    setUserProfile((prev) => {
+      const nextProfile = {
+        ...prev,
+        ...nextProfileData,
+        name: normalizeEditableValue(nextProfileData.name, prev.name),
+        email: normalizeEditableValue(nextProfileData.email, prev.email),
+        password: "••••••••••",
+        coins: nextProfileData.coins ?? prev.coins,
+        registeredAt: nextProfileData.registeredAt || prev.registeredAt,
+      };
+
+      saveProfileData(nextProfile);
+      setUserAvatar(buildAvatarFromStorage(nextProfile));
+      return nextProfile;
+    });
   }, []);
 
   const updateProfileAvatar = useCallback((nextAvatar) => {
     setUserAvatar((prev) => normalizeAvatar(nextAvatar || prev, userProfile));
   }, [userProfile]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function checkAuth() {
+      if (typeof window === "undefined") return;
+
+      const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+
+      if (!token) {
+        if (getRoute(window.location.pathname) !== "/auth") {
+          navigate("/auth");
+        }
+
+        if (isActive) {
+          setIsCheckingAuth(false);
+        }
+
+        return;
+      }
+
+      try {
+        const profile = await requestCurrentUser();
+
+        if (!isActive || !profile) return;
+
+        saveProfileData(profile);
+        setUserProfile(profile);
+        setUserAvatar(buildAvatarFromStorage(profile));
+
+        if (getRoute(window.location.pathname) === "/auth") {
+          navigate("/lobby");
+        }
+      } catch {
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+        }
+
+        if (getRoute(window.location.pathname) !== "/auth") {
+          navigate("/auth");
+        }
+      } finally {
+        if (isActive) {
+          setIsCheckingAuth(false);
+        }
+      }
+    }
+
+    checkAuth();
+
+    return () => {
+      isActive = false;
+    };
+  }, [navigate]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -225,11 +397,20 @@ function App() {
   }, [userAvatar, userProfile.name]);
 
   const CurrentPage = useMemo(() => {
+    if (route === "/auth") return AuthPage;
     if (route === "/profile") return ProfilePage;
     if (route === "/group") return GroupPage;
 
     return LobbyPage;
   }, [route]);
+
+  if (isCheckingAuth) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        Загрузка профиля...
+      </div>
+    );
+  }
 
   return (
     <CurrentPage
@@ -238,6 +419,7 @@ function App() {
       userAvatar={displayedUserAvatar}
       onProfileDataChange={updateProfileData}
       onProfileAvatarChange={updateProfileAvatar}
+      onAuthSuccess={handleAuthSuccess}
     />
   );
 }

@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ClickSpark from "../components/ClickSpark";
 import Header from "../components/Header";
-import achievementIcon from "../assets/icons/achievement.svg";
 import AnimatedContent from "../components/AnimatedContent";
-import AnimatedScrollList from "../components/AnimatedScrollList";
 import BorderGlow from "../components/BorderGlow";
 
 import "../styles/global.css";
@@ -13,7 +11,6 @@ import "../styles/profile.css";
 const USER = {
   name: "Елизавета",
   email: "elizareads@mail.com",
-  login: "eliza_reads",
   coins: 240,
   registeredAt: "14 марта 2026",
 };
@@ -26,49 +23,13 @@ const BASE_EMOJI_SLIDES = [
   { id: "emoji-5", type: "emoji", label: "🌙", defaultColor: "#d9d6ee" },
 ];
 
-const ACHIEVEMENTS = [
-  {
-    title: "7 дней подряд",
-    desc: "Ты удерживала ритм без пропусков целую неделю.",
-  },
-  {
-    title: "Первый устойчивый ритм",
-    desc: "Закрыто 10 выполнений по разным привычкам.",
-  },
-  {
-    title: "Внимание к себе",
-    desc: "Стабильный прогресс в категории Питание.",
-  },
-  {
-    title: "Тихий фокус",
-    desc: "Серия чтения превысила 5 дней.",
-  },
-  {
-    title: "Мягкий старт",
-    desc: "Первые привычки успешно добавлены и активны.",
-  },
-  {
-    title: "Активный участник",
-    desc: "Ты регулярно участвуешь в прогрессе группы.",
-  },
-  {
-    title: "Тёплый ритм",
-    desc: "Ты держала равномерный темп две недели.",
-  },
-];
 
-const BEST_RESULT = {
-  streak: 21,
-  group: "Quiet Pages",
-  category: "Чтение",
-  habit: "Читать 20 минут",
-  target: 30,
-};
 
 const AVATAR_COLORS_STORAGE_KEY = "habbit-profile-avatar-colors";
 const AVATAR_SELECTED_STORAGE_KEY = "habbit-profile-selected-avatar-id";
 const AVATAR_PHOTOS_STORAGE_KEY = "habbit-profile-uploaded-photos";
 const PROFILE_DATA_STORAGE_KEY = "habbit-profile-data";
+const TOKEN_STORAGE_KEY = "habbit-auth-token";
 
 function readStoredAvatarColors() {
   if (typeof window === "undefined") return {};
@@ -156,8 +117,9 @@ function readStoredProfileData() {
   const fallbackData = {
     name: USER.name,
     email: USER.email,
-    login: USER.login,
     password: "••••••••••",
+    coins: USER.coins,
+    registeredAt: USER.registeredAt,
   };
 
   if (typeof window === "undefined") return fallbackData;
@@ -171,10 +133,11 @@ function readStoredProfileData() {
     }
 
     return {
-      ...fallbackData,
-      ...parsedData,
-      email: fallbackData.email,
+      name: normalizeEditableValue(parsedData.name, fallbackData.name),
+      email: normalizeEditableValue(parsedData.email, fallbackData.email),
       password: "••••••••••",
+      coins: parsedData.coins ?? fallbackData.coins,
+      registeredAt: parsedData.registeredAt || fallbackData.registeredAt,
     };
   } catch {
     return fallbackData;
@@ -189,9 +152,10 @@ function saveStoredProfileData(profileData) {
       PROFILE_DATA_STORAGE_KEY,
       JSON.stringify({
         name: normalizeEditableValue(profileData.name, USER.name),
-        email: USER.email,
-        login: normalizeEditableValue(profileData.login, USER.login),
+        email: normalizeEditableValue(profileData.email, USER.email),
         password: "••••••••••",
+        coins: profileData.coins ?? USER.coins,
+        registeredAt: profileData.registeredAt || USER.registeredAt,
       })
     );
   } catch {
@@ -220,15 +184,23 @@ export default function ProfilePage({
   onProfileDataChange,
   onProfileAvatarChange,
 }) {
-  const [profileData, setProfileData] = useState(() => ({
-    ...readStoredProfileData(),
-    ...(userProfile || {}),
-  }));
+  const [profileData, setProfileData] = useState(() => {
+    const storedProfileData = readStoredProfileData();
+
+    return {
+      name: normalizeEditableValue(userProfile?.name, storedProfileData.name),
+      email: userProfile?.email || storedProfileData.email,
+      password: "••••••••••",
+      coins: userProfile?.coins ?? storedProfileData.coins,
+      registeredAt: userProfile?.registeredAt || storedProfileData.registeredAt,
+    };
+  });
   const [uploadedPhotos, setUploadedPhotos] = useState(readStoredUploadedPhotos);
   const [currentAvatarId, setCurrentAvatarId] = useState(readStoredSelectedAvatarId);
   const [avatarHoverShift, setAvatarHoverShift] = useState(0);
   const [avatarColors, setAvatarColors] = useState(readStoredAvatarColors);
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
 
   const previousAvatarIdRef = useRef("monogram");
@@ -281,7 +253,6 @@ export default function ProfilePage({
   const canMoveRight = safeIndex < carousel.length - 1;
   const canEditCurrentAvatarColor =
     currentSlide?.type === "monogram" || currentSlide?.type === "emoji";
-  const recordPercent = Math.min(100, Math.round((BEST_RESULT.streak / BEST_RESULT.target) * 100));
   const sharedAvatar = useMemo(() => {
     if (!selectedDisplaySlide) return userAvatar || null;
 
@@ -486,6 +457,39 @@ export default function ProfilePage({
     setIsProfileEditing(true);
   };
 
+  const clearAuthSession = useCallback(({ clearProfile = false } = {}) => {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+
+      if (clearProfile) {
+        window.localStorage.removeItem(PROFILE_DATA_STORAGE_KEY);
+        window.localStorage.removeItem(AVATAR_COLORS_STORAGE_KEY);
+        window.localStorage.removeItem(AVATAR_SELECTED_STORAGE_KEY);
+        window.localStorage.removeItem(AVATAR_PHOTOS_STORAGE_KEY);
+      }
+    } catch {
+      // Даже если localStorage недоступен, пользователь всё равно вернётся на экран входа.
+    }
+  }, []);
+
+  const goToAuth = useCallback(() => {
+    navigate?.("/auth");
+  }, [navigate]);
+
+  const confirmLogout = useCallback(() => {
+    clearAuthSession();
+    setIsLogoutModalOpen(false);
+    goToAuth();
+  }, [clearAuthSession, goToAuth]);
+
+  const confirmDeactivate = useCallback(() => {
+    clearAuthSession({ clearProfile: true });
+    setIsDeactivateModalOpen(false);
+    goToAuth();
+  }, [clearAuthSession, goToAuth]);
+
   const goToLobby = useCallback(() => {
     navigate?.("/lobby");
   }, [navigate]);
@@ -507,7 +511,7 @@ export default function ProfilePage({
           <Header
             userName={profileData.name}
             userEmail={profileData.email}
-            coins={USER.coins}
+            coins={profileData.coins ?? USER.coins}
             initials={userAvatar?.label || currentInitial}
             avatar={userAvatar}
             onLogoClick={goToLobby}
@@ -526,7 +530,7 @@ export default function ProfilePage({
                     <div className="profile-top-controls">
                       <div className="profile-registration-note">
                         <span>Дата регистрации</span>
-                        <strong>{USER.registeredAt}</strong>
+                        <strong>{profileData.registeredAt || USER.registeredAt}</strong>
                       </div>
 
                       <button
@@ -664,7 +668,7 @@ export default function ProfilePage({
                       <div className="profile-avatar-block__text">
                         <h1 className="section-title">Личные данные</h1>
                         <p className="section-description">
-                          Здесь собраны основные данные аккаунта, рекордная серия и личные достижения.
+                          Здесь собраны основные данные аккаунта и настройки аватарки.
                         </p>
                       </div>
                     </div>
@@ -678,11 +682,6 @@ export default function ProfilePage({
                         />
                         <ProfileInfoCard label="Почта" value={profileData.email} editable={false} />
                         <ProfileInfoCard
-                          label="Логин"
-                          value={profileData.login}
-                          onSave={(value) => updateProfileField("login", value)}
-                        />
-                        <ProfileInfoCard
                           label="Пароль"
                           value={profileData.password}
                           isPassword
@@ -693,7 +692,6 @@ export default function ProfilePage({
                       <div className="profile-info-grid profile-info-grid--view">
                         <ProfileInfoDisplayCard label="Имя" value={profileData.name} />
                         <ProfileInfoDisplayCard label="Почта" value={profileData.email} />
-                        <ProfileInfoDisplayCard label="Логин" value={profileData.login} />
                         <ProfileInfoDisplayCard label="Пароль" value={profileData.password} />
                       </div>
                     )}
@@ -701,84 +699,6 @@ export default function ProfilePage({
                 </BorderGlow>
               </section>
             </AnimatedContent>
-
-            <section className="profile-content-grid">
-              <AnimatedContent distance={80} duration={0.8} delay={0.12}>
-                <BorderGlow>
-                  <div className="profile-panel profile-panel--record">
-                    <div className="section-label">Результат</div>
-                    <h2 className="section-title">Рекордная серия</h2>
-
-                    <div className="record-card">
-                      <div className="record-card__number-panel">
-                        <span className="record-card__number">{BEST_RESULT.streak}</span>
-                        <span className="record-card__unit">день подряд</span>
-                      </div>
-
-                      <div className="record-card__content-panel">
-                        <div className="record-card__header">
-                          <span className="record-card__eyebrow">Лучший личный ритм</span>
-                          <strong>{BEST_RESULT.category}</strong>
-                          <p>
-                            Самая длинная серия держится в группе «{BEST_RESULT.group}».
-                          </p>
-                        </div>
-
-                        <div className="record-card__progress">
-                          <div className="record-card__progress-top">
-                            <span>До цели месяца</span>
-                            <strong>{recordPercent}%</strong>
-                          </div>
-                          <div className="record-card__track">
-                            <span style={{ width: `${recordPercent}%` }} />
-                          </div>
-                        </div>
-
-                        <div className="record-card__details">
-                          <SmallInfoCard label="Группа" value={BEST_RESULT.group} />
-                          <SmallInfoCard label="Категория" value={BEST_RESULT.category} />
-                          <SmallInfoCard label="Привычка" value={BEST_RESULT.habit} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </BorderGlow>
-              </AnimatedContent>
-
-              <aside className="profile-achievements-panel">
-                <AnimatedContent distance={80} duration={0.8} delay={0.2}>
-                  <BorderGlow>
-                    <div className="profile-panel panel-card--achievements">
-                      <div className="section-label">Достижения</div>
-                      <h2 className="section-title">Личные достижения</h2>
-                      <p className="section-description">
-                        Здесь собраны все личные достижения пользователя в одном мягком и понятном блоке.
-                      </p>
-
-                      <AnimatedScrollList className="achievement-list">
-                        {ACHIEVEMENTS.map((item, index) => (
-                          <div key={`${item.title}-${index}`} className="achievement-card">
-                            <div className="achievement-card__content">
-                              <div className="achievement-card__icon">
-                                <img
-                                  src={achievementIcon}
-                                  alt="Иконка достижения"
-                                  className="achievement-card__icon-image"
-                                />
-                              </div>
-                              <div>
-                                <div className="achievement-card__title">{item.title}</div>
-                                <div className="achievement-card__desc">{item.desc}</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </AnimatedScrollList>
-                    </div>
-                  </BorderGlow>
-                </AnimatedContent>
-              </aside>
-            </section>
 
             <section className="profile-actions">
               <button
@@ -788,12 +708,45 @@ export default function ProfilePage({
               >
                 Деактивировать аккаунт
               </button>
-              <button type="button" className="profile-action-button">
+              <button
+                type="button"
+                className="profile-action-button"
+                onClick={() => setIsLogoutModalOpen(true)}
+              >
                 Выйти из аккаунта
               </button>
             </section>
           </main>
         </div>
+
+        {isLogoutModalOpen && (
+          <div className="modal-backdrop" role="presentation" onClick={() => setIsLogoutModalOpen(false)}>
+            <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="logout-title" onClick={(event) => event.stopPropagation()}>
+              <div id="logout-title" className="modal-card__title">
+                Выйти из аккаунта?
+              </div>
+              <div className="modal-card__text">
+                После выхода нужно будет снова войти через почту и пароль. Точно хотите продолжить?
+              </div>
+              <div className="modal-card__actions">
+                <button
+                  type="button"
+                  className="modal-card__button modal-card__button--ghost"
+                  onClick={() => setIsLogoutModalOpen(false)}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="modal-card__button modal-card__button--danger"
+                  onClick={confirmLogout}
+                >
+                  Выйти
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isDeactivateModalOpen && (
           <div className="modal-backdrop" role="presentation" onClick={() => setIsDeactivateModalOpen(false)}>
@@ -815,7 +768,7 @@ export default function ProfilePage({
                 <button
                   type="button"
                   className="modal-card__button modal-card__button--danger"
-                  onClick={() => setIsDeactivateModalOpen(false)}
+                  onClick={confirmDeactivate}
                 >
                   Деактивировать
                 </button>
@@ -918,11 +871,3 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
   );
 }
 
-function SmallInfoCard({ label, value }) {
-  return (
-    <div className="small-info-card">
-      <div className="small-info-card__label">{label}</div>
-      <div className="small-info-card__value">{value}</div>
-    </div>
-  );
-}
