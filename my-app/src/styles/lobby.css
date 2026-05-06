@@ -385,8 +385,9 @@ button {
 }
 
 .group-card__top {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 12px;
 }
 
@@ -404,14 +405,16 @@ button {
 }
 
 .group-card__progress {
-  flex-shrink: 0;
-  align-self: flex-start;
+  min-width: max-content;
+  align-self: start;
+  justify-self: end;
   padding: 8px 12px;
   border-radius: 16px;
   background: color-mix(in srgb, var(--category-color) 66%, var(--color-transparent));
   color: var(--color-text-main);
   font-size: 14px;
   font-weight: 500;
+  text-align: right;
 }
 
 .group-card__members {
@@ -517,14 +520,17 @@ button {
 }
 
 .record-streak__days {
+  position: relative;
   min-height: 0;
   height: 100%;
-  padding: 8px 10px;
+  padding: 28px 10px 10px;
   overflow: hidden;
   border-radius: 26px 18px 30px 20px / 18px 30px 20px 26px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .record-streak__details {
@@ -535,35 +541,53 @@ button {
 }
 
 .record-streak__meta-card {
+  position: relative;
   min-height: 0;
-  padding: 8px 10px;
+  padding: 28px 10px 10px;
   overflow: hidden;
   border-radius: 18px 26px 20px 24px / 24px 20px 26px 18px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
+  text-align: center;
 }
 
 .record-streak__card-label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
   color: var(--color-text-main);
   font-size: 11px;
   line-height: 1.05;
+  text-align: left;
 }
 
 .record-streak__value {
-  align-self: center;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-text-main);
-  font-size: clamp(2.8rem, 3.6vw, 4rem);
-  line-height: 0.95;
-  letter-spacing: -0.07em;
+  font-size: clamp(4.2rem, 6vw, 6.2rem);
+  font-weight: 900;
+  line-height: 0.82;
+  letter-spacing: -0.08em;
+  text-align: center;
 }
 
 .record-streak__meta-value {
-  margin-top: 4px;
+  width: 100%;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-text-main);
   font-size: clamp(1.05rem, 1.35vw, 1.28rem);
   line-height: 1.05;
-  font-weight: 600;
+  font-weight: 700;
+  text-align: center;
 }
 
 .achievement-card {
@@ -596,9 +620,9 @@ button {
 }
 
 .achievement-card__icon-image {
-  width: 340px;
-  height: 340px;
-  transform: translateX(-10px);
+  width: 60px;
+  height: 60px;
+  transform: translateY(15px) translateX(-2px);
   display: block;
   object-fit: contain;
 }
@@ -665,9 +689,7 @@ button {
   }
 
   .group-card__top {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: start;
   }
 }
 
@@ -756,6 +778,26 @@ button {
 
   .record-streak__days {
     min-height: 140px;
+  }
+}
+
+
+
+@media (max-width: 520px) {
+  .group-card__top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .group-card__progress {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .record-streak__value {
+    font-size: clamp(3.6rem, 18vw, 5rem);
   }
 }
 

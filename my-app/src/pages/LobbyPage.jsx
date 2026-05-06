@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import ClickSpark from "../components/ClickSpark";
 import Header from "../components/Header";
@@ -10,90 +10,29 @@ import GroupFormModal from "../components/GroupFormModal";
 
 import "../styles/lobby.css";
 
-const ALL_CATEGORIES = [
+const CATEGORY_OPTIONS = [
   {
     id: "sport",
     title: "Спорт",
-    groups: [
-      {
-        id: 1,
-        name: "Morning Motion",
-        members: 4,
-        progress: "68%",
-        note: "3 участника уже активны сегодня",
-      },
-      {
-        id: 2,
-        name: "Step by Step",
-        members: 3,
-        progress: "54%",
-        note: "Общий фокус на шагах и зарядке",
-      },
-    ],
   },
   {
     id: "nutrition",
     title: "Питание",
-    groups: [
-      {
-        id: 1,
-        name: "Water First",
-        members: 5,
-        progress: "71%",
-        note: "Сегодня у группы хороший темп",
-      },
-      {
-        id: 2,
-        name: "Soft Balance",
-        members: 3,
-        progress: "49%",
-        note: "Упор на воду и завтрак",
-      },
-    ],
   },
   {
     id: "cleaning",
     title: "Уборка",
-    groups: [
-      {
-        id: 1,
-        name: "Clear Space",
-        members: 4,
-        progress: "63%",
-        note: "2 мини-задачи уже закрыты сегодня",
-      },
-      {
-        id: 2,
-        name: "Tiny Reset",
-        members: 2,
-        progress: "44%",
-        note: "Маленькие ежедневные действия",
-      },
-    ],
   },
   {
     id: "reading",
     title: "Чтение",
-    groups: [
-      {
-        id: 1,
-        name: "Quiet Pages",
-        members: 4,
-        progress: "82%",
-        note: "У группы длинная серия без пропусков",
-      },
-      {
-        id: 2,
-        name: "Daily Chapter",
-        members: 3,
-        progress: "58%",
-        note: "Сегодня у всех цель — 20 минут",
-      },
-    ],
   },
 ];
 
-const INITIAL_CREATED = ["reading", "sport", "nutrition", "cleaning"];
+const CATEGORY_TITLE_BY_ID = CATEGORY_OPTIONS.reduce((acc, category) => {
+  acc[category.id] = category.title;
+  return acc;
+}, {});
 
 const ACHIEVEMENTS = [
   {
@@ -133,7 +72,9 @@ const RECORD_STREAK = {
 };
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://habbit-backend-k33d.onrender.com";
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://habbit-backend-k33d.onrender.com";
 
 function getStoredAuthToken() {
   try {
@@ -147,6 +88,29 @@ function getStoredAuthToken() {
   } catch {
     return "";
   }
+}
+
+async function requestHabitsFromServer() {
+  const token = getStoredAuthToken();
+
+  if (!token) {
+    throw new Error("Нет токена авторизации");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/habits`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Не удалось получить список привычек");
+  }
+
+  return Array.isArray(data?.habits) ? data.habits : [];
 }
 
 async function createHabitOnServer(payload) {
@@ -185,26 +149,146 @@ function getInitial(name) {
   return (trimmedName[0] || "П").toUpperCase();
 }
 
+function getGroupWord(count) {
+  const number = Math.abs(Number(count));
+  const lastTwoDigits = number % 100;
+  const lastDigit = number % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return "групп";
+  if (lastDigit === 1) return "группа";
+  if (lastDigit >= 2 && lastDigit <= 4) return "группы";
+  return "групп";
+}
+
+function getStreakText(value) {
+  const days = Number(value) || 0;
+  const lastTwoDigits = Math.abs(days) % 100;
+  const lastDigit = Math.abs(days) % 10;
+
+  let dayWord = "дней";
+
+  if (lastTwoDigits < 11 || lastTwoDigits > 14) {
+    if (lastDigit === 1) dayWord = "день";
+    else if (lastDigit >= 2 && lastDigit <= 4) dayWord = "дня";
+  }
+
+  return `${days} ${dayWord}`;
+}
+
+function getRoleText(role) {
+  if (role === "owner") return "Администратор";
+  if (role === "member") return "Участник";
+  return "Участник";
+}
+
+function normalizeHabitToGroup(habit) {
+  const title = String(habit?.title || "Без названия").trim() || "Без названия";
+  const description = String(habit?.description || "").trim();
+  const currentStreak = Number(habit?.currentStreak || 0);
+  const roleText = getRoleText(habit?.role);
+  const statusText = habit?.status === "active" ? "активна" : "неактивна";
+
+  return {
+    id: habit?.id,
+    name: title,
+    note: description || `${roleText}, группа ${statusText}`,
+    progress: `Серия: ${getStreakText(currentStreak)}`,
+    groupCode: habit?.inviteCode || "",
+    habitTypeCode: habit?.habitTypeCode,
+    habitMemberId: habit?.habitMemberId,
+    role: habit?.role,
+    status: habit?.status,
+    createdAt: habit?.createdAt,
+    joinedAt: habit?.joinedAt,
+    currentStreak,
+    metaLabel: roleText,
+  };
+}
+
+function buildCategoriesFromHabits(habits) {
+  const categoriesMap = new Map(
+    CATEGORY_OPTIONS.map((category) => [
+      category.id,
+      {
+        ...category,
+        groups: [],
+      },
+    ])
+  );
+
+  habits.forEach((habit) => {
+    const habitTypeCode = habit?.habitTypeCode;
+
+    if (!habitTypeCode) return;
+
+    if (!categoriesMap.has(habitTypeCode)) {
+      categoriesMap.set(habitTypeCode, {
+        id: habitTypeCode,
+        title: CATEGORY_TITLE_BY_ID[habitTypeCode] || habitTypeCode,
+        groups: [],
+      });
+    }
+
+    categoriesMap.get(habitTypeCode).groups.push(normalizeHabitToGroup(habit));
+  });
+
+  return Array.from(categoriesMap.values()).filter(
+    (category) => category.groups.length > 0
+  );
+}
+
 export default function LobbyPage({ navigate, userProfile, userAvatar }) {
   const userName = userProfile?.name || "Елизавета";
   const userEmail = userProfile?.email || "ela@gmail.com";
-  const coins = userProfile?.coins || 240;
-  const [categories, setCategories] = useState(ALL_CATEGORIES);
-  const [createdCategories, setCreatedCategories] = useState(INITIAL_CREATED);
-  const [expandedCategories, setExpandedCategories] = useState({
-    reading: true,
-    sport: false,
-    nutrition: false,
-    cleaning: false,
-  });
+  const coins = userProfile?.coinsBalance ?? userProfile?.coins ?? 0;
+  const [habits, setHabits] = useState([]);
+  const [habitsLoadState, setHabitsLoadState] = useState({ status: "idle", error: "" });
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
   const [inviteCodeModal, setInviteCodeModal] = useState(null);
   const [isInviteCodeCopied, setIsInviteCodeCopied] = useState(false);
 
-  const createdCategoryObjects = useMemo(
-    () => categories.filter((category) => createdCategories.includes(category.id)),
-    [categories, createdCategories]
-  );
+  const isHabitsLoading = habitsLoadState.status === "loading";
+  const habitsLoadError = habitsLoadState.error;
+
+  const categories = useMemo(() => buildCategoriesFromHabits(habits), [habits]);
+
+  const loadHabits = useCallback(async ({ silent = false } = {}) => {
+    if (!getStoredAuthToken()) {
+      setHabits([]);
+      setHabitsLoadState({ status: "no-token", error: "" });
+      return [];
+    }
+
+    if (!silent) {
+      setHabitsLoadState({ status: "loading", error: "" });
+    }
+
+    try {
+      const nextHabits = await requestHabitsFromServer();
+      setHabits(nextHabits);
+      setHabitsLoadState({ status: "success", error: "" });
+      return nextHabits;
+    } catch (error) {
+      console.error("Habit list loading failed:", error);
+      setHabits([]);
+      setHabitsLoadState({
+        status: "error",
+        error: error?.message || "Не удалось загрузить группы",
+      });
+      return [];
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadHabits();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [loadHabits, userProfile?.id]);
 
   const toggleCategory = (id) => {
     setExpandedCategories((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -226,8 +310,12 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
         categoryId: category.id,
         categoryTitle: category.title,
         groupId: group.id,
+        habitMemberId: group.habitMemberId,
         groupName: group.name,
-        groupCode: group.groupCode || group.code || "HAB-READ-PAGE",
+        groupCode: group.groupCode,
+        role: group.role,
+        status: group.status,
+        currentStreak: group.currentStreak,
       });
     },
     [navigate]
@@ -243,59 +331,34 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     [openGroupPage]
   );
 
-  const handleGroupFormSubmit = useCallback(async (payload) => {
-    const categoryId = payload.categoryId || "reading";
-    const isCreateFlow = payload.mode === "create";
-    let groupName = payload.groupName || (isCreateFlow ? "Новая группа" : "Группа по коду");
-    let groupCode = payload.groupCode || payload.inviteCode || "";
-    let serverHabitId = null;
+  const handleGroupFormSubmit = useCallback(
+    async (payload) => {
+      const isCreateFlow = payload.mode === "create";
 
-    if (isCreateFlow) {
+      if (!isCreateFlow) {
+        alert("Подключение к существующей группе по коду пока не подключено к бэку.");
+        return;
+      }
+
       try {
         const data = await createHabitOnServer(payload);
         const habit = data?.habit || {};
+        const groupCode = data?.inviteCode || habit.inviteCode || "";
+        const groupName = habit.title || payload.groupName || "Новая группа";
+        setIsGroupFormOpen(false);
+        await loadHabits({ silent: true });
 
-        serverHabitId = habit.id || null;
-        groupName = habit.title || groupName;
-        groupCode = data?.inviteCode || habit.inviteCode || groupCode;
+        if (groupCode) {
+          setIsInviteCodeCopied(false);
+          setInviteCodeModal({ code: groupCode, groupName });
+        }
       } catch (error) {
         console.error("Habit creation failed:", error);
-
-        if (getStoredAuthToken()) {
-          alert(error?.message || "Не удалось создать группу на сервере");
-          return;
-        }
+        alert(error?.message || "Не удалось создать группу на сервере");
       }
-    }
-
-    const nextGroup = {
-      id: serverHabitId || `local-${Date.now()}`,
-      name: groupName,
-      members: isCreateFlow ? 1 : 4,
-      progress: "0%",
-      note: isCreateFlow ? "Новая группа создана. Пригласи друзей по коду." : "Ты присоединилась к группе по коду.",
-      groupCode,
-    };
-
-    setCategories((prevCategories) =>
-      prevCategories.map((category) =>
-        category.id === categoryId
-          ? { ...category, groups: [nextGroup, ...category.groups] }
-          : category
-      )
-    );
-
-    setCreatedCategories((prevCategories) =>
-      prevCategories.includes(categoryId) ? prevCategories : [...prevCategories, categoryId]
-    );
-
-    setExpandedCategories((prevExpanded) => ({ ...prevExpanded, [categoryId]: true }));
-
-    if (isCreateFlow && groupCode) {
-      setIsInviteCodeCopied(false);
-      setInviteCodeModal({ code: groupCode, groupName });
-    }
-  }, []);
+    },
+    [loadHabits]
+  );
 
   const handleCopyInviteCode = useCallback(async () => {
     if (!inviteCodeModal?.code) return;
@@ -356,12 +419,26 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                         <div className="section-label">Категории</div>
                         <h2 className="section-title">Твои категории и группы</h2>
                         <p className="section-description">
-                          Уже созданные категории отображаются выше. В каждой можно открыть список групп и посмотреть короткую сводку по ним.
+                          Здесь отображаются привычки, которые пришли из базы данных для текущего пользователя.
                         </p>
                       </div>
 
+                      {isHabitsLoading && (
+                        <p className="section-description">Загружаю группы из базы данных...</p>
+                      )}
+
+                      {habitsLoadError && (
+                        <p className="section-description">{habitsLoadError}</p>
+                      )}
+
+                      {!isHabitsLoading && !habitsLoadError && habits.length === 0 && (
+                        <p className="section-description">
+                          У тебя пока нет привычек. Нажми на плюс, чтобы создать первую группу.
+                        </p>
+                      )}
+
                       <AnimatedScrollList className="category-list">
-                        {createdCategoryObjects.map((category) => {
+                        {categories.map((category) => {
                           const isOpen = !!expandedCategories[category.id];
 
                           return (
@@ -382,8 +459,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                                   <div>
                                     <div className="category-card__title">{category.title}</div>
                                     <div className="category-card__subtitle">
-                                      {category.groups.length}{" "}
-                                      {category.groups.length === 1 ? "группа" : "группы"} в категории
+                                      {category.groups.length} {getGroupWord(category.groups.length)} в категории
                                     </div>
                                   </div>
                                 </div>
@@ -406,29 +482,29 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                                 <div className="category-card__content-inner">
                                   <div className="group-list">
                                     {category.groups.map((group) => (
-                                      <div
-                                        key={group.id}
-                                        className="group-card"
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => openGroupPage(category, group)}
-                                        onKeyDown={(event) =>
-                                          handleGroupKeyDown(event, category, group)
-                                        }
-                                        aria-label={`Открыть группу ${group.name}`}
-                                      >
-                                        <div className="group-card__top">
-                                          <div>
-                                            <div className="group-card__title">{group.name}</div>
-                                            <div className="group-card__note">{group.note}</div>
+                                        <div
+                                          key={group.id}
+                                          className="group-card"
+                                          role="button"
+                                          tabIndex={0}
+                                          onClick={() => openGroupPage(category, group)}
+                                          onKeyDown={(event) =>
+                                            handleGroupKeyDown(event, category, group)
+                                          }
+                                          aria-label={`Открыть группу ${group.name}`}
+                                        >
+                                          <div className="group-card__top">
+                                            <div>
+                                              <div className="group-card__title">{group.name}</div>
+                                              <div className="group-card__note">{group.note}</div>
+                                            </div>
+                                            <div className="group-card__progress">{group.progress}</div>
                                           </div>
-                                          <div className="group-card__progress">{group.progress}</div>
+                                          <div className="group-card__members">
+                                            {group.metaLabel}
+                                          </div>
                                         </div>
-                                        <div className="group-card__members">
-                                          Участников: {group.members}
-                                        </div>
-                                      </div>
-                                    ))}
+                                      ))}
                                   </div>
                                 </div>
                               </div>
