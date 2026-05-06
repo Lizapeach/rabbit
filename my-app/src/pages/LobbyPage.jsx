@@ -132,6 +132,54 @@ const RECORD_STREAK = {
   group: "Буба",
 };
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://habbit-backend-k33d.onrender.com";
+
+function getStoredAuthToken() {
+  try {
+    return (
+      localStorage.getItem("habbit-auth-token") ||
+      localStorage.getItem("habbitToken") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+async function createHabitOnServer(payload) {
+  const token = getStoredAuthToken();
+
+  if (!token) {
+    throw new Error("Нет токена авторизации");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/habits`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      habitTypeCode: payload.categoryId,
+      title: payload.groupName,
+      description: payload.groupDescription,
+      templateTasks: payload.templateTasks || [],
+      customTasks: payload.customTasks || [],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Не удалось создать группу");
+  }
+
+  return data;
+}
+
 function getInitial(name) {
   const trimmedName = String(name || "").trim();
   return (trimmedName[0] || "П").toUpperCase();
@@ -141,7 +189,8 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
   const userName = userProfile?.name || "Елизавета";
   const userEmail = userProfile?.email || "ela@gmail.com";
   const coins = userProfile?.coins || 240;
-  const [createdCategories] = useState(INITIAL_CREATED);
+  const [categories, setCategories] = useState(ALL_CATEGORIES);
+  const [createdCategories, setCreatedCategories] = useState(INITIAL_CREATED);
   const [expandedCategories, setExpandedCategories] = useState({
     reading: true,
     sport: false,
@@ -149,10 +198,12 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     cleaning: false,
   });
   const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
+  const [inviteCodeModal, setInviteCodeModal] = useState(null);
+  const [isInviteCodeCopied, setIsInviteCodeCopied] = useState(false);
 
   const createdCategoryObjects = useMemo(
-    () => ALL_CATEGORIES.filter((category) => createdCategories.includes(category.id)),
-    [createdCategories]
+    () => categories.filter((category) => createdCategories.includes(category.id)),
+    [categories, createdCategories]
   );
 
   const toggleCategory = (id) => {
@@ -176,6 +227,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
         categoryTitle: category.title,
         groupId: group.id,
         groupName: group.name,
+        groupCode: group.groupCode || group.code || "HAB-READ-PAGE",
       });
     },
     [navigate]
@@ -191,8 +243,74 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     [openGroupPage]
   );
 
-  const handleGroupFormSubmit = useCallback((payload) => {
-    console.log("Group form submitted:", payload);
+  const handleGroupFormSubmit = useCallback(async (payload) => {
+    const categoryId = payload.categoryId || "reading";
+    const isCreateFlow = payload.mode === "create";
+    let groupName = payload.groupName || (isCreateFlow ? "Новая группа" : "Группа по коду");
+    let groupCode = payload.groupCode || payload.inviteCode || "";
+    let serverHabitId = null;
+
+    if (isCreateFlow) {
+      try {
+        const data = await createHabitOnServer(payload);
+        const habit = data?.habit || {};
+
+        serverHabitId = habit.id || null;
+        groupName = habit.title || groupName;
+        groupCode = data?.inviteCode || habit.inviteCode || groupCode;
+      } catch (error) {
+        console.error("Habit creation failed:", error);
+
+        if (getStoredAuthToken()) {
+          alert(error?.message || "Не удалось создать группу на сервере");
+          return;
+        }
+      }
+    }
+
+    const nextGroup = {
+      id: serverHabitId || `local-${Date.now()}`,
+      name: groupName,
+      members: isCreateFlow ? 1 : 4,
+      progress: "0%",
+      note: isCreateFlow ? "Новая группа создана. Пригласи друзей по коду." : "Ты присоединилась к группе по коду.",
+      groupCode,
+    };
+
+    setCategories((prevCategories) =>
+      prevCategories.map((category) =>
+        category.id === categoryId
+          ? { ...category, groups: [nextGroup, ...category.groups] }
+          : category
+      )
+    );
+
+    setCreatedCategories((prevCategories) =>
+      prevCategories.includes(categoryId) ? prevCategories : [...prevCategories, categoryId]
+    );
+
+    setExpandedCategories((prevExpanded) => ({ ...prevExpanded, [categoryId]: true }));
+
+    if (isCreateFlow && groupCode) {
+      setIsInviteCodeCopied(false);
+      setInviteCodeModal({ code: groupCode, groupName });
+    }
+  }, []);
+
+  const handleCopyInviteCode = useCallback(async () => {
+    if (!inviteCodeModal?.code) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteCodeModal.code);
+      setIsInviteCodeCopied(true);
+    } catch {
+      setIsInviteCodeCopied(false);
+    }
+  }, [inviteCodeModal]);
+
+  const handleCloseInviteCodeModal = useCallback(() => {
+    setInviteCodeModal(null);
+    setIsInviteCodeCopied(false);
   }, []);
 
   return (
@@ -407,7 +525,62 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
           onClose={() => setIsGroupFormOpen(false)}
           onSubmit={handleGroupFormSubmit}
         />
+
+        {inviteCodeModal && (
+          <InviteCodeModal
+            code={inviteCodeModal.code}
+            groupName={inviteCodeModal.groupName}
+            copied={isInviteCodeCopied}
+            onCopy={handleCopyInviteCode}
+            onClose={handleCloseInviteCodeModal}
+          />
+        )}
       </div>
     </ClickSpark>
+  );
+}
+
+function InviteCodeModal({ code, groupName, copied, onCopy, onClose }) {
+  return (
+    <div className="group-form-invite-modal" role="presentation">
+      <button
+        type="button"
+        className="group-form-invite-modal__backdrop"
+        onClick={onClose}
+        aria-label="Закрыть окно с кодом"
+      />
+
+      <section
+        className="group-form-invite-modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="invite-code-title"
+      >
+        <div className="section-label">Код для друзей</div>
+        <h2 id="invite-code-title" className="group-form-invite-modal__title">
+          Группа «{groupName}» создана
+        </h2>
+
+        <p className="group-form-invite-modal__text">
+          Отправь этот код друзьям, чтобы они могли присоединиться к группе.
+        </p>
+
+        <button type="button" className="group-form-invite-modal__code" onClick={onCopy}>
+          {code}
+        </button>
+
+        <div className="group-form-invite-modal__copy-state">
+          {copied ? "Код скопирован" : "Нажми на код, чтобы скопировать"}
+        </div>
+
+        <p className="group-form-invite-modal__hint">
+          Ты можешь найти данный код в настройках группы.
+        </p>
+
+        <button type="button" className="group-form-invite-modal__ok" onClick={onClose}>
+          Окей
+        </button>
+      </section>
+    </div>
   );
 }

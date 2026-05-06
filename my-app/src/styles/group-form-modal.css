@@ -829,3 +829,304 @@
 .group-form-custom-task--error .group-form-template__dot {
   border-color: var(--color-error, #e84d3f);
 }
+/* === Step 4: selected data review === */
+.group-form-step--review .group-form-step__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.group-form-step--review .group-form-step__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.group-form-step--review .group-form-step__body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.group-form-step--review .group-form-step__body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-scrollbar-thumb) 74%, transparent);
+}
+
+.group-form-review {
+  display: grid;
+  gap: 12px;
+}
+
+.group-form-review__card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 20px;
+  background: var(--color-inner-block-bg);
+  box-shadow: 0 8px 18px var(--color-shadow-small);
+}
+
+.group-form-review__label {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.group-form-review__card strong {
+  color: var(--color-text-main);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.group-form-review__card--tasks {
+  gap: 10px;
+}
+
+.group-form-review__task-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--color-text-main);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* === Invite code modal after group creation === */
+.group-form-invite-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.group-form-invite-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(59, 36, 10, 0.26);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+}
+
+.group-form-invite-modal__dialog {
+  position: relative;
+  width: min(100%, 460px);
+  padding: 28px;
+  border: 1px solid var(--color-card-border);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 28px 80px var(--color-shadow-notifications);
+  color: var(--color-text-main);
+  text-align: center;
+}
+
+.group-form-invite-modal__title {
+  margin: 10px 0 0;
+  font-size: 1.85rem;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.group-form-invite-modal__text,
+.group-form-invite-modal__hint,
+.group-form-invite-modal__copy-state {
+  color: var(--color-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.group-form-invite-modal__text {
+  margin: 14px 0 0;
+}
+
+.group-form-invite-modal__code {
+  width: 100%;
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-category-reading) 42%, var(--color-white));
+  color: var(--color-text-main);
+  box-shadow: 0 12px 24px var(--color-shadow-soft);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.group-form-invite-modal__code:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-category-reading) 54%, var(--color-white));
+  box-shadow: 0 16px 28px var(--color-shadow-hover);
+}
+
+.group-form-invite-modal__copy-state {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.group-form-invite-modal__hint {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--color-border-control);
+  border-radius: 18px;
+  background: var(--color-inner-block-bg);
+}
+
+.group-form-invite-modal__ok {
+  min-width: 130px;
+  margin-top: 20px;
+  padding: 13px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  background: #ff6e51;
+  color: var(--color-white);
+  box-shadow: 0 12px 26px rgba(255, 110, 81, 0.26);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.group-form-invite-modal__ok:hover {
+  transform: translateY(-1px);
+}
+
+.group-form-invite-modal__ok:active {
+  transform: translateY(0) scale(0.98);
+  filter: brightness(0.97);
+}
+
+@media (max-width: 640px) {
+  .group-form-invite-modal {
+    padding: 14px;
+  }
+
+  .group-form-invite-modal__dialog {
+    padding: 22px;
+    border-radius: 28px;
+  }
+
+  .group-form-invite-modal__title {
+    font-size: 1.55rem;
+  }
+}
+
+/* === Template field types: number / text / choice / none === */
+.group-form-template {
+  display: block;
+  padding: 0;
+}
+
+.group-form-template__main {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.group-form-template__error {
+  display: block;
+  padding: 0 14px 12px 48px;
+}
+
+.group-form-template__text > span:not(.group-form-choice-list) {
+  font-weight: 600;
+}
+
+.group-form-choice-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 2px;
+  vertical-align: middle;
+}
+
+.group-form-choice-chip {
+  min-width: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 999px;
+  background: var(--color-button-bg);
+  color: var(--color-text-main);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.group-form-choice-chip:hover {
+  transform: translateY(-1px);
+  background: var(--color-button-hover-bg);
+  box-shadow: 0 8px 18px var(--color-shadow-small);
+}
+
+.group-form-choice-chip--active {
+  border-color: var(--color-category-nutrition);
+  background: color-mix(in srgb, var(--color-category-nutrition) 42%, var(--color-white));
+}
+
+@media (max-width: 640px) {
+  .group-form-template__main {
+    align-items: flex-start;
+  }
+
+  .group-form-template__error {
+    padding-left: 46px;
+  }
+}
+
+/* === Backend-driven task template helpers === */
+.group-form-hint-card--warning {
+  border-style: solid;
+  background: color-mix(in srgb, var(--color-category-cleaning) 30%, var(--color-white));
+}
+
+.group-form-custom-task__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.group-form-custom-task__body > input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 18px;
+  background: var(--color-control-bg);
+  color: var(--color-text-main);
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.group-form-custom-task__body > input:focus {
+  border-color: var(--color-category-nutrition);
+  background: var(--color-white);
+  box-shadow: 0 0 0 4px rgba(232, 196, 183, 0.28);
+}
+
+.group-form-custom-task--error .group-form-custom-task__body > input {
+  border-color: var(--color-error, #e84d3f);
+  background: var(--color-white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error, #e84d3f) 14%, transparent);
+}
