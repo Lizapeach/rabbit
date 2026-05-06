@@ -8,6 +8,8 @@ import BorderGlow from "../components/BorderGlow";
 import { TaskDoneAnimation, AnimatedCheckMark } from "../components/TaskDoneAnimation";
 import Live2DBunny from "../components/Live2DBunny";
 
+import gearIcon from "../assets/icons/gear.png";
+
 import "../styles/global.css";
 import "../styles/group.css";
 
@@ -29,27 +31,27 @@ const friendsData = [
     avatarColor: USER.avatarColor,
     tasks: [
       {
-        id: "reading_pages",
+        id: "reading-pages",
         type: "template",
-        templateId: "reading_pages",
+        templateId: "reading-pages",
         templateValue: "20",
         title: "Прочитать 20 страниц",
         done: false,
       },
       {
-        id: "reading_minutes",
+        id: "reading-minutes",
         type: "template",
-        templateId: "reading_minutes",
+        templateId: "reading-minutes",
         templateValue: "20",
         title: "Читать 20 минут",
         done: false,
       },
       {
-        id: "reading_note",
+        id: "reading-notes",
         type: "template",
-        templateId: "reading_note",
-        templateValue: "мысль",
-        title: "Записать мысль из прочитанного",
+        templateId: "reading-notes",
+        templateValue: "3",
+        title: "Выписать 3 мысли из книги",
         done: false,
       },
     ],
@@ -63,7 +65,7 @@ const friendsData = [
     avatarColor: "#c7d8c0",
     tasks: [
       {
-        id: "anna-reading_pages",
+        id: "anna-reading-pages",
         title: "Прочитать 10 страниц",
         done: true,
       },
@@ -88,7 +90,7 @@ const friendsData = [
     avatarColor: "#e8c4b7",
     tasks: [
       {
-        id: "mira-reading_minutes",
+        id: "mira-reading-minutes",
         title: "Читать 15 минут",
         done: false,
       },
@@ -113,7 +115,7 @@ const friendsData = [
     avatarColor: "#e7d8bf",
     tasks: [
       {
-        id: "sofia-reading_chapters",
+        id: "sofia-reading-chapter",
         title: "Прочитать 1 главу",
         done: true,
       },
@@ -140,62 +142,11 @@ const uniqueTaskBase = {
 const SPECIAL_TASK_REWARD_COINS = 15;
 const MEMBER_COLOR_STORAGE_KEY = "quiet-pages-member-colors";
 
-const TASK_EDITOR_PLACEHOLDERS = {
-  reading_pages: "например, 10",
-  reading_minutes: "например, 20",
-  reading_chapters: "например, 2",
-  reading_note: "цитату, вывод, мысль",
-};
-
 const PERSONAL_TASK_TEMPLATES = [
-  {
-    id: "reading_pages",
-    code: "reading_pages",
-    title: "Чтение страниц",
-    templateText: "Прочитать __",
-    valueType: "number",
-    unitForms: { one: "страницу", few: "страницы", many: "страниц" },
-    minValue: 1,
-    maxValue: 300,
-    step: 1,
-    choiceOptions: null,
-  },
-  {
-    id: "reading_minutes",
-    code: "reading_minutes",
-    title: "Чтение по времени",
-    templateText: "Читать __",
-    valueType: "number",
-    unitForms: { one: "минуту", few: "минуты", many: "минут" },
-    minValue: 1,
-    maxValue: 300,
-    step: 1,
-    choiceOptions: null,
-  },
-  {
-    id: "reading_chapters",
-    code: "reading_chapters",
-    title: "Чтение главами",
-    templateText: "Прочитать __",
-    valueType: "number",
-    unitForms: { one: "главу", few: "главы", many: "глав" },
-    minValue: 1,
-    maxValue: 100,
-    step: 1,
-    choiceOptions: null,
-  },
-  {
-    id: "reading_note",
-    code: "reading_note",
-    title: "Записать мысль",
-    templateText: "Записать __ из прочитанного",
-    valueType: "text",
-    unitForms: null,
-    minValue: null,
-    maxValue: null,
-    maxLength: 30,
-    choiceOptions: null,
-  },
+  { id: "reading-pages", before: "Прочитать", after: "страниц" },
+  { id: "reading-minutes", before: "Читать", after: "минут" },
+  { id: "reading-chapter", before: "Прочитать", after: "главу" },
+  { id: "reading-notes", before: "Выписать", after: "мысли из книги" },
 ];
 
 const PERSONAL_CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
@@ -264,132 +215,13 @@ function renderMemberAvatar(avatar, fallbackLabel = "") {
   return <span className="group-member-avatar__symbol">{avatar?.label || fallbackLabel}</span>;
 }
 
-function splitTemplateText(templateText = "") {
-  const [before = "", after = ""] = String(templateText).split("__");
-
-  return {
-    before: before.trim(),
-    after: after.trim(),
-  };
-}
-
-function getRussianNumberForm(numberValue) {
-  const absValue = Math.abs(Number(numberValue));
-  const lastTwoDigits = absValue % 100;
-  const lastDigit = absValue % 10;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return "many";
-  if (lastDigit === 1) return "one";
-  if (lastDigit >= 2 && lastDigit <= 4) return "few";
-  return "many";
-}
-
-function getTaskEditorTemplateUnit(template, value = "") {
-  if (!template?.unitForms) return "";
-
-  const preparedValue = String(value || "").trim();
-
-  if ((template.valueType === "number" || template.valueType === "choice") && /^\d+$/.test(preparedValue)) {
-    return template.unitForms[getRussianNumberForm(Number(preparedValue))] || template.unitForms.many || "";
-  }
-
-  return template.unitForms.many || "";
-}
-
-function getTaskEditorTemplateTail(template, value = "") {
-  const { after } = splitTemplateText(template?.templateText);
-  const unit = getTaskEditorTemplateUnit(template, value);
-
-  return [unit, after]
-    .filter((part) => String(part || "").trim().length > 0)
-    .map((part) => String(part).trim())
-    .join(" ");
-}
-
 function buildTemplateTaskTitle(template, value) {
-  if (!template) return "";
-  if (template.valueType === "none") return template.templateText || "";
-
   const preparedValue = String(value || "").trim();
-  const { before } = splitTemplateText(template.templateText);
-  const tail = getTaskEditorTemplateTail(template, preparedValue);
-
-  return [before, preparedValue, tail]
+  const parts = [template.before, preparedValue, template.after]
     .filter((part) => String(part || "").trim().length > 0)
-    .map((part) => String(part).trim())
-    .join(" ");
-}
+    .map((part) => String(part).trim());
 
-function getTaskEditorChoices(template) {
-  return Array.isArray(template?.choiceOptions) ? template.choiceOptions : [];
-}
-
-function sanitizeTaskEditorTemplateValue(template, value) {
-  const rawValue = String(value || "");
-
-  if (template.valueType === "number") {
-    return rawValue.replace(/[^0-9]/g, "");
-  }
-
-  if (template.valueType === "text") {
-    return rawValue.slice(0, template.maxLength || 30);
-  }
-
-  if (template.valueType === "choice") {
-    return getTaskEditorChoices(template).includes(rawValue) ? rawValue : "";
-  }
-
-  return "";
-}
-
-function validateTaskEditorTemplateValue(template, value) {
-  if (!template || template.valueType === "none") return null;
-
-  const preparedValue = String(value || "").trim();
-
-  if (!preparedValue) {
-    return template.valueType === "choice" ? "Выберите вариант" : "Заполните поле";
-  }
-
-  if (template.valueType === "number") {
-    if (!/^\d+$/.test(preparedValue)) {
-      return "Значение должно быть целым числом";
-    }
-
-    const numberValue = Number(preparedValue);
-
-    if (typeof template.minValue === "number" && numberValue < template.minValue) {
-      return `Число не может быть меньше ${template.minValue}`;
-    }
-
-    if (typeof template.maxValue === "number" && numberValue > template.maxValue) {
-      return `Число не может быть больше ${template.maxValue}`;
-    }
-  }
-
-  if (template.valueType === "text" && template.maxLength && preparedValue.length > template.maxLength) {
-    return `Текст не может быть длиннее ${template.maxLength} символов`;
-  }
-
-  if (template.valueType === "choice" && !getTaskEditorChoices(template).includes(preparedValue)) {
-    return "Некорректный вариант";
-  }
-
-  return null;
-}
-
-function getTaskEditorInputProps(template) {
-  if (template.valueType !== "number" && template.valueType !== "text") return {};
-
-  return {
-    type: template.valueType === "number" ? "number" : "text",
-    placeholder: template.placeholder || TASK_EDITOR_PLACEHOLDERS[template.code] || "Введите значение",
-    min: template.minValue,
-    max: template.maxValue,
-    step: template.step || (template.valueType === "number" ? 1 : undefined),
-    maxLength: template.maxLength,
-    inputMode: template.valueType === "number" ? "numeric" : undefined,
-  };
+  return parts.join(" ");
 }
 
 function createTaskEditorDraft(tasks) {
@@ -434,36 +266,15 @@ function validateTaskEditorDraft(draft) {
   const hasAnyTask = selectedTemplateIds.length > 0 || selectedCustomIds.length > 0;
 
   selectedTemplateIds.forEach((templateId) => {
-    const template = PERSONAL_TASK_TEMPLATES.find((item) => item.id === templateId);
-    const templateError = validateTaskEditorTemplateValue(template, draft.templateValues?.[templateId]);
-
-    if (templateError) {
-      errors.templates[templateId] = templateError;
+    if (!String(draft.templateValues?.[templateId] || "").trim()) {
+      errors.templates[templateId] = true;
     }
   });
 
-  const usedCustomTexts = new Set();
-
-  selectedCustomIds.forEach((taskId, index) => {
-    const preparedText = String(draft.customTasks?.[taskId] || "").trim();
-    const loweredText = preparedText.toLowerCase();
-
-    if (!preparedText) {
-      errors.customTasks[taskId] = `Свое задание №${index + 1} пустое`;
-      return;
+  selectedCustomIds.forEach((taskId) => {
+    if (!String(draft.customTasks?.[taskId] || "").trim()) {
+      errors.customTasks[taskId] = true;
     }
-
-    if (preparedText.length > 160) {
-      errors.customTasks[taskId] = `Свое задание №${index + 1} должно быть не длиннее 160 символов`;
-      return;
-    }
-
-    if (usedCustomTexts.has(loweredText)) {
-      errors.customTasks[taskId] = `Свое задание «${preparedText}» повторяется`;
-      return;
-    }
-
-    usedCustomTexts.add(loweredText);
   });
 
   if (!hasAnyTask) {
@@ -755,7 +566,6 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const dragRef = useRef(null);
 
   const [groupName] = useState(() => window.history.state?.groupName || "Quiet Pages");
-  const [groupCode] = useState(() => window.history.state?.groupCode || "HAB-READ-PAGE");
   const [userCoins, setUserCoins] = useState(() => userProfile?.coins || USER.coins);
   const [myTasks, setMyTasks] = useState(friendsData[0].tasks);
   const [selectedFriendId, setSelectedFriendId] = useState("me");
@@ -1498,7 +1308,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                               aria-expanded={isGroupSettingsOpen}
                               aria-label="Открыть настройки группы"
                             >
-                              <span className="group-settings__gear" aria-hidden="true">⚙</span>
+                              <img className="group-settings__gear-icon" src={gearIcon} alt="" aria-hidden="true" />
                             </button>
 
                             {isGroupSettingsOpen && (
@@ -1512,7 +1322,6 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                                 onRequestRemoveMember={handleRequestRemoveMember}
                                 onRequestExit={handleRequestExitGroup}
                                 adminMemberId={adminMemberId}
-                                groupCode={groupCode}
                               />
                             )}
                           </div>
@@ -1882,22 +1691,15 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
   const [errors, setErrors] = useState({ templates: {}, customTasks: {}, common: "" });
 
   const toggleTemplate = (templateId) => {
-    const template = PERSONAL_TASK_TEMPLATES.find((item) => item.id === templateId);
-
     setDraft((prev) => {
       const currentIds = prev.selectedTaskIds || [];
-      const isSelected = currentIds.includes(templateId);
-      const nextIds = isSelected
+      const nextIds = currentIds.includes(templateId)
         ? currentIds.filter((id) => id !== templateId)
         : [...currentIds, templateId];
 
       return {
         ...prev,
         selectedTaskIds: nextIds,
-        templateValues: {
-          ...prev.templateValues,
-          ...(template?.valueType === "none" && !isSelected ? { [templateId]: "" } : {}),
-        },
       };
     });
   };
@@ -1916,12 +1718,12 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
     });
   };
 
-  const updateTemplateValue = (template, value) => {
+  const updateTemplateValue = (templateId, value) => {
     setDraft((prev) => ({
       ...prev,
       templateValues: {
         ...prev.templateValues,
-        [template.id]: sanitizeTaskEditorTemplateValue(template, value),
+        [templateId]: value,
       },
     }));
   };
@@ -1966,66 +1768,30 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
           <div className="task-editor-template-list">
             {PERSONAL_TASK_TEMPLATES.map((template) => {
               const isChecked = (draft.selectedTaskIds || []).includes(template.id);
-              const errorMessage = errors.templates?.[template.id];
-              const hasError = Boolean(errorMessage);
-              const currentValue = draft.templateValues?.[template.id] || "";
-              const inputProps = getTaskEditorInputProps(template);
-              const { before } = splitTemplateText(template.templateText);
-              const tail = getTaskEditorTemplateTail(template, currentValue);
-              const choices = getTaskEditorChoices(template);
+              const hasError = Boolean(errors.templates?.[template.id]);
 
               return (
-                <div
+                <label
                   key={template.id}
                   className={`task-editor-template ${isChecked ? "task-editor-template--checked" : ""} ${hasError ? "task-editor-template--error" : ""}`}
                 >
-                  <label className="task-editor-template__main">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleTemplate(template.id)}
+                  />
+                  <span className="task-editor-template__dot" />
+                  <span className="task-editor-template__text">
+                    {template.before}
                     <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleTemplate(template.id)}
+                      value={draft.templateValues?.[template.id] || ""}
+                      onChange={(event) => updateTemplateValue(template.id, event.target.value)}
+                      placeholder="___"
+                      aria-invalid={hasError}
                     />
-                    <span className="task-editor-template__dot" />
-                    <span className="task-editor-template__text">
-                      {template.valueType === "none" ? (
-                        <span>{template.templateText}</span>
-                      ) : (
-                        <>
-                          {before && <span>{before}</span>}
-                          {template.valueType === "choice" ? (
-                            <span className="group-form-choice-list" aria-label="Выберите значение задания">
-                              {choices.map((choice) => (
-                                <button
-                                  key={choice}
-                                  type="button"
-                                  className={`group-form-choice-chip ${currentValue === choice ? "group-form-choice-chip--active" : ""}`}
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    if (!isChecked) toggleTemplate(template.id);
-                                    updateTemplateValue(template, choice);
-                                  }}
-                                >
-                                  {choice}
-                                </button>
-                              ))}
-                            </span>
-                          ) : (
-                            <input
-                              {...inputProps}
-                              value={currentValue}
-                              onChange={(event) => updateTemplateValue(template, event.target.value)}
-                              aria-invalid={hasError}
-                            />
-                          )}
-                          {tail && <span>{tail}</span>}
-                        </>
-                      )}
-                    </span>
-                  </label>
-
-                  {hasError && <small className="group-form-error task-editor-template__error">{errorMessage}</small>}
-                </div>
+                    {template.after}
+                  </span>
+                </label>
               );
             })}
           </div>
@@ -2041,8 +1807,7 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
           <div className="task-editor-custom-list">
             {PERSONAL_CUSTOM_TASK_IDS.map((id, index) => {
               const isChecked = (draft.customTaskIds || []).includes(id);
-              const customError = errors.customTasks?.[id];
-              const hasError = Boolean(customError);
+              const hasError = Boolean(errors.customTasks?.[id]);
 
               return (
                 <label
@@ -2055,16 +1820,12 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
                     onChange={() => toggleCustomTask(id)}
                   />
                   <span className="task-editor-template__dot" />
-                  <span className="task-editor-custom-task__body">
-                    <input
-                      value={draft.customTasks?.[id] || ""}
-                      onChange={(event) => updateCustomTask(id, event.target.value)}
-                      placeholder={`Своё задание ${index + 1}`}
-                      maxLength={160}
-                      aria-invalid={hasError}
-                    />
-                    {hasError && <small className="group-form-error">{customError}</small>}
-                  </span>
+                  <input
+                    value={draft.customTasks?.[id] || ""}
+                    onChange={(event) => updateCustomTask(id, event.target.value)}
+                    placeholder={`Своё задание ${index + 1}`}
+                    aria-invalid={hasError}
+                  />
                 </label>
               );
             })}
@@ -2091,21 +1852,7 @@ function GroupSettingsPanel({
   onRequestRemoveMember,
   onRequestExit,
   adminMemberId,
-  groupCode,
 }) {
-  const [isCodeCopied, setIsCodeCopied] = useState(false);
-
-  const handleCopyGroupCode = useCallback(async () => {
-    if (!groupCode) return;
-
-    try {
-      await navigator.clipboard.writeText(groupCode);
-      setIsCodeCopied(true);
-    } catch {
-      setIsCodeCopied(false);
-    }
-  }, [groupCode]);
-
   return (
     <div
       className={`group-settings__panel ${hasChanges ? "group-settings__panel--unsaved" : ""}`}
@@ -2186,16 +1933,6 @@ function GroupSettingsPanel({
       <button type="button" className="group-settings__tasks" onClick={onEditTasks}>
         Изменить задания
       </button>
-
-      <div className="group-settings-code-card">
-        <span className="group-settings-code-card__label">Код группы</span>
-        <button type="button" className="group-settings-code-card__value" onClick={handleCopyGroupCode}>
-          {groupCode}
-        </button>
-        <small className="group-settings-code-card__hint">
-          {isCodeCopied ? "Код скопирован" : "Нажми на код, чтобы скопировать"}
-        </small>
-      </div>
 
       <button type="button" className="group-settings__exit" onClick={onRequestExit}>
         Выйти из группы

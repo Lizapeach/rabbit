@@ -4,6 +4,7 @@ import ClickSpark from "../components/ClickSpark";
 import Header from "../components/Header";
 import AnimatedContent from "../components/AnimatedContent";
 import BorderGlow from "../components/BorderGlow";
+import gearIcon from "../assets/icons/gear.png";
 
 import "../styles/global.css";
 import "../styles/profile.css";
@@ -30,6 +31,7 @@ const AVATAR_SELECTED_STORAGE_KEY = "habbit-profile-selected-avatar-id";
 const AVATAR_PHOTOS_STORAGE_KEY = "habbit-profile-uploaded-photos";
 const PROFILE_DATA_STORAGE_KEY = "habbit-profile-data";
 const TOKEN_STORAGE_KEY = "habbit-auth-token";
+const MAX_UPLOADED_PHOTOS = 3;
 
 function readStoredAvatarColors() {
   if (typeof window === "undefined") return {};
@@ -90,14 +92,16 @@ function readStoredUploadedPhotos() {
       return [];
     }
 
-    return parsedPhotos.filter(
-      (photo) =>
-        photo &&
-        typeof photo === "object" &&
-        typeof photo.id === "string" &&
-        typeof photo.src === "string" &&
-        photo.src.startsWith("data:image/")
-    );
+    return parsedPhotos
+      .filter(
+        (photo) =>
+          photo &&
+          typeof photo === "object" &&
+          typeof photo.id === "string" &&
+          typeof photo.src === "string" &&
+          photo.src.startsWith("data:image/")
+      )
+      .slice(0, MAX_UPLOADED_PHOTOS);
   } catch {
     return [];
   }
@@ -107,7 +111,10 @@ function saveStoredUploadedPhotos(photos) {
   if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.setItem(AVATAR_PHOTOS_STORAGE_KEY, JSON.stringify(photos));
+    window.localStorage.setItem(
+      AVATAR_PHOTOS_STORAGE_KEY,
+      JSON.stringify(photos.slice(0, MAX_UPLOADED_PHOTOS))
+    );
   } catch {
     // Если картинка слишком большая для localStorage, фото останется только до перезагрузки.
   }
@@ -212,6 +219,8 @@ export default function ProfilePage({
 
   const currentInitial = getInitial(profileData.name);
 
+  const canAddMorePhotos = uploadedPhotos.length < MAX_UPLOADED_PHOTOS;
+
   const carousel = useMemo(() => {
     const uploadSlide = {
       id: "upload",
@@ -227,7 +236,7 @@ export default function ProfilePage({
       color: avatarColors.monogram || "#ede2da",
     };
 
-    const photoSlides = uploadedPhotos.map((photo, index) => ({
+    const photoSlides = uploadedPhotos.slice(0, MAX_UPLOADED_PHOTOS).map((photo, index) => ({
       id: photo.id,
       type: "photo",
       src: photo.src,
@@ -241,11 +250,18 @@ export default function ProfilePage({
       color: avatarColors[slide.id] || slide.defaultColor,
     }));
 
-    return [uploadSlide, monogramSlide, ...photoSlides, ...emojiSlides];
-  }, [avatarColors, currentInitial, uploadedPhotos]);
+    return [
+      ...(canAddMorePhotos ? [uploadSlide] : []),
+      monogramSlide,
+      ...photoSlides,
+      ...emojiSlides,
+    ];
+  }, [avatarColors, canAddMorePhotos, currentInitial, uploadedPhotos]);
 
   const storedAvatarIndex = carousel.findIndex((slide) => slide.id === currentAvatarId);
-  const safeIndex = storedAvatarIndex >= 0 ? storedAvatarIndex : 1;
+  const monogramIndex = carousel.findIndex((slide) => slide.id === "monogram");
+  const fallbackAvatarIndex = monogramIndex >= 0 ? monogramIndex : 0;
+  const safeIndex = storedAvatarIndex >= 0 ? storedAvatarIndex : fallbackAvatarIndex;
   const currentSlide = carousel[safeIndex];
   const selectedDisplaySlide =
     currentSlide?.type === "upload" ? carousel.find((slide) => slide.id === "monogram") : currentSlide;
@@ -311,6 +327,11 @@ export default function ProfilePage({
   }, [handleUploadWindowFocus]);
 
   const openUpload = ({ fallbackId = currentSlide?.id || "monogram", delay = false } = {}) => {
+    if (!canAddMorePhotos) {
+      selectAvatarId("monogram");
+      return;
+    }
+
     previousAvatarIdRef.current = fallbackId;
 
     if (uploadOpenTimerRef.current) {
@@ -394,6 +415,12 @@ export default function ProfilePage({
       return;
     }
 
+    if (uploadedPhotos.length >= MAX_UPLOADED_PHOTOS) {
+      selectAvatarId("monogram");
+      event.target.value = "";
+      return;
+    }
+
     const photoId = `uploaded-${file.name}-${file.size}-${file.lastModified}`;
     const reader = new FileReader();
 
@@ -404,7 +431,7 @@ export default function ProfilePage({
       setUploadedPhotos((prev) => [
         { id: photoId, src },
         ...prev.filter((photo) => photo.id !== photoId),
-      ]);
+      ].slice(0, MAX_UPLOADED_PHOTOS));
 
       selectAvatarId(photoId);
     };
@@ -542,9 +569,12 @@ export default function ProfilePage({
                         {isProfileEditing ? (
                           "сохранить"
                         ) : (
-                          <span className="profile-edit-mode-button__gear" aria-hidden="true">
-                            ⚙
-                          </span>
+                          <img
+                            className="profile-edit-mode-button__gear-icon"
+                            src={gearIcon}
+                            alt=""
+                            aria-hidden="true"
+                          />
                         )}
                       </button>
                     </div>
