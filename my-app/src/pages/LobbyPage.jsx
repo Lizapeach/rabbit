@@ -3,6 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ClickSpark from "../components/ClickSpark";
 import Header from "../components/Header";
 import achievementIcon from "../assets/icons/achievement.svg";
+import appleIcon from "../assets/icons/apple.svg";
+import booksIcon from "../assets/icons/books.svg";
+import cleanIcon from "../assets/icons/clean.svg";
+import dumbbellsIcon from "../assets/icons/dumbbells.svg";
 import AnimatedContent from "../components/AnimatedContent";
 import AnimatedScrollList from "../components/AnimatedScrollList";
 import BorderGlow from "../components/BorderGlow";
@@ -33,6 +37,13 @@ const CATEGORY_TITLE_BY_ID = CATEGORY_OPTIONS.reduce((acc, category) => {
   acc[category.id] = category.title;
   return acc;
 }, {});
+
+const CATEGORY_ICON_BY_ID = {
+  sport: dumbbellsIcon,
+  nutrition: appleIcon,
+  cleaning: cleanIcon,
+  reading: booksIcon,
+};
 
 const ACHIEVEMENTS = [
   {
@@ -452,8 +463,12 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                                 className="category-card__button"
                               >
                                 <div className="category-card__left">
-                                  <div className="category-card__icon">
-                                    {category.title.slice(0, 1)}
+                                  <div className="category-card__icon" aria-hidden="true">
+                                    <img
+                                      className="category-card__icon-image"
+                                      src={CATEGORY_ICON_BY_ID[category.id]}
+                                      alt=""
+                                    />
                                   </div>
 
                                   <div>
