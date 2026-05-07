@@ -755,7 +755,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const settingsRef = useRef(null);
   const dragRef = useRef(null);
 
-  const [groupName] = useState(() => window.history.state?.groupName || "Quiet Pages");
+  const [groupInfo, setGroupInfo] = useState(() => ({
+    name: window.history.state?.groupName || "Quiet Pages",
+    description:
+      window.history.state?.groupDescription ||
+      "Личная группа для спокойного чтения, ежедневных заданий и общей серии без пропусков.",
+  }));
   const [groupCode] = useState(() => window.history.state?.groupCode || "HAB-READ-PAGE");
   const [userCoins, setUserCoins] = useState(() => userProfile?.coins || USER.coins);
   const [myTasks, setMyTasks] = useState(friendsData[0].tasks);
@@ -779,6 +784,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [draftMemberColors, setDraftMemberColors] = useState(() => memberColors);
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isTaskEditorOpen, setIsTaskEditorOpen] = useState(false);
+  const [isGroupInfoEditorOpen, setIsGroupInfoEditorOpen] = useState(false);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [exitModalStep, setExitModalStep] = useState("confirm");
   const [adminTransferMemberId, setAdminTransferMemberId] = useState("");
@@ -1004,6 +1010,16 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const handleSaveMyTasks = (nextTasks) => {
     setMyTasks(nextTasks);
     setIsTaskEditorOpen(false);
+  };
+
+  const handleOpenGroupInfoEditor = () => {
+    setIsGroupSettingsOpen(false);
+    setIsGroupInfoEditorOpen(true);
+  };
+
+  const handleSaveGroupInfo = (nextInfo) => {
+    setGroupInfo(nextInfo);
+    setIsGroupInfoEditorOpen(false);
   };
 
   const handleRequestExitGroup = () => {
@@ -1390,10 +1406,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
               onProfileClick={goToProfile}
             />
 
-          <div className="group-title-ribbon" aria-label={`Группа ${groupName}`}>
+          <div className="group-title-ribbon" aria-label={`Группа ${groupInfo.name}`}>
             <div className="group-title-ribbon__shape" />
             <div className="group-title-ribbon__content">
-              <div className="group-title-ribbon__name">{groupName}</div>
+              <div className="group-title-ribbon__name">{groupInfo.name}</div>
               <div className="group-title-ribbon__streak">
                 Серия: {streakDays} {streakDays === 1 ? "день" : "дней"} без пропуска
               </div>
@@ -1510,6 +1526,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                                 onColorChange={handleMemberColorChange}
                                 onSave={handleSaveMemberColors}
                                 onEditTasks={handleOpenTaskEditor}
+                                onEditGroupInfo={handleOpenGroupInfoEditor}
                                 onRequestRemoveMember={handleRequestRemoveMember}
                                 onRequestExit={handleRequestExitGroup}
                                 adminMemberId={adminMemberId}
@@ -1669,6 +1686,16 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
             tasks={myTasks}
             onClose={() => setIsTaskEditorOpen(false)}
             onSave={handleSaveMyTasks}
+          />
+        )}
+
+
+
+        {isGroupInfoEditorOpen && (
+          <GroupInfoEditorModal
+            groupInfo={groupInfo}
+            onClose={() => setIsGroupInfoEditorOpen(false)}
+            onSave={handleSaveGroupInfo}
           />
         )}
 
@@ -1875,6 +1902,90 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
         )}
       </div>
     </ClickSpark>
+  );
+}
+
+
+function GroupInfoEditorModal({ groupInfo, onClose, onSave }) {
+  const [draftName, setDraftName] = useState(groupInfo.name || "");
+  const [draftDescription, setDraftDescription] = useState(groupInfo.description || "");
+  const [errors, setErrors] = useState({});
+
+  const handleSave = () => {
+    const nextName = draftName.trim();
+    const nextDescription = draftDescription.trim();
+    const nextErrors = {};
+
+    if (!nextName) {
+      nextErrors.name = "Введите название группы";
+    } else if (nextName.length < 2) {
+      nextErrors.name = "Название должно быть не короче 2 символов";
+    } else if (nextName.length > 80) {
+      nextErrors.name = "Название должно быть не длиннее 80 символов";
+    }
+
+    if (nextDescription.length > 500) {
+      nextErrors.description = "Описание должно быть не длиннее 500 символов";
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) return;
+
+    onSave({
+      name: nextName,
+      description: nextDescription,
+    });
+  };
+
+  return (
+    <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={onClose}>
+      <div className="task-editor-modal group-info-editor-modal" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="task-editor-modal__close" onClick={onClose} aria-label="Закрыть окно">
+          ×
+        </button>
+
+        <div className="task-editor-modal__header">
+          <div className="section-label">Настройки группы</div>
+          <h2 className="task-editor-modal__title">Изменить название и описание</h2>
+          <p className="task-editor-modal__text">
+            Эти данные отображаются на странице группы. Потом этот же блок можно будет связать с PATCH-запросом к бэкенду.
+          </p>
+        </div>
+
+        <div className="group-info-editor__body">
+          <label className={`group-info-editor__field ${errors.name ? "group-info-editor__field--error" : ""}`}>
+            <span>Название группы</span>
+            <input
+              type="text"
+              value={draftName}
+              maxLength={80}
+              onChange={(event) => setDraftName(event.target.value)}
+              placeholder="Например, Quiet Pages"
+            />
+            {errors.name && <small className="group-form-error">{errors.name}</small>}
+          </label>
+
+          <label className={`group-info-editor__field ${errors.description ? "group-info-editor__field--error" : ""}`}>
+            <span>Описание группы</span>
+            <textarea
+              value={draftDescription}
+              maxLength={500}
+              onChange={(event) => setDraftDescription(event.target.value)}
+              placeholder="Коротко опиши цель группы"
+            />
+            <small className="group-info-editor__counter">{draftDescription.length}/500</small>
+            {errors.description && <small className="group-form-error">{errors.description}</small>}
+          </label>
+        </div>
+
+        <div className="task-editor-modal__footer">
+          <button type="button" className="modal-card__button task-editor-modal__save" onClick={handleSave}>
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2089,6 +2200,7 @@ function GroupSettingsPanel({
   onColorChange,
   onSave,
   onEditTasks,
+  onEditGroupInfo,
   onRequestRemoveMember,
   onRequestExit,
   adminMemberId,
@@ -2123,10 +2235,12 @@ function GroupSettingsPanel({
       )}
 
       <div className="group-settings__title">Настройки группы</div>
-      <div className="group-settings__subtitle">Изменить цвет участника. Цвет применится после сохранения.</div>
 
-      <div className="group-color-list">
-        {members.map((member) => {
+      <div className="group-settings__scroll">
+        <div className="group-settings__subtitle">Изменить цвет участника. Цвет применится после сохранения.</div>
+
+        <div className="group-color-list">
+          {members.map((member) => {
           const isOwnProfile = member.id === "me";
           const label = isOwnProfile ? "Вы" : member.name;
           const savedColor = normalizeHexColor(savedMemberColors[member.id], member.color);
@@ -2188,6 +2302,10 @@ function GroupSettingsPanel({
         Изменить задания
       </button>
 
+      <button type="button" className="group-settings__tasks" onClick={onEditGroupInfo}>
+        Изменить название и описание
+      </button>
+
       <div className="group-settings-code-card">
         <span className="group-settings-code-card__label">Код группы</span>
         <button type="button" className="group-settings-code-card__value" onClick={handleCopyGroupCode}>
@@ -2198,9 +2316,10 @@ function GroupSettingsPanel({
         </small>
       </div>
 
-      <button type="button" className="group-settings__exit" onClick={onRequestExit}>
-        Выйти из группы
-      </button>
+        <button type="button" className="group-settings__exit" onClick={onRequestExit}>
+          Выйти из группы
+        </button>
+      </div>
     </div>
   );
 }
