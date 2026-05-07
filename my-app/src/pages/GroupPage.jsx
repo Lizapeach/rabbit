@@ -8,6 +8,7 @@ import BorderGlow from "../components/BorderGlow";
 import { TaskDoneAnimation, AnimatedCheckMark } from "../components/TaskDoneAnimation";
 import Live2DBunny from "../components/Live2DBunny";
 import gearIcon from "../assets/icons/gear.png";
+import achievementIcon from "../assets/icons/achievement.svg";
 
 import "../styles/global.css";
 import "../styles/group.css";
@@ -785,6 +786,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isTaskEditorOpen, setIsTaskEditorOpen] = useState(false);
   const [isGroupInfoEditorOpen, setIsGroupInfoEditorOpen] = useState(false);
+  const [isMemberInfoOpen, setIsMemberInfoOpen] = useState(false);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [exitModalStep, setExitModalStep] = useState("confirm");
   const [adminTransferMemberId, setAdminTransferMemberId] = useState("");
@@ -1015,6 +1017,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const handleOpenGroupInfoEditor = () => {
     setIsGroupSettingsOpen(false);
     setIsGroupInfoEditorOpen(true);
+  };
+
+  const handleOpenSelectedMemberInfo = () => {
+    setIsMemberInfoOpen(true);
   };
 
   const handleSaveGroupInfo = (nextInfo) => {
@@ -1440,12 +1446,15 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
                         <div className="group-task-board__header">
                           <div className="member-heading">
-                            <div
-                              className="member-heading__avatar"
+                            <button
+                              type="button"
+                              className="member-heading__avatar member-heading__avatar--button"
                               style={{ backgroundColor: selectedFriend.avatar?.color || selectedFriend.avatarColor }}
+                              onClick={handleOpenSelectedMemberInfo}
+                              aria-label={`Открыть информацию участника: ${selectedFriend.name}`}
                             >
                               {renderMemberAvatar(selectedFriend.avatar, selectedFriend.initials)}
-                            </div>
+                            </button>
 
                             <div>
                               <div className="member-heading__name">{selectedFriend.name}</div>
@@ -1699,6 +1708,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
           />
         )}
 
+        {isMemberInfoOpen && (
+          <MemberInfoModal
+            member={selectedFriend}
+            memberStats={selectedMemberStats}
+            groupInfo={groupInfo}
+            categoryName="Чтение"
+            streakDays={streakDays}
+            isAdmin={selectedFriend.id === adminMemberId}
+            onClose={() => setIsMemberInfoOpen(false)}
+          />
+        )}
+
         {isSpecialUploadOpen && (
           <div
             className="modal-backdrop"
@@ -1902,6 +1923,105 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
         )}
       </div>
     </ClickSpark>
+  );
+}
+
+
+const MEMBER_ACHIEVEMENT_TITLES = {
+  me: ["Книжный старт", "Тихий читатель", "Верность группе"],
+  anna: ["Стабильный темп", "Командный вклад", "Две отметки подряд"],
+  mira: ["Первый шаг", "Возвращение к ритму"],
+  sofia: ["Идеальный день", "Серия без пауз", "Командный пример"],
+};
+
+function getMemberAchievements(member, memberStats) {
+  const preset = MEMBER_ACHIEVEMENT_TITLES[member?.id] || ["Участник группы"];
+  const donePercent = memberStats?.total > 0 ? Math.round((memberStats.completed / memberStats.total) * 100) : 0;
+
+  return preset.map((title, index) => ({
+    id: `${member?.id || "member"}-achievement-${index}`,
+    title,
+    desc:
+      index === 0
+        ? `Сегодня выполнено ${memberStats?.completed || 0}/${memberStats?.total || 0} обычных заданий.`
+        : donePercent === 100
+          ? "Участник закрыл все обычные задания за день."
+          : "Достижение участника внутри этой группы.",
+  }));
+}
+
+function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakDays, isAdmin, onClose }) {
+  const achievements = getMemberAchievements(member, memberStats);
+
+  return (
+    <div className="modal-backdrop member-info-backdrop" data-note-ui="true" onClick={onClose}>
+      <div className="member-info-modal" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="task-editor-modal__close" onClick={onClose} aria-label="Закрыть окно">
+          ×
+        </button>
+
+        <div className="member-info-modal__header">
+          <div className="member-info-modal__identity">
+            <div className="section-label">Информация участника</div>
+            <h2 className="member-info-modal__name">{member.name}</h2>
+            <div className="member-info-modal__email">{member.email || "Почта не указана"}</div>
+            {isAdmin && <div className="member-info-modal__role">Администратор группы</div>}
+          </div>
+        </div>
+
+        <div className="member-info-modal__content">
+          <div className="member-info-record-row">
+            <div
+              className="member-info-record-avatar"
+              style={{ backgroundColor: member.avatar?.color || member.avatarColor }}
+              aria-hidden="true"
+            >
+              {renderMemberAvatar(member.avatar, member.initials)}
+            </div>
+
+            <section className="member-info-record record-streak">
+              <div className="record-streak__inner member-info-record__inner">
+                <div className="record-streak__days member-info-record__days">
+                  <span className="record-streak__card-label">Дней</span>
+                  <strong className="record-streak__value member-info-record__value">{streakDays}</strong>
+                </div>
+
+                <div className="record-streak__details member-info-record__details">
+                  <div className="record-streak__meta-card member-info-record__meta-card">
+                    <span className="record-streak__card-label">Категория</span>
+                    <strong className="record-streak__meta-value member-info-record__meta-value">{categoryName}</strong>
+                  </div>
+
+                  <div className="record-streak__meta-card member-info-record__meta-card">
+                    <span className="record-streak__card-label">Группа</span>
+                    <strong className="record-streak__meta-value member-info-record__meta-value">{groupInfo.name}</strong>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section className="member-info-achievements">
+            <div className="member-info-achievements__title">Достижения</div>
+            <div className="member-info-achievements__list">
+              {achievements.map((achievement) => (
+                <div key={achievement.id} className="member-info-achievement achievement-card">
+                  <div className="achievement-card__content">
+                    <div className="achievement-card__icon member-info-achievement__icon" aria-hidden="true">
+                      <img src={achievementIcon} alt="" className="achievement-card__icon-image member-info-achievement__icon-image" />
+                    </div>
+                    <div className="member-info-achievement__text">
+                      <strong>{achievement.title}</strong>
+                      <small>{achievement.desc}</small>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
   );
 }
 
