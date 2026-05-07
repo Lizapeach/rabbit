@@ -1,6 +1,11 @@
 import { Children, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
+import appleIcon from "../assets/icons/apple.svg";
+import booksIcon from "../assets/icons/books.svg";
+import cleanIcon from "../assets/icons/clean.svg";
+import dumbbellsIcon from "../assets/icons/dumbbells.svg";
+
 import "../styles/group-form-modal.css";
 
 const CATEGORY_OPTIONS = [
@@ -10,11 +15,11 @@ const CATEGORY_OPTIONS = [
   { id: "nutrition", title: "Питание" },
 ];
 
-const CATEGORY_ACCENTS = {
-  sport: "var(--color-category-sport, #d9edff)",
-  cleaning: "var(--color-category-cleaning)",
-  reading: "var(--color-category-reading)",
-  nutrition: "var(--color-category-nutrition)",
+const CATEGORY_ICON_BY_ID = {
+  sport: dumbbellsIcon,
+  cleaning: cleanIcon,
+  reading: booksIcon,
+  nutrition: appleIcon,
 };
 
 const CATEGORY_TITLE_BY_CODE = {
@@ -1039,11 +1044,16 @@ function CategoryDropdown({ categories = CATEGORY_OPTIONS, value, onChange, erro
         aria-invalid={Boolean(error)}
       >
         <span className="group-form-category-select__left">
-          <span
-            className="group-form-category-select__icon"
-            style={{ background: hasValue ? CATEGORY_ACCENTS[activeCategory.id] : "var(--color-control-bg)" }}
-          >
-            {hasValue ? activeCategory.title.slice(0, 1) : "?"}
+          <span className="group-form-category-select__icon" aria-hidden="true">
+            {hasValue ? (
+              <img
+                className="group-form-category-select__icon-image"
+                src={CATEGORY_ICON_BY_ID[activeCategory.id]}
+                alt=""
+              />
+            ) : (
+              <span className="group-form-category-select__icon-empty">?</span>
+            )}
           </span>
           <span className="group-form-category-select__title">{hasValue ? activeCategory.title : "Категория не выбрана"}</span>
         </span>
@@ -1070,11 +1080,12 @@ function CategoryDropdown({ categories = CATEGORY_OPTIONS, value, onChange, erro
                 className={`group-form-category-select__option ${isActive ? "group-form-category-select__option--active" : ""}`}
                 onClick={() => handleSelect(category.id)}
               >
-                <span
-                  className="group-form-category-select__option-icon"
-                  style={{ background: CATEGORY_ACCENTS[category.id] }}
-                >
-                  {category.title.slice(0, 1)}
+                <span className="group-form-category-select__option-icon" aria-hidden="true">
+                  <img
+                    className="group-form-category-select__option-icon-image"
+                    src={CATEGORY_ICON_BY_ID[category.id]}
+                    alt=""
+                  />
                 </span>
                 <span>{category.title}</span>
               </button>
