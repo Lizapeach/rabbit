@@ -249,10 +249,6 @@ const LOCAL_TASK_TEMPLATES = {
 };
 
 const CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
-const MOCK_JOINED_GROUP = {
-  name: "Quiet Pages",
-  categoryId: "reading",
-};
 const EMPTY_VALIDATION_ERRORS = {};
 
 function createInviteCode() {
@@ -295,17 +291,23 @@ function getStoredAuthToken() {
   }
 }
 
-async function requestHabbitApi(path) {
+async function requestHabbitApi(path, options = {}) {
   const token = getStoredAuthToken();
 
   if (!token) {
-    throw new Error("Нет токена авторизации. Используется локальный список шаблонов.");
+    throw new Error("Нет токена авторизации");
   }
 
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers || {}),
+  };
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    method: options.method || "GET",
+    ...options,
+    headers,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -315,6 +317,18 @@ async function requestHabbitApi(path) {
   }
 
   return data;
+}
+
+async function requestJoinPreview(inviteCode) {
+  const preparedCode = String(inviteCode || "").trim().toUpperCase();
+  return requestHabbitApi(`/api/habits/join-preview?inviteCode=${encodeURIComponent(preparedCode)}`);
+}
+
+async function joinHabitOnServer(payload) {
+  return requestHabbitApi("/api/habits/join", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 function normalizeCategory(rawCategory) {
@@ -330,11 +344,7 @@ function normalizeCategory(rawCategory) {
 function normalizeTaskTemplate(rawTemplate) {
   const code = rawTemplate?.code || rawTemplate?.id || "";
   const valueType = rawTemplate?.valueType || "none";
-  const choiceOptions = Array.isArray(rawTemplate?.choiceOptions)
-    ? rawTemplate.choiceOptions
-    : Array.isArray(rawTemplate?.choices)
-      ? rawTemplate.choices
-      : null;
+  const choiceOptions = normalizeChoiceOptions(rawTemplate?.choiceOptions || rawTemplate?.choices);
 
   return {
     ...rawTemplate,
@@ -352,6 +362,24 @@ function normalizeTaskTemplate(rawTemplate) {
     choiceOptions,
     placeholder: rawTemplate?.placeholder || TEMPLATE_INPUT_PLACEHOLDERS[code] || "Введите значение",
   };
+}
+
+function normalizeChoiceOptions(rawOptions) {
+  if (Array.isArray(rawOptions)) {
+    return rawOptions
+      .map((option) => {
+        if (typeof option === "string") return option;
+        return option?.value || option?.code || option?.title || option?.label || "";
+      })
+      .map((option) => String(option).trim())
+      .filter(Boolean);
+  }
+
+  if (Array.isArray(rawOptions?.options)) {
+    return normalizeChoiceOptions(rawOptions.options);
+  }
+
+  return null;
 }
 
 function normalizeTaskTemplates(rawTemplates = []) {
@@ -477,7 +505,7 @@ function buildSelectedCustomPayload(form) {
 }
 
 function getTemplateChoices(template) {
-  return Array.isArray(template?.choiceOptions) ? template.choiceOptions : [];
+  return normalizeChoiceOptions(template?.choiceOptions) || [];
 }
 
 function sanitizeTemplateValue(template, value) {
@@ -570,7 +598,12 @@ function validateGroupFormStep(step, flow, form, templates = []) {
   }
 
   if (flow === "join" && step === 2) {
-    if (isBlank(form.inviteCode)) errors.inviteCode = "Впишите код группы";
+    const inviteCode = String(form.inviteCode || "").trim().toUpperCase();
+
+    if (isBlank(inviteCode)) errors.inviteCode = "Впишите код группы";
+    else if (!/^HAB-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(inviteCode)) {
+      errors.inviteCode = "Код должен быть в формате HAB-XXXX-XXXX";
+    }
   }
 
   if (step === 3) {
@@ -650,12 +683,22 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   const [categories, setCategories] = useState(CATEGORY_OPTIONS);
   const [templatesByCategory, setTemplatesByCategory] = useState({});
   const [templateLoadErrorsByCategory, setTemplateLoadErrorsByCategory] = useState({});
+  const [joinPreview, setJoinPreview] = useState(null);
+  const [actionError, setActionError] = useState("");
+  const [isActionPending, setIsActionPending] = useState(false);
   const dialogRef = useRef(null);
 
   const totalSteps = 4;
   const isLastStep = currentStep === totalSteps;
-  const activeCategoryId = flow === "create" ? form.categoryId || "sport" : MOCK_JOINED_GROUP.categoryId;
-  const activeTemplates = templatesByCategory[activeCategoryId] || getLocalTemplates(activeCategoryId);
+  const activeCategoryId = flow === "create" ? form.categoryId || "sport" : form.categoryId || joinPreview?.habit?.habitTypeCode || "";
+  const activeTemplates = useMemo(() => {
+    if (!activeCategoryId) return [];
+
+    const loadedTemplates = templatesByCategory[activeCategoryId];
+    if (loadedTemplates) return loadedTemplates;
+
+    return flow === "create" ? getLocalTemplates(activeCategoryId) : [];
+  }, [activeCategoryId, flow, templatesByCategory]);
   const isTemplatesLoading = Boolean(activeCategoryId && !templatesByCategory[activeCategoryId]);
   const templateLoadError = templateLoadErrorsByCategory[activeCategoryId] || "";
   const validationKey = `${flow}:${currentStep}`;
@@ -665,6 +708,10 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   const handleFlowChange = useCallback((nextFlow) => {
     setFlow(nextFlow);
     setVisibleValidationKey("");
+    setActionError("");
+    setJoinPreview(null);
+    setCurrentStep(1);
+    setForm(createInitialForm());
   }, []);
 
   useEffect(() => {
@@ -692,6 +739,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   }, []);
 
   useEffect(() => {
+    if (flow !== "create") return;
     if (!activeCategoryId || templatesByCategory[activeCategoryId]) return;
 
     let isCancelled = false;
@@ -727,7 +775,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
     return () => {
       isCancelled = true;
     };
-  }, [activeCategoryId, templatesByCategory]);
+  }, [activeCategoryId, templatesByCategory, flow]);
 
   useEffect(() => {
     const originalBodyOverflow = document.body.style.overflow;
@@ -765,20 +813,21 @@ function GroupFormModalContent({ onClose, onSubmit }) {
           templates={activeTemplates}
           categoryId={activeCategoryId}
           categories={categories}
+          actionError={actionError}
         />,
       ];
     }
 
     return [
       <ChoiceStep key="choice" flow={flow} onFlowChange={handleFlowChange} />,
-      <JoinGroupCodeStep key="join" form={form} setForm={setForm} joinedGroup={MOCK_JOINED_GROUP} errors={validationErrors} />,
+      <JoinGroupCodeStep key="join" form={form} setForm={setForm} joinPreview={joinPreview} errors={validationErrors} actionError={actionError} isLoading={isActionPending} />,
       <TasksStep
         key="tasks"
         templates={activeTemplates}
         form={form}
         setForm={setForm}
         errors={validationErrors}
-        isLoading={isTemplatesLoading}
+        isLoading={flow === "create" ? isTemplatesLoading : false}
         loadError={templateLoadError}
       />,
       <ReviewStep
@@ -787,11 +836,11 @@ function GroupFormModalContent({ onClose, onSubmit }) {
         form={form}
         templates={activeTemplates}
         categoryId={activeCategoryId}
-        joinedGroup={MOCK_JOINED_GROUP}
+        joinedGroup={joinPreview?.habit}
         categories={categories}
       />,
     ];
-  }, [activeCategoryId, activeTemplates, categories, flow, form, handleFlowChange, isTemplatesLoading, templateLoadError, validationErrors]);
+  }, [activeCategoryId, activeTemplates, actionError, categories, flow, form, handleFlowChange, isActionPending, isTemplatesLoading, joinPreview, templateLoadError, validationErrors]);
 
   const updateStep = (nextStep) => {
     setCurrentStep(nextStep);
@@ -799,11 +848,85 @@ function GroupFormModalContent({ onClose, onSubmit }) {
 
   const goBack = () => {
     if (currentStep <= 1) return;
+    setActionError("");
     setDirection(-1);
     updateStep(currentStep - 1);
   };
 
-  const goNext = () => {
+  const loadJoinPreview = async () => {
+    const preparedCode = String(form.inviteCode || "").trim().toUpperCase();
+    setIsActionPending(true);
+    setActionError("");
+
+    try {
+      const data = await requestJoinPreview(preparedCode);
+      const habit = data?.habit || {};
+      const habitTypeCode = habit?.habitTypeCode || "";
+      const serverTemplates = normalizeTaskTemplates(data?.taskTemplates || []);
+
+      setJoinPreview(data);
+      setForm((prev) => ({
+        ...prev,
+        inviteCode: preparedCode,
+        categoryId: habitTypeCode,
+        groupName: habit?.title || "",
+        groupDescription: habit?.description || "",
+        selectedTaskId: "",
+        selectedTaskIds: [],
+        templateValues: {},
+        customTaskId: "",
+        customTaskIds: [],
+        customTasks: {},
+      }));
+
+      if (habitTypeCode) {
+        setTemplatesByCategory((prev) => ({
+          ...prev,
+          [habitTypeCode]: serverTemplates,
+        }));
+      }
+
+      return true;
+    } catch (error) {
+      setJoinPreview(null);
+      setActionError(error?.message || "Не удалось найти группу по коду");
+      return false;
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const submitJoin = async () => {
+    setIsActionPending(true);
+    setActionError("");
+
+    try {
+      const data = await joinHabitOnServer({
+        inviteCode: String(form.inviteCode || "").trim().toUpperCase(),
+        templateTasks: buildSelectedTemplatePayload(form, activeTemplates),
+        customTasks: buildSelectedCustomPayload(form),
+      });
+
+      onSubmit?.({
+        mode: "join",
+        ...form,
+        categoryId: data?.habit?.habitTypeCode || activeCategoryId,
+        groupName: data?.habit?.title || form.groupName,
+        groupDescription: data?.habit?.description || form.groupDescription,
+        groupCode: data?.habit?.inviteCode || form.inviteCode,
+        templateTasks: buildSelectedTemplatePayload(form, activeTemplates),
+        customTasks: buildSelectedCustomPayload(form),
+        serverResponse: data,
+      });
+      onClose?.();
+    } catch (error) {
+      setActionError(error?.message || "Не удалось присоединиться к группе");
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const goNext = async () => {
     const validation = validateGroupFormStep(currentStep, flow, form, activeTemplates);
 
     if (!validation.isValid) {
@@ -813,13 +936,27 @@ function GroupFormModalContent({ onClose, onSubmit }) {
 
     setVisibleValidationKey("");
 
+    if (flow === "join" && currentStep === 2) {
+      const isPreviewLoaded = await loadJoinPreview();
+
+      if (!isPreviewLoaded) {
+        setVisibleValidationKey(validationKey);
+        return;
+      }
+    }
+
     if (isLastStep) {
+      if (flow === "join") {
+        await submitJoin();
+        return;
+      }
+
       onSubmit?.({
         mode: flow,
         ...form,
-        groupName: flow === "create" ? form.groupName : MOCK_JOINED_GROUP.name,
-        groupDescription: flow === "create" ? form.groupDescription : "",
-        groupCode: flow === "create" ? groupCode : form.inviteCode,
+        groupName: form.groupName,
+        groupDescription: form.groupDescription,
+        groupCode,
         categoryId: activeCategoryId,
         templateTasks: buildSelectedTemplatePayload(form, activeTemplates),
         customTasks: buildSelectedCustomPayload(form),
@@ -899,8 +1036,13 @@ function GroupFormModalContent({ onClose, onSubmit }) {
             </button>
           )}
 
-          <button type="button" className="group-form-modal__button group-form-modal__button--main" onClick={goNext}>
-            {isLastStep ? "Готово" : "Далее"}
+          <button
+            type="button"
+            className="group-form-modal__button group-form-modal__button--main"
+            onClick={goNext}
+            disabled={isActionPending}
+          >
+            {isActionPending ? "Загрузка..." : isLastStep ? "Готово" : "Далее"}
           </button>
         </div>
       </motion.section>
@@ -1044,13 +1186,9 @@ function CategoryDropdown({ categories = CATEGORY_OPTIONS, value, onChange, erro
         aria-invalid={Boolean(error)}
       >
         <span className="group-form-category-select__left">
-          <span className="group-form-category-select__icon" aria-hidden="true">
+          <span className="group-form-category-select__icon">
             {hasValue ? (
-              <img
-                className="group-form-category-select__icon-image"
-                src={CATEGORY_ICON_BY_ID[activeCategory.id]}
-                alt=""
-              />
+              <img src={CATEGORY_ICON_BY_ID[activeCategory.id]} alt="" className="group-form-category-select__icon-image" />
             ) : (
               <span className="group-form-category-select__icon-empty">?</span>
             )}
@@ -1080,12 +1218,8 @@ function CategoryDropdown({ categories = CATEGORY_OPTIONS, value, onChange, erro
                 className={`group-form-category-select__option ${isActive ? "group-form-category-select__option--active" : ""}`}
                 onClick={() => handleSelect(category.id)}
               >
-                <span className="group-form-category-select__option-icon" aria-hidden="true">
-                  <img
-                    className="group-form-category-select__option-icon-image"
-                    src={CATEGORY_ICON_BY_ID[category.id]}
-                    alt=""
-                  />
+                <span className="group-form-category-select__option-icon">
+                  <img src={CATEGORY_ICON_BY_ID[category.id]} alt="" className="group-form-category-select__option-icon-image" />
                 </span>
                 <span>{category.title}</span>
               </button>
@@ -1098,23 +1232,49 @@ function CategoryDropdown({ categories = CATEGORY_OPTIONS, value, onChange, erro
   );
 }
 
-function JoinGroupCodeStep({ form, setForm, joinedGroup, errors = {} }) {
+function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionError = "", isLoading = false }) {
+  const previewHabit = joinPreview?.habit;
+
+  const handleInviteCodeChange = (event) => {
+    const rawValue = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const withoutPrefix = rawValue.startsWith("HAB") ? rawValue.slice(3) : rawValue;
+    const firstPart = withoutPrefix.slice(0, 4);
+    const secondPart = withoutPrefix.slice(4, 8);
+    const preparedCode = ["HAB", firstPart, secondPart].filter(Boolean).join("-");
+
+    setForm((prev) => ({
+      ...prev,
+      inviteCode: preparedCode,
+    }));
+  };
+
   return (
-    <StepShell title="Код группы" text="Код находится в настройках группы у её создателя.">
+    <StepShell title="Код группы" text="Введи код приглашения. После нажатия «Далее» форма загрузит данные группы и её шаблоны заданий.">
       <label className={`group-form-field ${errors.inviteCode ? "group-form-field--error" : ""}`.trim()}>
         <span>Впишите код группы</span>
         <input
           value={form.inviteCode}
-          onChange={(event) => setForm((prev) => ({ ...prev, inviteCode: event.target.value.toUpperCase() }))}
-          placeholder="Например: HAB-A12B-C34D"
+          onChange={handleInviteCodeChange}
+          placeholder="HAB-XXXX-XXXX"
+          maxLength={13}
           aria-invalid={Boolean(errors.inviteCode)}
         />
         {errors.inviteCode && <small className="group-form-error">{errors.inviteCode}</small>}
       </label>
 
-      <div className="group-form-hint-card">
-        После подключения категория будет взята из группы создателя. Сейчас для макета используется пример: {joinedGroup.name} · Чтение.
-      </div>
+      {actionError && <div className="group-form-error-card">{actionError}</div>}
+      {isLoading && <div className="group-form-hint-card">Проверяю код и загружаю данные группы...</div>}
+
+      {previewHabit ? (
+        <div className="group-form-hint-card">
+          Найдена группа: <strong>{previewHabit.title}</strong> · {CATEGORY_TITLE_BY_CODE[previewHabit.habitTypeCode] || previewHabit.habitTypeCode}.
+          Свободных мест: {joinPreview?.availablePlacesCount ?? "—"}.
+        </div>
+      ) : (
+        <div className="group-form-hint-card">
+          Формат кода: HAB-XXXX-XXXX. Категория и шаблоны заданий подтянутся с бэка после проверки кода.
+        </div>
+      )}
     </StepShell>
   );
 }
@@ -1284,7 +1444,7 @@ function TasksStep({ templates, form, setForm, errors = {}, isLoading = false, l
   );
 }
 
-function ReviewStep({ flow, form, templates, categoryId, joinedGroup, categories = CATEGORY_OPTIONS }) {
+function ReviewStep({ flow, form, templates, categoryId, joinedGroup, categories = CATEGORY_OPTIONS, actionError = "" }) {
   const selectedTasks = getSelectedTaskSummaries(form, templates);
   const isCreateFlow = flow === "create";
 
@@ -1297,13 +1457,15 @@ function ReviewStep({ flow, form, templates, categoryId, joinedGroup, categories
       <div className="group-form-review">
         <ReviewItem label="Действие" value={isCreateFlow ? "Создать новую группу" : "Присоединиться к группе"} />
         <ReviewItem label="Категория" value={getCategoryTitle(categoryId, categories)} />
-        <ReviewItem label={isCreateFlow ? "Название группы" : "Группа"} value={isCreateFlow ? form.groupName : joinedGroup?.name} />
+        <ReviewItem label={isCreateFlow ? "Название группы" : "Группа"} value={isCreateFlow ? form.groupName : joinedGroup?.title || joinedGroup?.name} />
 
         {isCreateFlow ? (
           <ReviewItem label="Описание" value={form.groupDescription} />
         ) : (
           <ReviewItem label="Код группы" value={form.inviteCode} />
         )}
+
+        {actionError && <div className="group-form-error-card">{actionError}</div>}
 
         <div className="group-form-review__card group-form-review__card--tasks">
           <span className="group-form-review__label">Выбранные задания</span>
@@ -1331,7 +1493,7 @@ function ReviewItem({ label, value }) {
   );
 }
 
-function StepShell({ title, text, children, className = "" }) {
+function StepShell({ title, text = "", children, className = "" }) {
   return (
     <div className={`group-form-step ${className}`.trim()}>
       <h3>{title}</h3>
@@ -1341,7 +1503,7 @@ function StepShell({ title, text, children, className = "" }) {
   );
 }
 
-function RadioCard({ checked, title, text, onChange }) {
+function RadioCard({ checked, title, text = "", onChange }) {
   return (
     <label className={`group-form-radio-card ${checked ? "group-form-radio-card--checked" : ""}`}>
       <input type="radio" checked={checked} onChange={onChange} />

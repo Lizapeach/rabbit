@@ -332,6 +332,28 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     [navigate]
   );
 
+  const openServerHabitPage = useCallback(
+    (habit, member) => {
+      if (!habit?.id) return;
+
+      const habitTypeCode = habit.habitTypeCode || "habit";
+      const groupSlug = `${habitTypeCode}-${habit.id}`;
+
+      navigate?.(`/group/${groupSlug}`, {
+        categoryId: habitTypeCode,
+        categoryTitle: CATEGORY_TITLE_BY_ID[habitTypeCode] || habitTypeCode,
+        groupId: habit.id,
+        habitMemberId: member?.id || habit?.habitMemberId,
+        groupName: habit.title || "Группа",
+        groupCode: habit.inviteCode || "",
+        role: member?.role || habit?.role,
+        status: member?.status || habit?.status || "active",
+        currentStreak: Number(habit.currentStreak || 0),
+      });
+    },
+    [navigate]
+  );
+
   const handleGroupKeyDown = useCallback(
     (event, category, group) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -347,28 +369,30 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
       const isCreateFlow = payload.mode === "create";
 
       if (!isCreateFlow) {
-        alert("Подключение к существующей группе по коду пока не подключено к бэку.");
+        const data = payload.serverResponse || {};
+        const habit = data?.habit || {};
+        const member = data?.member || {};
+
+        setIsGroupFormOpen(false);
+        await loadHabits({ silent: true });
+        openServerHabitPage(habit, member);
         return;
       }
 
       try {
         const data = await createHabitOnServer(payload);
         const habit = data?.habit || {};
-        const groupCode = data?.inviteCode || habit.inviteCode || "";
-        const groupName = habit.title || payload.groupName || "Новая группа";
+        const member = data?.member || {};
+
         setIsGroupFormOpen(false);
         await loadHabits({ silent: true });
-
-        if (groupCode) {
-          setIsInviteCodeCopied(false);
-          setInviteCodeModal({ code: groupCode, groupName });
-        }
+        openServerHabitPage(habit, member);
       } catch (error) {
         console.error("Habit creation failed:", error);
         alert(error?.message || "Не удалось создать группу на сервере");
       }
     },
-    [loadHabits]
+    [loadHabits, openServerHabitPage]
   );
 
   const handleCopyInviteCode = useCallback(async () => {
@@ -463,11 +487,11 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                                 className="category-card__button"
                               >
                                 <div className="category-card__left">
-                                  <div className="category-card__icon" aria-hidden="true">
+                                  <div className="category-card__icon">
                                     <img
-                                      className="category-card__icon-image"
                                       src={CATEGORY_ICON_BY_ID[category.id]}
                                       alt=""
+                                      className="category-card__icon-image"
                                     />
                                   </div>
 
