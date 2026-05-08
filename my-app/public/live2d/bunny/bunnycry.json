@@ -1,11 +1,11 @@
 {
 	"Version": 3,
 	"FileReferences": {
-		"Moc": "bunny.moc3",
+		"Moc": "bunnycry.moc3",
 		"Textures": [
 			"textures/texture_00.png"
 		],
-		"DisplayInfo": "bunny.cdi3.json"
+		"DisplayInfo": "bunnycry.cdi3.json"
 	},
 	"Groups": [
 		{

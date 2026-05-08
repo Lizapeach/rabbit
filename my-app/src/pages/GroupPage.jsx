@@ -543,6 +543,7 @@ const createInitialSpecialTasks = () =>
   }, {});
 
 const BUNNY_MODEL_URL = "/live2d/bunny/bunny.json";
+const BUNNY_CRY_MODEL_URL = "/live2d/bunny/bunnycry.json";
 
 const weekDayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -912,6 +913,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     photo: null,
     completedAt: null,
   };
+
+  const shouldShowCryBunny = useMemo(() => {
+    const requiredProgressTasks = myTasks.filter((task) => task.type !== "special");
+
+    return (
+      requiredProgressTasks.length > 0 &&
+      requiredProgressTasks.every((task) => !task.done)
+    );
+  }, [myTasks]);
+
+  const activeBunnyModelUrl = shouldShowCryBunny ? BUNNY_CRY_MODEL_URL : BUNNY_MODEL_URL;
+  const activeBunnyAnimationMode = shouldShowCryBunny ? "cry" : "idle";
 
   const adminTransferMembers = useMemo(
     () => friendsWithColors.filter((member) => member.id !== "me"),
@@ -1429,7 +1442,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                   <div className="group-panel group-panel--overview">
                     <div className="group-overview-grid">
                       <aside className="group-character-space" aria-label="Персонаж группы">
-                        <Live2DBunny modelUrl={BUNNY_MODEL_URL} />
+                        <Live2DBunny modelUrl={activeBunnyModelUrl} animationMode={activeBunnyAnimationMode} />
                         <div className="group-character-space__plate" />
                       </aside>
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { updateBunnyCryAnimation } from "./BunnyCryAnimation";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -58,6 +59,7 @@ function loadScriptOnce(src) {
   loadedScripts.set(src, promise);
   return promise;
 }
+
 function setModelParameter(model, unavailableParams, id, value, weight = 1) {
   if (unavailableParams.has(id)) return;
 
@@ -106,12 +108,35 @@ function resizeModelToStage(app, model, host) {
   model.y = height * 0.5;
 }
 
+function destroyLive2DModel(model) {
+  if (!model) return;
+
+  try {
+    model.destroy?.({ children: true });
+  } catch {
+    try {
+      model.destroy?.();
+    } catch {
+      // ignore destroy errors from an already disposed Live2D model
+    }
+  }
+}
+
 export default function Live2DBunny({
   modelUrl,
+  animationMode = "idle",
   cubismCoreSrc = "/live2d/live2dcubismcore.min.js",
 }) {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
+  const appRef = useRef(null);
+  const modelRef = useRef(null);
+  const live2DModelClassRef = useRef(null);
+  const animationModeRef = useRef(animationMode);
+  const unavailableParamsRef = useRef(new Set());
+  const startedAtRef = useRef(0);
+  const loadIdRef = useRef(0);
+
   const animationStateRef = useRef({
     isInside: false,
     pointerX: 0,
@@ -128,22 +153,27 @@ export default function Live2DBunny({
     blinkStart: -1,
     nextBlinkAt: 0,
   });
+
+  const [isPixiReady, setIsPixiReady] = useState(false);
   const [status, setStatus] = useState("loading");
   const [errorText, setErrorText] = useState("");
 
   useEffect(() => {
+    animationModeRef.current = animationMode;
+  }, [animationMode]);
+
+  useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
-    if (!host || !canvas || !modelUrl) return undefined;
+    if (!host || !canvas) return undefined;
 
-    let app = null;
-    let model = null;
-    let resizeObserver = null;
     let disposed = false;
-    const unavailableParams = new Set();
+    let resizeObserver = null;
     const state = animationStateRef.current;
 
     const updatePointer = (event) => {
+      if (animationModeRef.current === "cry") return;
+
       const rect = host.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
 
@@ -152,11 +182,13 @@ export default function Live2DBunny({
     };
 
     const onPointerEnter = (event) => {
+      if (animationModeRef.current === "cry") return;
       state.isInside = true;
       updatePointer(event);
     };
 
     const onPointerMove = (event) => {
+      if (animationModeRef.current === "cry") return;
       state.isInside = true;
       updatePointer(event);
     };
@@ -165,7 +197,7 @@ export default function Live2DBunny({
       state.isInside = false;
     };
 
-    const init = async () => {
+    const initPixi = async () => {
       try {
         setStatus("loading");
         setErrorText("");
@@ -186,10 +218,11 @@ export default function Live2DBunny({
         }
 
         const { Live2DModel } = await import("pixi-live2d-display/cubism4");
-
         if (disposed) return;
 
-        app = new PIXI.Application({
+        live2DModelClassRef.current = Live2DModel;
+
+        const app = new PIXI.Application({
           view: canvas,
           width: Math.max(1, host.clientWidth),
           height: Math.max(1, host.clientHeight),
@@ -197,35 +230,50 @@ export default function Live2DBunny({
           antialias: true,
           autoStart: true,
           resolution: window.devicePixelRatio || 1,
+          powerPreference: "high-performance",
         });
 
-        model = await Live2DModel.from(modelUrl, {
-          autoInteract: false,
-        });
+        appRef.current = app;
 
-        if (disposed) {
-          model?.destroy?.();
-          return;
-        }
-
-        model.anchor.set(0.5, 0.5);
-        model.interactive = false;
-        app.stage.addChild(model);
-
-        resizeModelToStage(app, model, host);
         resizeObserver = new ResizeObserver(() => {
-          if (!model || !app || disposed) return;
-          resizeModelToStage(app, model, host);
+          const model = modelRef.current;
+          if (!model || !appRef.current || disposed) return;
+          resizeModelToStage(appRef.current, model, host);
         });
         resizeObserver.observe(host);
 
-        state.nextBlinkAt = performance.now() + randomBetween(1200, 3200);
-        state.nextNoiseAt = performance.now();
-
         app.ticker.add(() => {
+          const model = modelRef.current;
           if (!model || disposed) return;
 
           const now = performance.now();
+          const unavailableParams = unavailableParamsRef.current;
+
+          if (animationModeRef.current === "cry") {
+            state.isInside = false;
+            state.pointerX = 0;
+            state.pointerY = 0;
+            state.smoothX = 0;
+            state.smoothY = 0;
+            state.noiseX = 0;
+            state.noiseY = 0;
+            state.noiseZ = 0;
+            state.targetNoiseX = 0;
+            state.targetNoiseY = 0;
+            state.targetNoiseZ = 0;
+
+            setModelParameter(model, unavailableParams, "ParamAngleX", 0);
+            setModelParameter(model, unavailableParams, "ParamAngleY", 0);
+            setModelParameter(model, unavailableParams, "ParamAngleZ", 0);
+            setModelParameter(model, unavailableParams, "ParamBodyAngleX", 0);
+            setModelParameter(model, unavailableParams, "ParamEyeBallX", 0);
+            setModelParameter(model, unavailableParams, "ParamEyeBallY", 0);
+            setModelParameter(model, unavailableParams, "ParamBreath", 0);
+
+            updateBunnyCryAnimation(model, now - startedAtRef.current);
+            return;
+          }
+
           const seconds = now / 1000;
 
           if (now >= state.nextNoiseAt) {
@@ -288,18 +336,18 @@ export default function Live2DBunny({
         host.addEventListener("pointermove", onPointerMove);
         host.addEventListener("pointerleave", onPointerLeave);
 
-        setStatus("ready");
-} catch (error) {
-  console.error("Live2D bunny loading error:", error);
+        setIsPixiReady(true);
+      } catch (error) {
+        console.error("Live2D bunny loading error:", error);
 
-  if (!disposed) {
-    alert(error instanceof Error ? error.message : String(error));
-    setStatus("error");
-  }
-}
+        if (!disposed) {
+          setErrorText(error instanceof Error ? error.message : String(error));
+          setStatus("error");
+        }
+      }
     };
 
-    init();
+    initPixi();
 
     return () => {
       disposed = true;
@@ -307,13 +355,95 @@ export default function Live2DBunny({
       host.removeEventListener("pointermove", onPointerMove);
       host.removeEventListener("pointerleave", onPointerLeave);
       resizeObserver?.disconnect();
-      app?.destroy(true, {
+
+      destroyLive2DModel(modelRef.current);
+      modelRef.current = null;
+
+      appRef.current?.destroy(true, {
         children: true,
-        texture: true,
-        baseTexture: true,
+        texture: false,
+        baseTexture: false,
       });
+      appRef.current = null;
+      live2DModelClassRef.current = null;
     };
-  }, [modelUrl, cubismCoreSrc]);
+  }, [cubismCoreSrc]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const app = appRef.current;
+    const Live2DModel = live2DModelClassRef.current;
+
+    if (!isPixiReady || !host || !app || !Live2DModel || !modelUrl) return undefined;
+
+    let cancelled = false;
+    const currentLoadId = loadIdRef.current + 1;
+    loadIdRef.current = currentLoadId;
+
+    const loadModel = async () => {
+      try {
+        setStatus("loading");
+        setErrorText("");
+
+        const previousModel = modelRef.current;
+        if (previousModel) {
+          app.stage.removeChild(previousModel);
+          destroyLive2DModel(previousModel);
+          modelRef.current = null;
+        }
+
+        unavailableParamsRef.current = new Set();
+        startedAtRef.current = performance.now();
+
+        const state = animationStateRef.current;
+        state.isInside = false;
+        state.pointerX = 0;
+        state.pointerY = 0;
+        state.smoothX = 0;
+        state.smoothY = 0;
+        state.noiseX = 0;
+        state.noiseY = 0;
+        state.noiseZ = 0;
+        state.targetNoiseX = 0;
+        state.targetNoiseY = 0;
+        state.targetNoiseZ = 0;
+        state.nextBlinkAt = performance.now() + randomBetween(1200, 3200);
+        state.nextNoiseAt = performance.now();
+        state.blinkStart = -1;
+
+        const nextModel = await Live2DModel.from(modelUrl, {
+          autoInteract: false,
+        });
+
+        if (cancelled || loadIdRef.current !== currentLoadId) {
+          destroyLive2DModel(nextModel);
+          return;
+        }
+
+        nextModel.anchor.set(0.5, 0.5);
+        nextModel.interactive = false;
+
+        modelRef.current = nextModel;
+        app.stage.addChild(nextModel);
+        resizeModelToStage(app, nextModel, host);
+
+        setStatus("ready");
+      } catch (error) {
+        console.error("Live2D bunny loading error:", error);
+
+        if (!cancelled) {
+          setErrorText(error instanceof Error ? error.message : String(error));
+          setStatus("error");
+        }
+      }
+    };
+
+    loadModel();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPixiReady, modelUrl]);
 
   return (
     <div ref={hostRef} className="live2d-bunny" data-live2d-status={status}>

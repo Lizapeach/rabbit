@@ -32,16 +32,6 @@
 			"Name": "headbrees1"
 		},
 		{
-			"Id": "ParamAngleX",
-			"GroupId": "",
-			"Name": "Angle X"
-		},
-		{
-			"Id": "ParamAngleY",
-			"GroupId": "",
-			"Name": "Angle Y"
-		},
-		{
 			"Id": "ParamEyeLOpen",
 			"GroupId": "",
 			"Name": "EyeL Open"
@@ -81,11 +71,5 @@
 			"Id": "left",
 			"Name": "left"
 		}
-	],
-	"CombinedParameters": [
-		[
-			"ParamAngleX",
-			"ParamAngleY"
-		]
 	]
 }
