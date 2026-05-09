@@ -914,14 +914,24 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     completedAt: null,
   };
 
-  const shouldShowCryBunny = useMemo(() => {
-    const requiredProgressTasks = myTasks.filter((task) => task.type !== "special");
+  const requiredProgressTasks = useMemo(
+    () => myTasks.filter((task) => task.type !== "special"),
+    [myTasks]
+  );
 
-    return (
+  const shouldShowCryBunny = useMemo(
+    () =>
       requiredProgressTasks.length > 0 &&
-      requiredProgressTasks.every((task) => !task.done)
-    );
-  }, [myTasks]);
+      requiredProgressTasks.every((task) => !task.done),
+    [requiredProgressTasks]
+  );
+
+  const shouldShowHappyBunny = useMemo(
+    () =>
+      requiredProgressTasks.length > 0 &&
+      requiredProgressTasks.every((task) => task.done),
+    [requiredProgressTasks]
+  );
 
   const activeBunnyModelUrl = shouldShowCryBunny ? BUNNY_CRY_MODEL_URL : BUNNY_MODEL_URL;
   const activeBunnyAnimationMode = shouldShowCryBunny ? "cry" : "idle";
@@ -1442,7 +1452,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                   <div className="group-panel group-panel--overview">
                     <div className="group-overview-grid">
                       <aside className="group-character-space" aria-label="Персонаж группы">
-                        <Live2DBunny modelUrl={activeBunnyModelUrl} animationMode={activeBunnyAnimationMode} />
+                        <Live2DBunny
+                          modelUrl={activeBunnyModelUrl}
+                          animationMode={activeBunnyAnimationMode}
+                          isHappy={shouldShowHappyBunny}
+                        />
                         <div className="group-character-space__plate" />
                       </aside>
 

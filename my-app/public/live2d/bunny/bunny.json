@@ -3,7 +3,7 @@
 	"FileReferences": {
 		"Moc": "bunny.moc3",
 		"Textures": [
-			"textures/texture_00.png"
+			"textures/texture_01.png"
 		],
 		"DisplayInfo": "bunny.cdi3.json"
 	},

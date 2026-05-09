@@ -125,6 +125,7 @@ function destroyLive2DModel(model) {
 export default function Live2DBunny({
   modelUrl,
   animationMode = "idle",
+  isHappy = false,
   cubismCoreSrc = "/live2d/live2dcubismcore.min.js",
 }) {
   const hostRef = useRef(null);
@@ -133,6 +134,7 @@ export default function Live2DBunny({
   const modelRef = useRef(null);
   const live2DModelClassRef = useRef(null);
   const animationModeRef = useRef(animationMode);
+  const isHappyRef = useRef(isHappy);
   const unavailableParamsRef = useRef(new Set());
   const startedAtRef = useRef(0);
   const loadIdRef = useRef(0);
@@ -161,6 +163,10 @@ export default function Live2DBunny({
   useEffect(() => {
     animationModeRef.current = animationMode;
   }, [animationMode]);
+
+  useEffect(() => {
+    isHappyRef.current = isHappy;
+  }, [isHappy]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -320,9 +326,12 @@ export default function Live2DBunny({
           const randomHeadY = state.noiseY * 2.4;
           const randomHeadZ = state.noiseZ * 1.8;
           const breath = 0.55 + Math.sin(seconds * 2.7) * 0.45;
+          const happyEars = isHappyRef.current ? (Math.sin(seconds * 10) + 1) / 2 : 0;
 
+          setModelParameter(model, unavailableParams, "Param", isHappyRef.current ? 1 : 0);
+          setModelParameter(model, unavailableParams, "Param2", happyEars);
           setModelParameter(model, unavailableParams, "ParamAngleX", state.smoothX * 28 + randomHeadX);
-          setModelParameter(model, unavailableParams, "ParamAngleY", state.smoothY * 18 + randomHeadY);
+          setModelParameter(model, unavailableParams, "ParamAngleY", state.smoothY * 28 + randomHeadY);
           setModelParameter(model, unavailableParams, "ParamAngleZ", state.smoothX * 7 + randomHeadZ);
           setModelParameter(model, unavailableParams, "ParamBodyAngleX", state.smoothX * 8 + state.noiseX * 1.5);
           setModelParameter(model, unavailableParams, "ParamEyeBallX", clamp(state.smoothX * 0.8 + state.noiseX * 0.08, -1, 1));
