@@ -544,6 +544,7 @@ const createInitialSpecialTasks = () =>
 
 const BUNNY_MODEL_URL = "/live2d/bunny/bunny.json";
 const BUNNY_CRY_MODEL_URL = "/live2d/bunny/bunnycry.json";
+const BUNNY_NAME = "Банни";
 
 const weekDayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -1043,6 +1044,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   };
 
   const handleOpenSelectedMemberInfo = () => {
+    if (selectedFriendId === "me") return;
+
     setIsMemberInfoOpen(true);
   };
 
@@ -1457,7 +1460,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                           animationMode={activeBunnyAnimationMode}
                           isHappy={shouldShowHappyBunny}
                         />
-                        <div className="group-character-space__plate" />
+                        <div className="group-character-space__name" aria-label="Имя персонажа">
+                          {BUNNY_NAME}
+                        </div>
                       </aside>
 
                       <div className="group-task-board">
@@ -1473,15 +1478,25 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
                         <div className="group-task-board__header">
                           <div className="member-heading">
-                            <button
-                              type="button"
-                              className="member-heading__avatar member-heading__avatar--button"
-                              style={{ backgroundColor: selectedFriend.avatar?.color || selectedFriend.avatarColor }}
-                              onClick={handleOpenSelectedMemberInfo}
-                              aria-label={`Открыть информацию участника: ${selectedFriend.name}`}
-                            >
-                              {renderMemberAvatar(selectedFriend.avatar, selectedFriend.initials)}
-                            </button>
+                            {selectedFriendId === "me" ? (
+                              <div
+                                className="member-heading__avatar"
+                                style={{ backgroundColor: selectedFriend.avatar?.color || selectedFriend.avatarColor }}
+                                aria-label={`Твой аватар: ${selectedFriend.name}`}
+                              >
+                                {renderMemberAvatar(selectedFriend.avatar, selectedFriend.initials)}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="member-heading__avatar member-heading__avatar--button"
+                                style={{ backgroundColor: selectedFriend.avatar?.color || selectedFriend.avatarColor }}
+                                onClick={handleOpenSelectedMemberInfo}
+                                aria-label={`Открыть информацию участника: ${selectedFriend.name}`}
+                              >
+                                {renderMemberAvatar(selectedFriend.avatar, selectedFriend.initials)}
+                              </button>
+                            )}
 
                             <div>
                               <div className="member-heading__name">{selectedFriend.name}</div>

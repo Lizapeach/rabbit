@@ -475,6 +475,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                       <AnimatedScrollList className="category-list">
                         {categories.map((category) => {
                           const isOpen = !!expandedCategories[category.id];
+                          const categoryIcon = CATEGORY_ICON_BY_ID[category.id];
 
                           return (
                             <div
@@ -487,12 +488,18 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                                 className="category-card__button"
                               >
                                 <div className="category-card__left">
-                                  <div className="category-card__icon">
-                                    <img
-                                      src={CATEGORY_ICON_BY_ID[category.id]}
-                                      alt=""
-                                      className="category-card__icon-image"
-                                    />
+                                  <div className="category-card__icon" aria-hidden="true">
+                                    {categoryIcon ? (
+                                      <img
+                                        src={categoryIcon}
+                                        alt=""
+                                        className="category-card__icon-image"
+                                      />
+                                    ) : (
+                                      <span className="category-card__icon-empty">
+                                        {getInitial(category.title)}
+                                      </span>
+                                    )}
                                   </div>
 
                                   <div>

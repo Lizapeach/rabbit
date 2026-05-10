@@ -373,16 +373,13 @@
 }
 
 .profile-info-card {
-  border: 1px solid var(--profile-border-strong);
-  background: var(--profile-soft);
-  box-shadow: 0 10px 24px var(--color-shadow-small);
-}
-
-.profile-info-card {
   min-height: 106px;
   min-width: 0;
-  border-radius: 22px;
   padding: 16px;
+  border: 1px solid var(--profile-border-strong);
+  border-radius: 22px;
+  background: var(--profile-soft);
+  box-shadow: 0 10px 24px var(--color-shadow-small);
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -446,6 +443,31 @@
   border-color: #d7c8bf;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
 }
+
+/* === Password confirmation field === */
+.profile-info-card__inputs {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.profile-info-card__inputs .profile-info-card__input {
+  margin-top: 0;
+}
+
+.profile-info-card__input--error {
+  border-color: var(--color-error, #e84d3f);
+  background: color-mix(in srgb, var(--color-error, #e84d3f) 7%, var(--color-white));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error, #e84d3f) 16%, transparent);
+}
+
+.profile-info-card__error {
+  color: var(--color-error, #e84d3f);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 
 .profile-info-card__button {
   flex-shrink: 0;

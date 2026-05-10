@@ -62,6 +62,7 @@ export default function Header({
 }) {
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isCoinsOpen, setIsCoinsOpen] = useState(false);
 
   const handleLogoClick = (event) => {
     event.preventDefault();
@@ -73,6 +74,15 @@ export default function Header({
     event.preventDefault();
     event.stopPropagation();
     onProfileClick?.();
+  };
+
+  const handleRemoveNotification = (event, notificationIndex) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setNotifications((currentNotifications) =>
+      currentNotifications.filter((_, index) => index !== notificationIndex)
+    );
   };
 
   return (
@@ -88,7 +98,9 @@ export default function Header({
         </button>
 
         <div className="topbar-actions">
-          <div className="coins-widget">
+          <div 
+          className={`coins-widget ${isCoinsOpen ? "coins-widget--open" : ""}`}
+          onClick={() => setIsCoinsOpen((prev) => !prev)}>
             <div className="coins-widget__panel">
               <span>{coins}</span>
             </div>
@@ -135,7 +147,16 @@ export default function Header({
             {notifications.length > 0 ? (
               notifications.map((item, index) => (
                 <div key={`${item}-${index}`} className="notifications__item">
-                  {item}
+                  <span className="notifications__item-text">{item}</span>
+
+                  <button
+                    type="button"
+                    className="notifications__remove-button"
+                    onClick={(event) => handleRemoveNotification(event, index)}
+                    aria-label="Удалить уведомление"
+                  >
+                    ×
+                  </button>
                 </div>
               ))
             ) : (

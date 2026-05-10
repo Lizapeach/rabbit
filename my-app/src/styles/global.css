@@ -25,6 +25,14 @@ body {
   --color-transparent: transparent;
   --color-white: #ffffff;
 
+  /* Системные состояния */
+  --color-error: #e84d3f;
+  --color-arrow-bg: var(--color-button-bg);
+
+  /* BorderGlow */
+  --color-border-glow-center: rgb(218, 33, 12);
+  --color-border-glow-middle: rgba(180, 120, 80, 0.55);
+
   /* Основные цвета страницы */
   --color-paper: #faebca;
   --color-paper-light: #f7d29a;
@@ -171,8 +179,8 @@ body {
 
   background: radial-gradient(
     180px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
-    rgb(218, 33, 12),
-    rgba(180, 120, 80, 0.55) 35%,
+    var(--color-border-glow-center),
+    var(--color-border-glow-middle) 35%,
     transparent 70%
   );
 
@@ -189,6 +197,14 @@ body {
 
   pointer-events: none;
   z-index: 3;
+}
+
+
+@media (hover: none), (pointer: coarse), (max-width: 760px) {
+  .border-glow::after {
+    content: none;
+    display: none;
+  }
 }
 
 .ripple-button {

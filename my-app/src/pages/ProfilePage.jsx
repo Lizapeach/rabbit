@@ -837,16 +837,44 @@ function ProfileInfoDisplayCard({ label, value }) {
 function ProfileInfoCard({ label, value, editable = true, isPassword = false, onSave }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [confirmDraft, setConfirmDraft] = useState("");
+  const [error, setError] = useState("");
 
   const saveValue = () => {
-    const nextValue = isPassword ? "••••••••••" : normalizeEditableValue(draft, value);
+    const trimmedDraft = draft.trim();
+    const trimmedConfirmDraft = confirmDraft.trim();
+
+    if (isPassword) {
+      if (!trimmedDraft || !trimmedConfirmDraft) {
+        setError("Введите новый пароль два раза.");
+        return;
+      }
+
+      if (trimmedDraft !== trimmedConfirmDraft) {
+        setError("Пароли не совпадают.");
+        return;
+      }
+
+      onSave?.("••••••••••");
+      setDraft("");
+      setConfirmDraft("");
+      setError("");
+      setIsEditing(false);
+      return;
+    }
+
+    const nextValue = normalizeEditableValue(draft, value);
     onSave?.(nextValue);
     setDraft("");
+    setConfirmDraft("");
+    setError("");
     setIsEditing(false);
   };
 
   const cancelEdit = () => {
     setDraft("");
+    setConfirmDraft("");
+    setError("");
     setIsEditing(false);
   };
 
@@ -859,7 +887,19 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
     }
 
     setDraft(isPassword ? "" : value);
+    setConfirmDraft("");
+    setError("");
     setIsEditing(true);
+  };
+
+  const handleEditKeyDown = (event) => {
+    if (event.key === "Enter") {
+      saveValue();
+    }
+
+    if (event.key === "Escape") {
+      cancelEdit();
+    }
   };
 
   return (
@@ -868,24 +908,38 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
         <div className="profile-info-card__text">
           <div className="profile-info-card__label">{label}</div>
           {isEditing ? (
-            <input
-              className="profile-info-card__input"
-              type="text"
-              value={draft}
-              autoFocus
-              placeholder={isPassword ? "Новый пароль" : undefined}
-              autoComplete={isPassword ? "new-password" : undefined}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  saveValue();
-                }
+            <div className="profile-info-card__inputs">
+              <input
+                className={`profile-info-card__input ${error ? "profile-info-card__input--error" : ""}`}
+                type={isPassword ? "password" : "text"}
+                value={draft}
+                autoFocus
+                placeholder={isPassword ? "Новый пароль" : undefined}
+                autoComplete={isPassword ? "new-password" : undefined}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  if (error) setError("");
+                }}
+                onKeyDown={handleEditKeyDown}
+              />
 
-                if (event.key === "Escape") {
-                  cancelEdit();
-                }
-              }}
-            />
+              {isPassword && (
+                <input
+                  className={`profile-info-card__input ${error ? "profile-info-card__input--error" : ""}`}
+                  type="password"
+                  value={confirmDraft}
+                  placeholder="Повторите пароль"
+                  autoComplete="new-password"
+                  onChange={(event) => {
+                    setConfirmDraft(event.target.value);
+                    if (error) setError("");
+                  }}
+                  onKeyDown={handleEditKeyDown}
+                />
+              )}
+
+              {error && <div className="profile-info-card__error">{error}</div>}
+            </div>
           ) : (
             <div className="profile-info-card__value">{value}</div>
           )}

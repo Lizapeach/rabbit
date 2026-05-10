@@ -1215,7 +1215,7 @@ function CategoryDropdown({ categories = CATEGORY_OPTIONS, value, onChange, erro
               <button
                 key={category.id}
                 type="button"
-                className={`group-form-category-select__option ${isActive ? "group-form-category-select__option--active" : ""}`}
+                className={`group-form-category-select__option group-form-category-select__option--${category.id} ${isActive ? "group-form-category-select__option--active" : ""}`.trim()}
                 onClick={() => handleSelect(category.id)}
               >
                 <span className="group-form-category-select__option-icon">

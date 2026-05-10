@@ -1,7 +1,3 @@
-* {
-  box-sizing: border-box;
-}
-
 button {
   font-family: inherit;
 }
@@ -56,10 +52,7 @@ button {
 
 .hero-card__title span {
   display: block;
-  background: linear-gradient(90deg, var(--color-text-main));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: var(--color-transparent);
+  color: var(--color-text-main);
 }
 
 .hero-card__text {
@@ -131,10 +124,6 @@ button {
 
 .panel-card--achievements {
   border-radius: 30px 26px 40px 30px / 34px 30px 38px 28px;
-}
-
-.animated-scroll-list {
-  position: relative;
 }
 
 .category-list,
@@ -242,11 +231,17 @@ button {
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .category-card__button:hover {
-  background: var(--color-card-hover-bg);
+  background: var(--color-notification-clear-hover-bg);
+}
+
+.category-card__button:active {
+  transform: scale(0.97);
+  filter: brightness(0.98);
+  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
 }
 
 .category-card__left {
@@ -257,24 +252,40 @@ button {
 }
 
 .category-card__icon {
-  width: 54px;
-  height: 54px;
+  width: 58px;
+  height: 58px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  box-shadow: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--category-color, var(--color-category-reading)) 76%, var(--color-white));
+  color: var(--color-text-main);
+  box-shadow: 0 8px 18px var(--color-shadow-small);
 }
 
 .category-card__icon-image {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   display: block;
   object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.category-card__icon-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--color-text-main);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .category-card__title {
@@ -385,9 +396,9 @@ button {
 }
 
 .group-card:active {
-  transform: translateY(2px) scale(0.97);
-  filter: brightness(0.97);
-  box-shadow: inset 0 3px 8px rgba(80, 55, 35, 0.08);
+  transform: translateY(0) scale(0.97);
+  filter: brightness(0.98);
+  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
 }
 
 .group-card__top {
@@ -488,11 +499,11 @@ button {
 }
 
 .add-category__button:hover {
-  transform: scale(1.2);
+  transform: scale(1.045);
 }
 
 .add-category__button:active {
-  transform: scale(1);
+  transform: scale(0.98);
   filter: brightness(0.96);
 }
 
@@ -738,7 +749,7 @@ button {
   }
 
   .content-grid__side {
-    height: 710px;
+    height: 720px;
     grid-template-rows: minmax(0, 0.4fr) minmax(0, 0.6fr);
   }
 
@@ -753,7 +764,7 @@ button {
   }
 
   .panel-card--categories {
-    height: 710px;
+    height: 720px;
   }
 
   .panel-card--record,
@@ -784,26 +795,6 @@ button {
 
   .record-streak__days {
     min-height: 140px;
-  }
-}
-
-
-
-@media (max-width: 520px) {
-  .group-card__top {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-  }
-
-  .group-card__progress {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 640px) {
-  .record-streak__value {
-    font-size: clamp(3.6rem, 18vw, 5rem);
   }
 }
 
@@ -844,13 +835,13 @@ button {
   }
 
   .category-card__icon {
-    width: 48px;
-    height: 48px;
+    width: 50px;
+    height: 50px;
   }
 
   .category-card__icon-image {
-    width: 46px;
-    height: 46px;
+    width: 38px;
+    height: 38px;
   }
 
   .record-streak__inner {
@@ -860,7 +851,23 @@ button {
     padding: 12px;
   }
 
+  .record-streak__value {
+    font-size: clamp(3.6rem, 18vw, 5rem);
+  }
+
   .record-streak__meta-value {
     font-size: 1.35rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .group-card__top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .group-card__progress {
+    padding: 7px 10px;
+    font-size: 12px;
   }
 }

@@ -34,9 +34,20 @@
   background: var(--color-transparent);
   cursor: pointer;
   overflow: hidden;
-  transition: transform 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease;
 }
 
+.brand-button:hover {
+  transform: scale(1.045);
+}
+
+.brand-button:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
+}
 
 .brand-logo__image {
   height: 500px;
@@ -53,6 +64,30 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+}
+
+.icon-button,
+.profile-widget__button {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: var(--color-transparent);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease;
+}
+
+.icon-button:hover,
+.profile-widget__button:hover {
+  transform: scale(1.045);
+}
+
+.icon-button:active,
+.profile-widget__button:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
 }
 
 .coin-icon,
@@ -88,9 +123,10 @@
 }
 
 .user-icon {
+  overflow: hidden;
   border: 1px solid var(--color-border-main);
   border-radius: 15px;
-transform: translateY(-1.1px);
+  transform: translateY(-1.1px);
   background: var(--color-paper-light);
   color: var(--color-text-main);
   box-shadow: 0 8px 20px var(--color-shadow-soft);
@@ -99,16 +135,21 @@ transform: translateY(-1.1px);
   letter-spacing: 0.04em;
 }
 
-.icon-button,
-.profile-widget__button {
-  position: relative;
-  padding: 0;
-  border: 0;
-  background: var(--color-transparent);
-  cursor: pointer;
-  transition: transform 0.2s ease;
+.user-icon__image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
+.user-icon__symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  line-height: 1;
+}
 
 .notification-count {
   position: absolute;
@@ -174,6 +215,12 @@ transform: translateY(-1.1px);
 }
 
 .coins-widget:hover .coins-widget__panel {
+  width: 90px;
+  padding: 0 16px;
+  opacity: 1;
+}
+
+.coins-widget--open .coins-widget__panel {
   width: 90px;
   padding: 0 16px;
   opacity: 1;
@@ -275,8 +322,51 @@ transform: translateY(-1.1px);
 }
 
 .notifications__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   padding: 12px;
   margin-bottom: 8px;
+}
+
+.notifications__item-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.notifications__remove-button {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+  padding: 0;
+  border: 1px solid #e2b8b3;
+  border-radius: 50%;
+  background: #fff5f3;
+  color: #a86058;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.notifications__remove-button:hover {
+  transform: translateY(-1px) scale(1.04);
+  background: #ffe9e6;
+  box-shadow: 0 8px 18px rgba(168, 96, 88, 0.14);
+}
+
+.notifications__remove-button:active {
+  transform: translateY(0) scale(0.97);
+  filter: brightness(0.97);
 }
 
 .notifications__item:last-child {
@@ -304,11 +394,24 @@ transform: translateY(-1.1px);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
 }
 
 .notifications__clear-button:hover {
-  background: var(--color-notification-clear-hover-bg);
+  transform: translateY(-1px);
+  background: var(--color-notification-clear-bg);
+  box-shadow: 0 10px 20px var(--color-shadow-small);
+}
+
+.notifications__clear-button:active {
+  transform: translateY(0) scale(0.98);
+  background: var(--color-notification-clear-bg);
+  filter: brightness(0.97);
 }
 
 .notifications__list::-webkit-scrollbar {
@@ -359,6 +462,12 @@ transform: translateY(-1.1px);
     opacity: 0;
   }
 
+  .coins-widget.coins-widget--open .coins-widget__panel {
+    width: 90px;
+    padding: 0 16px;
+    opacity: 1;
+  }
+
   .profile-widget:hover {
     width: 48px;
   }
@@ -367,66 +476,4 @@ transform: translateY(-1.1px);
     right: 0;
     width: min(320px, calc(100vw - 40px));
   }
-}
-
-.brand-button,
-.icon-button,
-.profile-widget__button,
-.notifications__clear-button {
-  -webkit-tap-highlight-color: transparent;
-}
-
-.brand-button,
-.icon-button,
-.profile-widget__button {
-  transition:
-    transform 0.16s ease,
-    filter 0.16s ease;
-}
-
-.brand-button:hover,
-.icon-button:hover,
-.profile-widget__button:hover {
-  transform: scale(1.2);
-}
-
-.brand-button:active,
-.icon-button:active,
-.profile-widget__button:active {
-  transform: scale(1);
-  filter: brightness(0.96);
-}
-
-.notifications__clear-button {
-  transition:
-    background 0.2s ease,
-    transform 0.16s ease,
-    box-shadow 0.16s ease,
-    filter 0.16s ease;
-}
-
-.notifications__clear-button:active {
-  transform: scale(0.9);
-  filter: brightness(0.97);
-  box-shadow: inset 0 3px 8px rgba(80, 55, 35, 0.08);
-}
-/* === Shared profile avatar in header === */
-.user-icon {
-  overflow: hidden;
-}
-
-.user-icon__image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.user-icon__symbol {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  line-height: 1;
 }
