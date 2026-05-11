@@ -251,6 +251,57 @@ const LOCAL_TASK_TEMPLATES = {
 const CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
 const EMPTY_VALIDATION_ERRORS = {};
 
+const JOIN_PREVIEW_MODES = {
+  NEW_MEMBER: "new_member",
+  RETURN_EXISTING: "return_existing",
+  REJOIN_NEW_DATA: "rejoin_new_data",
+};
+
+const JOIN_PREVIEW_MODE_TEXT = {
+  [JOIN_PREVIEW_MODES.NEW_MEMBER]: "Вы новый участник. Нужно заполнить личные задания.",
+  [JOIN_PREVIEW_MODES.RETURN_EXISTING]: "Можно вернуться в группу без выбора заданий: прежние задания и прогресс сохраняются.",
+  [JOIN_PREVIEW_MODES.REJOIN_NEW_DATA]: "Нужно выбрать задания заново: прошлые данные уже не восстанавливаются.",
+};
+
+function getJoinPreviewMode(joinPreview) {
+  const rawMode =
+    joinPreview?.joinPreviewStatus ||
+    joinPreview?.joinStatus ||
+    joinPreview?.joinMode ||
+    joinPreview?.joinType ||
+    joinPreview?.joinAction ||
+    joinPreview?.membershipMode ||
+    joinPreview?.membershipStatus ||
+    joinPreview?.memberStatus ||
+    joinPreview?.previewMode ||
+    joinPreview?.result ||
+    joinPreview?.mode ||
+    joinPreview?.status ||
+    joinPreview?.type ||
+    "";
+  const normalizedMode = String(rawMode).trim().toLowerCase();
+
+  if (Object.values(JOIN_PREVIEW_MODES).includes(normalizedMode)) {
+    return normalizedMode;
+  }
+
+  return "";
+}
+
+function shouldJoinSkipTaskSelection(joinPreview) {
+  return getJoinPreviewMode(joinPreview) === JOIN_PREVIEW_MODES.RETURN_EXISTING;
+}
+
+function shouldJoinSendTaskSelection(joinPreview) {
+  const mode = getJoinPreviewMode(joinPreview);
+  return mode !== JOIN_PREVIEW_MODES.RETURN_EXISTING;
+}
+
+function getJoinPreviewModeText(joinPreview) {
+  const mode = getJoinPreviewMode(joinPreview);
+  return JOIN_PREVIEW_MODE_TEXT[mode] || "";
+}
+
 function createInviteCode() {
   return `HAB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
     .toString(36)
@@ -580,7 +631,7 @@ function getTemplateInputProps(template) {
   };
 }
 
-function validateGroupFormStep(step, flow, form, templates = []) {
+function validateGroupFormStep(step, flow, form, templates = [], options = {}) {
   const errors = {};
 
   if (flow === "create" && step === 2) {
@@ -606,7 +657,7 @@ function validateGroupFormStep(step, flow, form, templates = []) {
     }
   }
 
-  if (step === 3) {
+  if (step === 3 && !options.skipTaskSelection) {
     const selectedTemplateIds = form.selectedTaskIds || [];
     const selectedCustomIds = form.customTaskIds || [];
     const hasSelectedTasks = selectedTemplateIds.length > 0 || selectedCustomIds.length > 0;
@@ -688,7 +739,8 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   const [isActionPending, setIsActionPending] = useState(false);
   const dialogRef = useRef(null);
 
-  const totalSteps = 4;
+  const shouldSkipTaskSelection = flow === "join" && shouldJoinSkipTaskSelection(joinPreview);
+  const totalSteps = flow === "join" && shouldSkipTaskSelection ? 3 : 4;
   const isLastStep = currentStep === totalSteps;
   const activeCategoryId = flow === "create" ? form.categoryId || "sport" : form.categoryId || joinPreview?.habit?.habitTypeCode || "";
   const activeTemplates = useMemo(() => {
@@ -702,7 +754,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   const isTemplatesLoading = Boolean(activeCategoryId && !templatesByCategory[activeCategoryId]);
   const templateLoadError = templateLoadErrorsByCategory[activeCategoryId] || "";
   const validationKey = `${flow}:${currentStep}`;
-  const validationResult = useMemo(() => validateGroupFormStep(currentStep, flow, form, activeTemplates), [currentStep, flow, form, activeTemplates]);
+  const validationResult = useMemo(() => validateGroupFormStep(currentStep, flow, form, activeTemplates, { skipTaskSelection: shouldSkipTaskSelection }), [activeTemplates, currentStep, flow, form, shouldSkipTaskSelection]);
   const validationErrors = visibleValidationKey === validationKey ? validationResult.errors : EMPTY_VALIDATION_ERRORS;
 
   const handleFlowChange = useCallback((nextFlow) => {
@@ -818,18 +870,26 @@ function GroupFormModalContent({ onClose, onSubmit }) {
       ];
     }
 
-    return [
+    const joinSteps = [
       <ChoiceStep key="choice" flow={flow} onFlowChange={handleFlowChange} />,
-      <JoinGroupCodeStep key="join" form={form} setForm={setForm} joinPreview={joinPreview} errors={validationErrors} actionError={actionError} isLoading={isActionPending} />,
-      <TasksStep
-        key="tasks"
-        templates={activeTemplates}
-        form={form}
-        setForm={setForm}
-        errors={validationErrors}
-        isLoading={flow === "create" ? isTemplatesLoading : false}
-        loadError={templateLoadError}
-      />,
+      <JoinGroupCodeStep key="join" form={form} setForm={setForm} joinPreview={joinPreview} errors={validationErrors} actionError={actionError} isLoading={isActionPending} onPreviewReset={() => { setJoinPreview(null); setActionError(""); }} />,
+    ];
+
+    if (!shouldSkipTaskSelection) {
+      joinSteps.push(
+        <TasksStep
+          key="tasks"
+          templates={activeTemplates}
+          form={form}
+          setForm={setForm}
+          errors={validationErrors}
+          isLoading={flow === "create" ? isTemplatesLoading : false}
+          loadError={templateLoadError}
+        />
+      );
+    }
+
+    joinSteps.push(
       <ReviewStep
         key="review"
         flow={flow}
@@ -838,9 +898,12 @@ function GroupFormModalContent({ onClose, onSubmit }) {
         categoryId={activeCategoryId}
         joinedGroup={joinPreview?.habit}
         categories={categories}
-      />,
-    ];
-  }, [activeCategoryId, activeTemplates, actionError, categories, flow, form, handleFlowChange, isActionPending, isTemplatesLoading, joinPreview, templateLoadError, validationErrors]);
+        joinPreview={joinPreview}
+      />
+    );
+
+    return joinSteps;
+  }, [activeCategoryId, activeTemplates, actionError, categories, flow, form, handleFlowChange, isActionPending, isTemplatesLoading, joinPreview, shouldSkipTaskSelection, templateLoadError, validationErrors]);
 
   const updateStep = (nextStep) => {
     setCurrentStep(nextStep);
@@ -886,7 +949,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
         }));
       }
 
-      return true;
+      return data;
     } catch (error) {
       setJoinPreview(null);
       setActionError(error?.message || "Не удалось найти группу по коду");
@@ -900,22 +963,32 @@ function GroupFormModalContent({ onClose, onSubmit }) {
     setIsActionPending(true);
     setActionError("");
 
+    const shouldSendTasks = shouldJoinSendTaskSelection(joinPreview);
+    const templateTasks = shouldSendTasks ? buildSelectedTemplatePayload(form, activeTemplates) : [];
+    const customTasks = shouldSendTasks ? buildSelectedCustomPayload(form) : [];
+
     try {
-      const data = await joinHabitOnServer({
+      const joinPayload = {
         inviteCode: String(form.inviteCode || "").trim().toUpperCase(),
-        templateTasks: buildSelectedTemplatePayload(form, activeTemplates),
-        customTasks: buildSelectedCustomPayload(form),
-      });
+      };
+
+      if (shouldSendTasks) {
+        joinPayload.templateTasks = templateTasks;
+        joinPayload.customTasks = customTasks;
+      }
+
+      const data = await joinHabitOnServer(joinPayload);
 
       onSubmit?.({
         mode: "join",
+        joinPreviewMode: getJoinPreviewMode(joinPreview),
         ...form,
         categoryId: data?.habit?.habitTypeCode || activeCategoryId,
         groupName: data?.habit?.title || form.groupName,
         groupDescription: data?.habit?.description || form.groupDescription,
         groupCode: data?.habit?.inviteCode || form.inviteCode,
-        templateTasks: buildSelectedTemplatePayload(form, activeTemplates),
-        customTasks: buildSelectedCustomPayload(form),
+        templateTasks,
+        customTasks,
         serverResponse: data,
       });
       onClose?.();
@@ -927,7 +1000,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   };
 
   const goNext = async () => {
-    const validation = validateGroupFormStep(currentStep, flow, form, activeTemplates);
+    const validation = validateGroupFormStep(currentStep, flow, form, activeTemplates, { skipTaskSelection: shouldSkipTaskSelection });
 
     if (!validation.isValid) {
       setVisibleValidationKey(validationKey);
@@ -937,10 +1010,16 @@ function GroupFormModalContent({ onClose, onSubmit }) {
     setVisibleValidationKey("");
 
     if (flow === "join" && currentStep === 2) {
-      const isPreviewLoaded = await loadJoinPreview();
+      const previewData = await loadJoinPreview();
 
-      if (!isPreviewLoaded) {
+      if (!previewData) {
         setVisibleValidationKey(validationKey);
+        return;
+      }
+
+      if (shouldJoinSkipTaskSelection(previewData)) {
+        setDirection(1);
+        updateStep(3);
         return;
       }
     }
@@ -970,25 +1049,9 @@ function GroupFormModalContent({ onClose, onSubmit }) {
   };
 
   const handleIndicatorClick = (step) => {
-    if (step <= currentStep) {
-      setDirection(step > currentStep ? 1 : -1);
-      setVisibleValidationKey("");
-      updateStep(step);
-      return;
-    }
+    if (step > currentStep) return;
 
-    for (let stepToCheck = currentStep; stepToCheck < step; stepToCheck += 1) {
-      const validation = validateGroupFormStep(stepToCheck, flow, form, activeTemplates);
-
-      if (!validation.isValid) {
-        setDirection(stepToCheck > currentStep ? 1 : -1);
-        setVisibleValidationKey(`${flow}:${stepToCheck}`);
-        updateStep(stepToCheck);
-        return;
-      }
-    }
-
-    setDirection(1);
+    setDirection(step > currentStep ? 1 : -1);
     setVisibleValidationKey("");
     updateStep(step);
   };
@@ -1040,7 +1103,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
             type="button"
             className="group-form-modal__button group-form-modal__button--main"
             onClick={goNext}
-            disabled={isActionPending}
+            disabled={isActionPending || (flow === "join" && isLastStep && !joinPreview)}
           >
             {isActionPending ? "Загрузка..." : isLastStep ? "Готово" : "Далее"}
           </button>
@@ -1232,8 +1295,9 @@ function CategoryDropdown({ categories = CATEGORY_OPTIONS, value, onChange, erro
   );
 }
 
-function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionError = "", isLoading = false }) {
+function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionError = "", isLoading = false, onPreviewReset }) {
   const previewHabit = joinPreview?.habit;
+  const previewModeText = getJoinPreviewModeText(joinPreview);
 
   const handleInviteCodeChange = (event) => {
     const rawValue = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -1242,6 +1306,8 @@ function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionErro
     const secondPart = withoutPrefix.slice(4, 8);
     const preparedCode = ["HAB", firstPart, secondPart].filter(Boolean).join("-");
 
+    onPreviewReset?.();
+
     setForm((prev) => ({
       ...prev,
       inviteCode: preparedCode,
@@ -1249,7 +1315,7 @@ function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionErro
   };
 
   return (
-    <StepShell title="Код группы" text="Введи код приглашения. После нажатия «Далее» форма загрузит данные группы и её шаблоны заданий.">
+    <StepShell title="Код группы" text="Введи код приглашения. После нажатия «Далее» форма проверит, можно ли войти в группу и нужно ли выбирать задания.">
       <label className={`group-form-field ${errors.inviteCode ? "group-form-field--error" : ""}`.trim()}>
         <span>Впишите код группы</span>
         <input
@@ -1269,10 +1335,11 @@ function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionErro
         <div className="group-form-hint-card">
           Найдена группа: <strong>{previewHabit.title}</strong> · {CATEGORY_TITLE_BY_CODE[previewHabit.habitTypeCode] || previewHabit.habitTypeCode}.
           Свободных мест: {joinPreview?.availablePlacesCount ?? "—"}.
+          {previewModeText && <div className="group-form-hint-card__status">{previewModeText}</div>}
         </div>
       ) : (
         <div className="group-form-hint-card">
-          Формат кода: HAB-XXXX-XXXX. Категория и шаблоны заданий подтянутся с бэка после проверки кода.
+          Формат кода: HAB-XXXX-XXXX. Категория и условия входа подтянутся с бэка после проверки кода.
         </div>
       )}
     </StepShell>
@@ -1444,9 +1511,11 @@ function TasksStep({ templates, form, setForm, errors = {}, isLoading = false, l
   );
 }
 
-function ReviewStep({ flow, form, templates, categoryId, joinedGroup, categories = CATEGORY_OPTIONS, actionError = "" }) {
+function ReviewStep({ flow, form, templates, categoryId, joinedGroup, categories = CATEGORY_OPTIONS, actionError = "", joinPreview = null }) {
   const selectedTasks = getSelectedTaskSummaries(form, templates);
   const isCreateFlow = flow === "create";
+  const isReturnExisting = flow === "join" && shouldJoinSkipTaskSelection(joinPreview);
+  const joinModeText = getJoinPreviewModeText(joinPreview);
 
   return (
     <StepShell
@@ -1467,18 +1536,22 @@ function ReviewStep({ flow, form, templates, categoryId, joinedGroup, categories
 
         {actionError && <div className="group-form-error-card">{actionError}</div>}
 
-        <div className="group-form-review__card group-form-review__card--tasks">
-          <span className="group-form-review__label">Выбранные задания</span>
-          {selectedTasks.length > 0 ? (
-            <ul className="group-form-review__task-list">
-              {selectedTasks.map((task, index) => (
-                <li key={`${task}-${index}`}>{task}</li>
-              ))}
-            </ul>
-          ) : (
-            <strong>Задания не выбраны</strong>
-          )}
-        </div>
+        {isReturnExisting ? (
+          <ReviewItem label="Возвращение" value={joinModeText || "Прежние задания и прогресс будут восстановлены."} />
+        ) : (
+          <div className="group-form-review__card group-form-review__card--tasks">
+            <span className="group-form-review__label">Выбранные задания</span>
+            {selectedTasks.length > 0 ? (
+              <ul className="group-form-review__task-list">
+                {selectedTasks.map((task, index) => (
+                  <li key={`${task}-${index}`}>{task}</li>
+                ))}
+              </ul>
+            ) : (
+              <strong>Задания не выбраны</strong>
+            )}
+          </div>
+        )}
       </div>
     </StepShell>
   );

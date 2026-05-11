@@ -229,7 +229,9 @@ function buildCategoriesFromHabits(habits) {
 
   habits.forEach((habit) => {
     const habitTypeCode = habit?.habitTypeCode;
+    const status = habit?.status;
 
+    if (status && status !== "active") return;
     if (!habitTypeCode) return;
 
     if (!categoriesMap.has(habitTypeCode)) {
@@ -383,9 +385,22 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
         const data = await createHabitOnServer(payload);
         const habit = data?.habit || {};
         const member = data?.member || {};
+        const inviteCode = habit?.inviteCode || payload.groupCode || "";
 
         setIsGroupFormOpen(false);
         await loadHabits({ silent: true });
+
+        if (inviteCode) {
+          setIsInviteCodeCopied(false);
+          setInviteCodeModal({
+            code: inviteCode,
+            groupName: habit?.title || payload.groupName || "Новая группа",
+            habit,
+            member,
+          });
+          return;
+        }
+
         openServerHabitPage(habit, member);
       } catch (error) {
         console.error("Habit creation failed:", error);
@@ -407,9 +422,16 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
   }, [inviteCodeModal]);
 
   const handleCloseInviteCodeModal = useCallback(() => {
+    const createdHabit = inviteCodeModal?.habit;
+    const createdMember = inviteCodeModal?.member;
+
     setInviteCodeModal(null);
     setIsInviteCodeCopied(false);
-  }, []);
+
+    if (createdHabit?.id) {
+      openServerHabitPage(createdHabit, createdMember);
+    }
+  }, [inviteCodeModal, openServerHabitPage]);
 
   return (
     <ClickSpark>
@@ -696,7 +718,7 @@ function InviteCodeModal({ code, groupName, copied, onCopy, onClose }) {
         </div>
 
         <p className="group-form-invite-modal__hint">
-          Ты можешь найти данный код в настройках группы.
+          Этот код можно также найти позже в настройках группы.
         </p>
 
         <button type="button" className="group-form-invite-modal__ok" onClick={onClose}>

@@ -148,6 +148,9 @@ const uniqueTaskBase = {
 
 const SPECIAL_TASK_REWARD_COINS = 15;
 const MEMBER_COLOR_STORAGE_KEY = "quiet-pages-member-colors";
+const API_URL = import.meta.env.VITE_API_URL || "https://habbit-backend-k33d.onrender.com";
+const NOTES_POLL_INTERVAL_MS = 5000;
+const AUTH_TOKEN_STORAGE_KEYS = ["token", "authToken", "habbitToken", "habbit-auth-token"];
 
 const TASK_EDITOR_PLACEHOLDERS = {
   reading_pages: "например, 10",
@@ -209,11 +212,184 @@ const PERSONAL_TASK_TEMPLATES = [
 
 const PERSONAL_CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
 
-const getDefaultMemberColors = () =>
-  friendsData.reduce((colors, friend) => {
+const getDefaultMemberColors = (members = friendsData) =>
+  members.reduce((colors, friend) => {
     colors[friend.id] = friend.color;
     return colors;
   }, {});
+
+function getStoredAuthToken() {
+  if (typeof window === "undefined") return "";
+
+  for (const key of AUTH_TOKEN_STORAGE_KEYS) {
+    const token = window.localStorage.getItem(key);
+    if (token) return token;
+  }
+
+  return "";
+}
+
+function getHabitIdFromLocation() {
+  if (typeof window === "undefined") return "";
+
+  const stateHabitId = window.history.state?.habitId || window.history.state?.groupId;
+  if (stateHabitId) return String(stateHabitId);
+
+  const params = new URLSearchParams(window.location.search);
+  const queryHabitId = params.get("habitId") || params.get("groupId");
+  if (queryHabitId) return queryHabitId;
+
+  const match = window.location.pathname.match(/(?:habits|groups|group)\/(\d+)/i);
+  return match?.[1] || "";
+}
+
+function getErrorMessage(error, fallback = "Ошибка запроса к серверу") {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+async function apiRequest(path, { method = "GET", token, body } = {}) {
+  const response = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Ошибка ${response.status}`);
+  }
+
+  return data;
+}
+
+function normalizeBackendAvatar(avatar, member) {
+  const fallbackColor = member?.displayColor || member?.avatar?.bgColor || USER.avatarColor;
+  const fallbackLabel = getInitial(member?.name || member?.login || USER.name);
+
+  if ((avatar?.type === "picture" || avatar?.type === "photo") && avatar.src) {
+    return {
+      id: avatar.id || `${member?.id || "member"}-photo`,
+      type: "photo",
+      label: avatar.label || fallbackLabel,
+      color: avatar.bgColor || fallbackColor,
+      src: avatar.src,
+    };
+  }
+
+  return {
+    id: avatar?.id || `${member?.id || "member"}-avatar`,
+    type: avatar?.type === "emoji" ? "emoji" : "monogram",
+    label: avatar?.value || fallbackLabel,
+    color: avatar?.bgColor || fallbackColor,
+  };
+}
+
+function normalizeBackendTask(task) {
+  return {
+    id: String(task.id),
+    backendTaskId: task.id,
+    type: task.isCustom ? "custom" : "template",
+    templateId: task.taskTemplateCode || (task.taskTemplateId ? String(task.taskTemplateId) : null),
+    templateValue: task.customValue || "",
+    title: task.finalText || task.title || "Задание",
+    done: Boolean(task.isCompletedToday),
+    desc: undefined,
+  };
+}
+
+function normalizeBackendPage(pageData) {
+  const currentMemberId = pageData?.currentMemberId;
+  const tasksByMemberId = pageData?.tasksByMemberId || {};
+
+  const members = (pageData?.members || [])
+    .filter((member) => !member?.status || member.status === "active")
+    .map((member) => {
+      const isCurrentMember = String(member.id) === String(currentMemberId);
+      const uiId = isCurrentMember ? "me" : String(member.id);
+      const avatar = normalizeBackendAvatar(member.avatar, member);
+      const color = normalizeHexColor(member.displayColor || avatar.color || USER.avatarColor, USER.avatarColor);
+
+      return {
+        id: uiId,
+        backendMemberId: member.id,
+        userId: member.userId,
+        habitId: member.habitId,
+        role: member.role,
+        status: member.status,
+        joinedAt: member.joinedAt,
+        name: member.name || member.login || "Участник",
+        email: member.email || member.login || "",
+        login: member.login || "",
+        initials: avatar.label || getInitial(member.name || member.login),
+        color,
+        avatarColor: avatar.color || color,
+        avatar,
+        colorSource: member.colorSource || "avatar",
+        tasks: (tasksByMemberId[String(member.id)] || []).map(normalizeBackendTask),
+      };
+    });
+
+  const currentMember = members.find((member) => member.id === "me") || members[0];
+  const ownerMember = members.find((member) => member.role === "owner");
+
+  return {
+    members,
+    currentMemberUiId: currentMember?.id || "me",
+    currentMemberTasks: currentMember?.tasks || [],
+    ownerMemberUiId: ownerMember?.id || (pageData?.isOwner ? "me" : ""),
+    groupInfo: {
+      name: pageData?.habit?.title || "Группа",
+      description: pageData?.habit?.description || "",
+    },
+    groupCode: pageData?.habit?.inviteCode || "",
+    isOwner: Boolean(pageData?.isOwner),
+    currentStreak: Number(pageData?.habit?.currentStreak || 0),
+    progress: pageData?.progress || null,
+    memberProgress: pageData?.memberProgress || {},
+    habit: pageData?.habit || null,
+  };
+}
+
+function normalizeBackendNote(note) {
+  return {
+    id: String(note.id),
+    backendNoteId: note.id,
+    habitId: note.habitId,
+    authorMemberId: note.authorMemberId,
+    authorUserId: note.authorUserId,
+    authorName: note.authorName,
+    authorLogin: note.authorLogin,
+    text: note.content || "",
+    pinXPercent: Number(note.pinXPercent ?? 0),
+    pinYPercent: Number(note.pinYPercent ?? 0),
+    zIndex: Number(note.zIndex || 1),
+  };
+}
+
+function getCalendarRange(viewedDate, mode) {
+  if (mode === "week") {
+    const from = getMonday(viewedDate);
+    const to = new Date(from);
+    to.setDate(from.getDate() + 6);
+
+    return { from: getDateKey(from), to: getDateKey(to) };
+  }
+
+  const from = new Date(viewedDate.getFullYear(), viewedDate.getMonth(), 1);
+  const to = new Date(viewedDate.getFullYear(), viewedDate.getMonth() + 1, 0);
+
+  return { from: getDateKey(from), to: getDateKey(to) };
+}
+
+function toPercent(value, total) {
+  if (!total) return 0;
+  return Math.min(100, Math.max(0, Math.round((value / total) * 10000) / 100));
+}
 
 function normalizeHexColor(value, fallback = "#d8cde3") {
   if (typeof value !== "string") return fallback;
@@ -765,13 +941,24 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const settingsRef = useRef(null);
   const dragRef = useRef(null);
 
+  const [habitId] = useState(() => getHabitIdFromLocation());
+  const authToken = useMemo(
+    () => userProfile?.token || userProfile?.jwt || userProfile?.accessToken || getStoredAuthToken(),
+    [userProfile?.accessToken, userProfile?.jwt, userProfile?.token]
+  );
+  const [pageStatus, setPageStatus] = useState("idle");
+  const [pageError, setPageError] = useState("");
+  const [isOwner, setIsOwner] = useState(false);
+  const [backendStreakDays, setBackendStreakDays] = useState(null);
+  const [calendarDays, setCalendarDays] = useState([]);
+
   const [groupInfo, setGroupInfo] = useState(() => ({
     name: window.history.state?.groupName || "Quiet Pages",
     description:
       window.history.state?.groupDescription ||
       "Личная группа для спокойного чтения, ежедневных заданий и общей серии без пропусков.",
   }));
-  const [groupCode] = useState(() => window.history.state?.groupCode || "HAB-READ-PAGE");
+  const [groupCode, setGroupCode] = useState(() => window.history.state?.groupCode || "HAB-READ-PAGE");
   const [userCoins, setUserCoins] = useState(() => userProfile?.coins || USER.coins);
   const [bunnyShopState, setBunnyShopState] = useState(() => {
     const defaultState = createDefaultBunnyShopState(BUNNY_NAME);
@@ -788,6 +975,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     }
   });
   const [isBunnyShopOpen, setIsBunnyShopOpen] = useState(false);
+  const [membersData, setMembersData] = useState(friendsData);
   const [myTasks, setMyTasks] = useState(friendsData[0].tasks);
   const [selectedFriendId, setSelectedFriendId] = useState("me");
   const [memberColors, setMemberColors] = useState(() => {
@@ -841,35 +1029,140 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
   const zeroTaskDates = useMemo(() => createDemoZeroTaskDates(currentDate), [currentDate]);
 
+  const loadHabitPage = useCallback(async ({ silent = false } = {}) => {
+    if (!habitId || !authToken) {
+      setPageError(!habitId ? "Не найден habitId для загрузки группы" : "Не найден токен авторизации");
+      return null;
+    }
+
+    if (!silent) {
+      setPageStatus("loading");
+      setPageError("");
+    }
+
+    try {
+      const data = await apiRequest(`/api/habits/${habitId}/page?date=${getDateKey(currentDate)}`, {
+        token: authToken,
+      });
+      const normalized = normalizeBackendPage(data);
+      const nextMembers = normalized.members.length > 0 ? normalized.members : friendsData;
+      const nextColors = getDefaultMemberColors(nextMembers);
+
+      setGroupInfo(normalized.groupInfo);
+      setGroupCode(normalized.groupCode || "");
+      setMembersData(nextMembers);
+      setMyTasks(normalized.currentMemberTasks);
+      setMemberColors(nextColors);
+      setDraftMemberColors(nextColors);
+      setIsOwner(normalized.isOwner);
+      setAdminMemberId(normalized.ownerMemberUiId || "me");
+      setBackendStreakDays(normalized.currentStreak);
+      setSelectedFriendId((prev) =>
+        nextMembers.some((member) => member.id === prev) ? prev : normalized.currentMemberUiId || "me"
+      );
+      setPageStatus("ready");
+      setPageError("");
+
+      return normalized;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setPageStatus("error");
+      setPageError(message);
+      return null;
+    }
+  }, [authToken, currentDate, habitId]);
+
+  const loadCalendar = useCallback(async () => {
+    if (!habitId || !authToken) return;
+
+    const { from, to } = getCalendarRange(viewedDate, calendarMode);
+
+    try {
+      const data = await apiRequest(`/api/habits/${habitId}/calendar?from=${from}&to=${to}`, {
+        token: authToken,
+      });
+
+      setCalendarDays(Array.isArray(data?.days) ? data.days : []);
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    }
+  }, [authToken, calendarMode, habitId, viewedDate]);
+
+  const loadNotes = useCallback(async () => {
+    if (!habitId || !authToken) return;
+
+    try {
+      const data = await apiRequest(`/api/habits/${habitId}/notes`, { token: authToken });
+      setNotes(Array.isArray(data?.notes) ? data.notes.map(normalizeBackendNote) : []);
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    }
+  }, [authToken, habitId]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadHabitPage();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadHabitPage]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadCalendar();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadCalendar]);
+
+  useEffect(() => {
+    if (!habitId || !authToken) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      void loadNotes();
+    }, 0);
+
+    const intervalId = window.setInterval(() => {
+      void loadNotes();
+    }, NOTES_POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
+  }, [authToken, habitId, loadNotes]);
+
   const activeFriendsData = useMemo(
-    () => friendsData.filter((friend) => !removedMemberIds.includes(friend.id)),
-    [removedMemberIds]
+    () => membersData.filter((friend) => !removedMemberIds.includes(friend.id)),
+    [membersData, removedMemberIds]
   );
+
+  const isLastActiveMember = activeFriendsData.length <= 1;
 
   const friendsWithColors = useMemo(
     () =>
       activeFriendsData.map((friend) => {
-        const friendAvatar =
-          friend.id === "me"
-            ? resolvedUserAvatar
-            : {
-                id: `${friend.id}-avatar`,
-                type: "monogram",
-                label: friend.initials,
-                color: friend.avatarColor || friend.color,
-              };
+        const fallbackAvatar = {
+          id: `${friend.id}-avatar`,
+          type: "monogram",
+          label: friend.initials,
+          color: friend.avatarColor || friend.color,
+        };
+        const friendAvatar = friend.id === "me"
+          ? (userAvatar ? resolvedUserAvatar : friend.avatar || resolvedUserAvatar)
+          : friend.avatar || fallbackAvatar;
 
         return {
           ...friend,
-          name: friend.id === "me" ? displayUserName : friend.name,
-          email: friend.id === "me" ? displayUserEmail : friend.email,
-          initials: friend.id === "me" ? displayUserInitials : friend.initials,
+          name: friend.id === "me" ? (userProfile?.name || friend.name || displayUserName) : friend.name,
+          email: friend.id === "me" ? (userProfile?.email || friend.email || displayUserEmail) : friend.email,
+          initials: friend.id === "me" ? (friendAvatar.label || friend.initials || displayUserInitials) : friend.initials,
           avatar: friendAvatar,
           avatarColor: friendAvatar.color || friend.avatarColor || friend.color,
           color: memberColors[friend.id] || friend.color,
         };
       }),
-    [activeFriendsData, displayUserEmail, displayUserInitials, displayUserName, memberColors, resolvedUserAvatar]
+    [activeFriendsData, displayUserEmail, displayUserInitials, displayUserName, memberColors, resolvedUserAvatar, userAvatar, userProfile?.email, userProfile?.name]
   );
 
   const selectedFriend = useMemo(
@@ -922,8 +1215,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   }, [friendsWithColors, myTasks]);
 
   const streakDays = useMemo(
-    () => calculateCurrentGroupStreak(currentDate, zeroTaskDates, groupStats),
-    [currentDate, zeroTaskDates, groupStats]
+    () => backendStreakDays ?? calculateCurrentGroupStreak(currentDate, zeroTaskDates, groupStats),
+    [backendStreakDays, currentDate, zeroTaskDates, groupStats]
   );
 
   const selectedMemberStats = useMemo(
@@ -1083,11 +1376,34 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setIsGroupSettingsOpen(true);
   };
 
-  const handleSaveMemberColors = () => {
+  const handleSaveMemberColors = async () => {
     const nextColors = activeFriendsData.reduce((colors, friend) => {
       colors[friend.id] = normalizeHexColor(draftMemberColors[friend.id], memberColors[friend.id] || friend.color);
       return colors;
     }, {});
+
+    if (habitId && authToken) {
+      try {
+        await apiRequest(`/api/habits/${habitId}/member-colors`, {
+          method: "PATCH",
+          token: authToken,
+          body: {
+            colors: activeFriendsData.map((friend) => ({
+              targetUserId: friend.userId,
+              color: nextColors[friend.id],
+            })),
+          },
+        });
+
+        setMemberColors(nextColors);
+        setDraftMemberColors(nextColors);
+        await loadHabitPage({ silent: true });
+        return;
+      } catch (error) {
+        setPageError(getErrorMessage(error));
+        return;
+      }
+    }
 
     setMemberColors(nextColors);
     setDraftMemberColors(nextColors);
@@ -1099,10 +1415,28 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setMemberRemoveConfirm(member);
   };
 
-  const handleConfirmRemoveMember = () => {
+  const handleConfirmRemoveMember = async () => {
     if (!memberRemoveConfirm || memberRemoveConfirm.id === "me") return;
 
     const memberId = memberRemoveConfirm.id;
+
+    if (habitId && authToken && memberRemoveConfirm.backendMemberId) {
+      try {
+        await apiRequest(`/api/habits/${habitId}/members/${memberRemoveConfirm.backendMemberId}/remove`, {
+          method: "PATCH",
+          token: authToken,
+        });
+
+        setMemberRemoveConfirm(null);
+        setIsGroupSettingsOpen(false);
+        await loadHabitPage({ silent: true });
+        await loadCalendar();
+        return;
+      } catch (error) {
+        setPageError(getErrorMessage(error));
+        return;
+      }
+    }
 
     setRemovedMemberIds((prev) => (prev.includes(memberId) ? prev : [...prev, memberId]));
     setMemberColors((prev) => {
@@ -1165,29 +1499,79 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setExitModalStep("confirm");
   };
 
-  const handleConfirmExitGroup = () => {
-    if (exitModalStep === "confirm") {
-      setExitModalStep("transfer");
-      setAdminTransferMemberId(activeAdminTransferMemberId);
+  const leaveGroup = async (body = {}) => {
+    if (!habitId || !authToken) {
+      setPageError(!habitId ? "Не найден habitId для выхода из группы" : "Не найден токен авторизации");
       return;
     }
 
-    if (activeAdminTransferMemberId) {
-      setAdminMemberId(activeAdminTransferMemberId);
-      setSelectedFriendId(activeAdminTransferMemberId);
-    }
+    try {
+      await apiRequest(`/api/habits/${habitId}/leave`, {
+        method: "POST",
+        token: authToken,
+        body,
+      });
 
-    setIsExitConfirmOpen(false);
-    setExitModalStep("confirm");
-    setIsGroupSettingsOpen(false);
+      setIsExitConfirmOpen(false);
+      setExitModalStep("confirm");
+      setIsGroupSettingsOpen(false);
+      navigate?.("/lobby");
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    }
   };
 
-  const handleToggleTask = (taskId) => {
+  const handleConfirmExitGroup = async () => {
+    if (exitModalStep === "confirm") {
+      if (isOwner && adminTransferMembers.length > 0) {
+        setExitModalStep("transfer");
+        setAdminTransferMemberId(activeAdminTransferMemberId);
+        return;
+      }
+
+      await leaveGroup({});
+      return;
+    }
+
+    const newOwner = adminTransferMembers.find((member) => member.id === activeAdminTransferMemberId);
+
+    if (!newOwner?.backendMemberId) {
+      setPageError("Нужно выбрать нового владельца группы");
+      return;
+    }
+
+    await leaveGroup({ newOwnerMemberId: newOwner.backendMemberId });
+  };
+
+  const handleToggleTask = async (taskId) => {
     if (selectedFriendId !== "me") return;
+
+    const currentTask = myTasks.find((task) => task.id === taskId);
+    if (!currentTask) return;
+
+    const wasDone = Boolean(currentTask.done);
 
     setMyTasks((prev) =>
       prev.map((task) => (task.id === taskId ? { ...task, done: !task.done } : task))
     );
+
+    if (!habitId || !authToken) return;
+
+    try {
+      await apiRequest(`/api/habits/${habitId}/tasks/${currentTask.backendTaskId || currentTask.id}/complete`, {
+        method: wasDone ? "DELETE" : "POST",
+        token: authToken,
+        body: { date: getDateKey(currentDate) },
+      });
+
+      await loadHabitPage({ silent: true });
+      await loadCalendar();
+    } catch (error) {
+      setMyTasks((prev) =>
+        prev.map((task) => (task.id === taskId ? { ...task, done: wasDone } : task))
+      );
+      setPageError(getErrorMessage(error));
+    }
   };
 
   const handleSpecialPhoto = (event) => {
@@ -1270,14 +1654,28 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setIsClearNotesConfirmOpen(true);
   };
 
-  const confirmClearNotes = () => {
-    setNotes([]);
+  const confirmClearNotes = async () => {
+    if (habitId && authToken) {
+      try {
+        await apiRequest(`/api/habits/${habitId}/notes`, {
+          method: "DELETE",
+          token: authToken,
+        });
+        await loadNotes();
+      } catch (error) {
+        setPageError(getErrorMessage(error));
+        return;
+      }
+    } else {
+      setNotes([]);
+    }
+
     setNotesMenu(null);
     setActiveNoteMenu(null);
     setIsClearNotesConfirmOpen(false);
   };
 
-  const saveNote = () => {
+  const saveNote = async () => {
     if (!noteEditor || !noteEditor.text.trim()) {
       setNoteEditor(null);
       return;
@@ -1286,14 +1684,40 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     const rect = notesPanelRef.current?.getBoundingClientRect();
     const boardWidth = rect?.width || 800;
     const boardHeight = rect?.height || 520;
+    const nextX = Math.min(Math.max(noteEditor.x - 76, 12), Math.max(12, boardWidth - 190));
+    const nextY = Math.min(Math.max(noteEditor.y - 24, 12), Math.max(12, boardHeight - 130));
+    const content = noteEditor.text.trim().slice(0, 200);
+
+    if (habitId && authToken) {
+      try {
+        await apiRequest(`/api/habits/${habitId}/notes`, {
+          method: "POST",
+          token: authToken,
+          body: {
+            content,
+            pinXPercent: toPercent(nextX, boardWidth),
+            pinYPercent: toPercent(nextY, boardHeight),
+          },
+        });
+
+        setNoteEditor(null);
+        await loadNotes();
+        return;
+      } catch (error) {
+        setPageError(getErrorMessage(error));
+        return;
+      }
+    }
 
     setNotes((prev) => [
       ...prev,
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        x: Math.min(Math.max(noteEditor.x - 76, 12), Math.max(12, boardWidth - 190)),
-        y: Math.min(Math.max(noteEditor.y - 24, 12), Math.max(12, boardHeight - 130)),
-        text: noteEditor.text.trim().slice(0, 500),
+        x: nextX,
+        y: nextY,
+        pinXPercent: toPercent(nextX, boardWidth),
+        pinYPercent: toPercent(nextY, boardHeight),
+        text: content,
         authorId: "me",
       },
     ]);
@@ -1318,8 +1742,25 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     });
   };
 
-  const deleteNote = () => {
+  const deleteNote = async () => {
     if (!activeNoteMenu) return;
+
+    const note = notes.find((item) => item.id === activeNoteMenu.id);
+
+    if (habitId && authToken && note?.backendNoteId) {
+      try {
+        await apiRequest(`/api/habits/${habitId}/notes/${note.backendNoteId}`, {
+          method: "DELETE",
+          token: authToken,
+        });
+        setActiveNoteMenu(null);
+        await loadNotes();
+        return;
+      } catch (error) {
+        setPageError(getErrorMessage(error));
+        return;
+      }
+    }
 
     setNotes((prev) => prev.filter((item) => item.id !== activeNoteMenu.id));
     setActiveNoteMenu(null);
@@ -1333,6 +1774,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     const noteMinHeight = 26;
     const nextX = Math.max(10, Math.min(rect.width - noteWidth + 160, event.clientX - rect.left - offsetX));
     const nextY = Math.max(10, Math.min(rect.height - noteMinHeight - 10, event.clientY - rect.top - offsetY));
+    const pinXPercent = toPercent(nextX, rect.width);
+    const pinYPercent = toPercent(nextY, rect.height);
+
+    dragRef.current.pinXPercent = pinXPercent;
+    dragRef.current.pinYPercent = pinYPercent;
 
     const movementX = event.clientX - lastClientX;
     const movementY = event.clientY - lastClientY;
@@ -1363,16 +1809,16 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setNotes((prev) =>
       prev.map((note) =>
         note.id === id
-          ? { ...note, x: nextX, y: nextY, dragging: true, tilt, peelX, peelY }
+          ? { ...note, x: nextX, y: nextY, pinXPercent, pinYPercent, dragging: true, tilt, peelX, peelY }
           : note
       )
     );
   }, []);
 
-  const stopDrag = useCallback(() => {
+  const stopDrag = useCallback(async () => {
     if (!dragRef.current) return;
 
-    const { id } = dragRef.current;
+    const { id, backendNoteId, pinXPercent, pinYPercent } = dragRef.current;
 
     setNotes((prev) =>
       prev.map((note) =>
@@ -1384,7 +1830,20 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
     dragRef.current = null;
     window.removeEventListener("mousemove", onDrag);
-  }, [onDrag]);
+
+    if (habitId && authToken && backendNoteId && typeof pinXPercent === "number" && typeof pinYPercent === "number") {
+      try {
+        await apiRequest(`/api/habits/${habitId}/notes/${backendNoteId}`, {
+          method: "PATCH",
+          token: authToken,
+          body: { pinXPercent, pinYPercent, bringToFront: true },
+        });
+        await loadNotes();
+      } catch (error) {
+        setPageError(getErrorMessage(error));
+      }
+    }
+  }, [authToken, habitId, loadNotes, onDrag]);
 
   const startDrag = (event, noteId) => {
     if (event.button !== 0) return;
@@ -1396,13 +1855,19 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     const rect = notesPanelRef.current?.getBoundingClientRect();
     if (!note || !rect) return;
 
+    const noteX = typeof note.x === "number" ? note.x : (rect.width * Number(note.pinXPercent || 0)) / 100;
+    const noteY = typeof note.y === "number" ? note.y : (rect.height * Number(note.pinYPercent || 0)) / 100;
+
     dragRef.current = {
       id: noteId,
+      backendNoteId: note.backendNoteId,
       rect,
-      offsetX: event.clientX - rect.left - note.x,
-      offsetY: event.clientY - rect.top - note.y,
+      offsetX: event.clientX - rect.left - noteX,
+      offsetY: event.clientY - rect.top - noteY,
       lastClientX: event.clientX,
       lastClientY: event.clientY,
+      pinXPercent: Number(note.pinXPercent || 0),
+      pinYPercent: Number(note.pinYPercent || 0),
       currentTilt: -2,
       currentPeelX: 0,
       currentPeelY: -2,
@@ -1543,6 +2008,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
               onLogoClick={goToLobby}
               onProfileClick={goToProfile}
             />
+
+          {(pageError || pageStatus === "loading") && (
+            <div className="group-form-error-card" style={{ marginTop: 14 }}>
+              {pageError || "Загружаю данные группы..."}
+            </div>
+          )}
 
           <div className="group-title-ribbon" aria-label={`Группа ${groupInfo.name}`}>
             <div className="group-title-ribbon__shape" />
@@ -1698,6 +2169,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                                 onRequestExit={handleRequestExitGroup}
                                 adminMemberId={adminMemberId}
                                 groupCode={groupCode}
+                                isOwner={isOwner}
                               />
                             )}
                           </div>
@@ -1733,6 +2205,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                         currentDate={currentDate}
                         zeroTaskDates={zeroTaskDates}
                         groupStats={groupStats}
+                        calendarDays={calendarDays}
                       />
 
                       <div className="analytics-list">
@@ -1780,7 +2253,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                     <div className="group-notes-layer">
                       {notes.map((note) => {
                         const noteAuthor =
-                          friendsWithColors.find((friend) => friend.id === note.authorId) || friendsWithColors[0];
+                          friendsWithColors.find((friend) => String(friend.backendMemberId) === String(note.authorMemberId)) ||
+                          friendsWithColors.find((friend) => friend.id === note.authorId) ||
+                          friendsWithColors[0];
 
                         return (
                           <button
@@ -1789,8 +2264,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                             data-note-item="true"
                             className={`sticky-note ${note.dragging ? "sticky-note--dragging" : ""}`}
                             style={{
-                              left: note.x,
-                              top: note.y,
+                              left: typeof note.x === "number" ? note.x : `${note.pinXPercent || 0}%`,
+                              top: typeof note.y === "number" ? note.y : `${note.pinYPercent || 0}%`,
+                              zIndex: note.dragging ? 200 : note.zIndex,
                               minHeight: Math.max(96, 96 + Math.floor(note.text.length / 42) * 22),
                               "--note-accent": noteAuthor.color,
                               "--note-accent-soft": hexToRgba(noteAuthor.color, 0.22),
@@ -1925,7 +2401,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                 <>
                   <div className="modal-card__title">Выйти из группы?</div>
                   <div className="modal-card__text">
-                    Ты больше не будешь видеть задания, заметки и прогресс группы. Перед выходом нужно будет передать права администратора другому участнику.
+                    {isLastActiveMember
+                      ? "Ты последний активный участник. После выхода группа будет удалена, код приглашения перестанет работать, а данные группы будут очищены."
+                      : isOwner
+                        ? "Ты больше не будешь видеть задания, заметки и прогресс группы. Если в группе есть другие активные участники, перед выходом нужно будет передать права администратора."
+                        : "Ты больше не будешь видеть задания, заметки и прогресс группы. В течение 48 часов можно будет вернуться по коду приглашения без потери заданий и прогресса."}
                   </div>
 
                   <div className="modal-card__actions">
@@ -2011,10 +2491,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
             onClick={() => setMemberRemoveConfirm(null)}
           >
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-card__title">Удалить участника?</div>
+              <div className="modal-card__title">Исключить участника?</div>
               <div className="modal-card__text">
-                Вы точно хотите удалить участника {memberRemoveConfirm.name} из группы?
-                Его задания, цвет и прогресс перестанут учитываться на этой странице.
+                Пользователь {memberRemoveConfirm.name} будет исключён из группы и не сможет присоединиться повторно по коду приглашения.
+                Его задания, прогресс и заметки в этой привычке будут удалены.
               </div>
 
               <div className="modal-card__actions">
@@ -2030,7 +2510,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                   className="modal-card__button modal-card__button--danger"
                   onClick={handleConfirmRemoveMember}
                 >
-                  Удалить
+                  Исключить
                 </button>
               </div>
             </div>
@@ -2137,7 +2617,6 @@ function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakD
           <div className="member-info-modal__identity">
             <div className="section-label">Информация участника</div>
             <h2 className="member-info-modal__name">{member.name}</h2>
-            <div className="member-info-modal__email">{member.email || "Почта не указана"}</div>
             {isAdmin && <div className="member-info-modal__role">Администратор группы</div>}
           </div>
         </div>
@@ -2498,6 +2977,7 @@ function GroupSettingsPanel({
   onRequestExit,
   adminMemberId,
   groupCode,
+  isOwner,
 }) {
   const [isCodeCopied, setIsCodeCopied] = useState(false);
 
@@ -2575,12 +3055,13 @@ function GroupSettingsPanel({
                   title={member.color}
                 />
 
-                {!isOwnProfile && (
+                {!isOwnProfile && isOwner && (
                   <button
                     type="button"
                     className="group-color-row__remove"
                     onClick={() => onRequestRemoveMember(member)}
-                    aria-label={`Удалить участника: ${member.name}`}
+                    aria-label={`Удалить из группы: ${member.name}`}
+                    title="Удалить из группы"
                   >
                     ×
                   </button>
@@ -2693,6 +3174,7 @@ function CalendarBlock({
   currentDate,
   zeroTaskDates,
   groupStats,
+  calendarDays,
 }) {
   const daysGridRef = useRef(null);
   const [calendarMeasurements, setCalendarMeasurements] = useState({
@@ -2702,6 +3184,10 @@ function CalendarBlock({
   });
   const monthCells = useMemo(() => buildMonthCells(viewedDate), [viewedDate]);
   const monthRows = useMemo(() => chunkCalendarRows(monthCells), [monthCells]);
+  const calendarDayByDate = useMemo(
+    () => new Map((calendarDays || []).map((day) => [day.date, day])),
+    [calendarDays]
+  );
   const activeRowIndex = useMemo(
     () => getActiveMonthRowIndex(monthRows, viewedDate),
     [monthRows, viewedDate]
@@ -2808,18 +3294,27 @@ function CalendarBlock({
                 const isToday = isSameDay(cell.date, currentDate);
                 const isFuture = isFutureDay(cell.date, currentDate);
                 const canColorDay = !cell.outOfMonth;
-                const progress = isFuture
-                  ? { completed: 0, total: groupStats.total }
-                  : getDayGroupProgress(cell.date, currentDate, zeroTaskDates, groupStats);
-                const hasZeroMember = canColorDay && !isFuture && (isToday
-                  ? groupStats.members.some((member) => member.completed === 0)
-                  : zeroTaskDates.has(getDateKey(cell.date)));
-                const isComplete =
-                  canColorDay &&
-                  !isFuture &&
-                  progress.total > 0 &&
-                  progress.completed === progress.total &&
-                  !hasZeroMember;
+                const apiDay = calendarDayByDate.get(cell.id);
+                const progress = apiDay
+                  ? {
+                      completed: Number(apiDay.completedTasksCount || 0),
+                      total: Number(apiDay.totalTasksCount || 0),
+                    }
+                  : isFuture
+                    ? { completed: 0, total: groupStats.total }
+                    : getDayGroupProgress(cell.date, currentDate, zeroTaskDates, groupStats);
+                const hasZeroMember = apiDay
+                  ? canColorDay && apiDay.state === "bad"
+                  : canColorDay && !isFuture && (isToday
+                    ? groupStats.members.some((member) => member.completed === 0)
+                    : zeroTaskDates.has(getDateKey(cell.date)));
+                const isComplete = apiDay
+                  ? canColorDay && apiDay.state === "good"
+                  : canColorDay &&
+                    !isFuture &&
+                    progress.total > 0 &&
+                    progress.completed === progress.total &&
+                    !hasZeroMember;
 
                 return (
                   <div

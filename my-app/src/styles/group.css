@@ -2902,14 +2902,6 @@ button {
   letter-spacing: -0.04em;
 }
 
-.member-info-modal__email {
-  margin-top: 8px;
-  overflow: hidden;
-  color: var(--color-text-soft);
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .member-info-modal__role {
   width: max-content;
@@ -3260,5 +3252,31 @@ button {
   .modal-card__actions .modal-card__button,
   .note-editor__button {
     width: 100%;
+  }
+}
+
+/* === Fix: keep member stack and group settings pinned to the bottom of task board === */
+.group-task-board {
+  display: flex;
+  flex-direction: column;
+}
+
+.group-task-board .task-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.group-task-board__footer {
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+@media (max-width: 760px) {
+  .group-task-board {
+    min-height: 340px;
+  }
+
+  .group-task-board .task-list {
+    flex: 0 1 auto;
   }
 }
