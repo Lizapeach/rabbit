@@ -7,6 +7,13 @@ import AnimatedScrollList from "../components/AnimatedScrollList";
 import BorderGlow from "../components/BorderGlow";
 import { TaskDoneAnimation, AnimatedCheckMark } from "../components/TaskDoneAnimation";
 import Live2DBunny from "../components/Live2DBunny";
+import BunnyShopModal from "../components/BunnyShopModal";
+import {
+  BUNNY_SHOP_STORAGE_KEY,
+  createDefaultBunnyShopState,
+  getBunnyAccessoryParams,
+  normalizeBunnyShopState,
+} from "../components/bunnyShopConfig";
 import gearIcon from "../assets/icons/gear.png";
 import achievementIcon from "../assets/icons/achievement.svg";
 
@@ -766,6 +773,21 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   }));
   const [groupCode] = useState(() => window.history.state?.groupCode || "HAB-READ-PAGE");
   const [userCoins, setUserCoins] = useState(() => userProfile?.coins || USER.coins);
+  const [bunnyShopState, setBunnyShopState] = useState(() => {
+    const defaultState = createDefaultBunnyShopState(BUNNY_NAME);
+
+    if (typeof window === "undefined") return defaultState;
+
+    try {
+      return normalizeBunnyShopState(
+        JSON.parse(window.localStorage.getItem(BUNNY_SHOP_STORAGE_KEY) || "null"),
+        BUNNY_NAME
+      );
+    } catch {
+      return defaultState;
+    }
+  });
+  const [isBunnyShopOpen, setIsBunnyShopOpen] = useState(false);
   const [myTasks, setMyTasks] = useState(friendsData[0].tasks);
   const [selectedFriendId, setSelectedFriendId] = useState("me");
   const [memberColors, setMemberColors] = useState(() => {
@@ -936,6 +958,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
   const activeBunnyModelUrl = shouldShowCryBunny ? BUNNY_CRY_MODEL_URL : BUNNY_MODEL_URL;
   const activeBunnyAnimationMode = shouldShowCryBunny ? "cry" : "idle";
+  const bunnyAccessoryParams = useMemo(
+    () => getBunnyAccessoryParams(bunnyShopState.equippedItems),
+    [bunnyShopState.equippedItems]
+  );
+  const activeBunnyAccessoryParams = shouldShowCryBunny ? null : bunnyAccessoryParams;
 
   const adminTransferMembers = useMemo(
     () => friendsWithColors.filter((member) => member.id !== "me"),
@@ -962,6 +989,79 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
   const selectedMemberColor = selectedFriend.color;
   const selectedMemberColorSoft = hexToRgba(selectedMemberColor, 0.22);
+
+  const handleOpenBunnyShop = () => {
+    setIsBunnyShopOpen(true);
+  };
+
+  const handleBunnyShopKeyDown = (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    event.preventDefault();
+    setIsBunnyShopOpen(true);
+  };
+
+  const spendBunnyCoins = (cost) => {
+    setUserCoins((prevCoins) => Math.max(0, prevCoins - cost));
+  };
+
+  const handleBuyBunnyName = (nextName, cost) => {
+    if (userCoins < cost) return;
+
+    spendBunnyCoins(cost);
+    setBunnyShopState((prev) => ({
+      ...prev,
+      name: nextName,
+    }));
+  };
+
+  const handleBuyBunnyBackground = (nextColor, cost) => {
+    if (userCoins < cost) return;
+
+    spendBunnyCoins(cost);
+    setBunnyShopState((prev) => ({
+      ...prev,
+      backgroundColor: nextColor,
+    }));
+  };
+
+  const handleBuyBunnyItem = (section, item) => {
+    if (!section || !item || userCoins < item.price) return;
+
+    spendBunnyCoins(item.price);
+    setBunnyShopState((prev) => ({
+      ...prev,
+      purchasedItemIds: prev.purchasedItemIds.includes(item.id)
+        ? prev.purchasedItemIds
+        : [...prev.purchasedItemIds, item.id],
+    }));
+  };
+
+  const handleEquipBunnyItem = (section, item) => {
+    if (!section || !item) return;
+
+    setBunnyShopState((prev) => {
+      if (!prev.purchasedItemIds.includes(item.id)) return prev;
+
+      return {
+        ...prev,
+        equippedItems: {
+          ...prev.equippedItems,
+          [section.id]: item.id,
+        },
+      };
+    });
+  };
+
+  const handleUnequipBunnyCategory = (sectionId) => {
+    setBunnyShopState((prev) => ({
+      ...prev,
+      equippedItems: {
+        ...prev.equippedItems,
+        [sectionId]: null,
+      },
+    }));
+  };
 
   const handleMemberColorChange = (memberId, nextColor) => {
     const memberFallback = activeFriendsData.find((friend) => friend.id === memberId)?.color || "#d8cde3";
@@ -1394,6 +1494,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   }, [memberColors]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(BUNNY_SHOP_STORAGE_KEY, JSON.stringify(bunnyShopState));
+  }, [bunnyShopState]);
+
+  useEffect(() => {
     if (!isGroupSettingsOpen) return undefined;
 
     const closeSettingsOutside = (event) => {
@@ -1454,14 +1560,24 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                 <BorderGlow>
                   <div className="group-panel group-panel--overview">
                     <div className="group-overview-grid">
-                      <aside className="group-character-space" aria-label="Персонаж группы">
+                      <aside
+                        className="group-character-space group-character-space--clickable"
+                        style={{ backgroundColor: bunnyShopState.backgroundColor }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={handleOpenBunnyShop}
+                        onKeyDown={handleBunnyShopKeyDown}
+                        aria-label={shouldShowCryBunny ? "Открыть магазин грустного зайца" : "Открыть магазин зайца"}
+                      >
                         <Live2DBunny
                           modelUrl={activeBunnyModelUrl}
                           animationMode={activeBunnyAnimationMode}
                           isHappy={shouldShowHappyBunny}
+                          accessoryParams={activeBunnyAccessoryParams}
+                          isPaused={isBunnyShopOpen}
                         />
                         <div className="group-character-space__name" aria-label="Имя персонажа">
-                          {BUNNY_NAME}
+                          {bunnyShopState.name}
                         </div>
                       </aside>
 
@@ -1740,7 +1856,22 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
           />
         )}
 
-
+        {isBunnyShopOpen && (
+          <BunnyShopModal
+            isCry={shouldShowCryBunny}
+            coins={userCoins}
+            bunnyName={bunnyShopState.name}
+            backgroundColor={bunnyShopState.backgroundColor}
+            purchasedItemIds={bunnyShopState.purchasedItemIds}
+            equippedItems={bunnyShopState.equippedItems}
+            onClose={() => setIsBunnyShopOpen(false)}
+            onBuyName={handleBuyBunnyName}
+            onBuyBackground={handleBuyBunnyBackground}
+            onBuyItem={handleBuyBunnyItem}
+            onEquipItem={handleEquipBunnyItem}
+            onUnequipCategory={handleUnequipBunnyCategory}
+          />
+        )}
 
         {isGroupInfoEditorOpen && (
           <GroupInfoEditorModal

@@ -104,9 +104,8 @@
 }
 
 .coin-icon__image {
-  width: 210px;
-  height: 210px;
-  transform: translateY(3.5px);
+  width: 100%;
+  height: 100%;
   display: block;
   object-fit: contain;
   pointer-events: none;

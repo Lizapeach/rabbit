@@ -11,6 +11,20 @@ function randomBetween(min, max) {
 
 const loadedScripts = new Map();
 
+const BUNNY_ACCESSORY_PARAM_IDS = {
+  bow: "Param3",
+  star: "Param4",
+  cloun_nose: "Param5",
+  cloun_wig: "Param6",
+  mustache: "Param7",
+  scarf: "Param8",
+  hat: "Param9",
+  boww: "Param10",
+  broom: "Param11",
+  tie: "Param12",
+  icon: "Param13",
+};
+
 function loadScriptOnce(src) {
   if (!src) return Promise.resolve();
 
@@ -91,6 +105,15 @@ function setModelParameter(model, unavailableParams, id, value, weight = 1) {
   }
 }
 
+function applyAccessoryParameters(model, unavailableParams, accessoryParams) {
+  if (!accessoryParams) return;
+
+  Object.entries(BUNNY_ACCESSORY_PARAM_IDS).forEach(([key, parameterId]) => {
+    const value = accessoryParams[key] ? 1 : 0;
+    setModelParameter(model, unavailableParams, parameterId, value);
+  });
+}
+
 function resizeModelToStage(app, model, host) {
   const rect = host.getBoundingClientRect();
   const width = Math.max(1, Math.floor(rect.width));
@@ -126,6 +149,8 @@ export default function Live2DBunny({
   modelUrl,
   animationMode = "idle",
   isHappy = false,
+  accessoryParams = null,
+  isPaused = false,
   cubismCoreSrc = "/live2d/live2dcubismcore.min.js",
 }) {
   const hostRef = useRef(null);
@@ -135,6 +160,8 @@ export default function Live2DBunny({
   const live2DModelClassRef = useRef(null);
   const animationModeRef = useRef(animationMode);
   const isHappyRef = useRef(isHappy);
+  const accessoryParamsRef = useRef(accessoryParams);
+  const isPausedRef = useRef(isPaused);
   const unavailableParamsRef = useRef(new Set());
   const startedAtRef = useRef(0);
   const loadIdRef = useRef(0);
@@ -167,6 +194,14 @@ export default function Live2DBunny({
   useEffect(() => {
     isHappyRef.current = isHappy;
   }, [isHappy]);
+
+  useEffect(() => {
+    accessoryParamsRef.current = accessoryParams;
+  }, [accessoryParams]);
+
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -252,9 +287,15 @@ export default function Live2DBunny({
           const model = modelRef.current;
           if (!model || disposed) return;
 
-          const now = performance.now();
           const unavailableParams = unavailableParamsRef.current;
 
+          if (isPausedRef.current) {
+            state.isInside = false;
+            applyAccessoryParameters(model, unavailableParams, accessoryParamsRef.current);
+            return;
+          }
+
+          const now = performance.now();
           if (animationModeRef.current === "cry") {
             state.isInside = false;
             state.pointerX = 0;
@@ -339,6 +380,7 @@ export default function Live2DBunny({
           setModelParameter(model, unavailableParams, "ParamBreath", breath);
           setModelParameter(model, unavailableParams, "ParamEyeLOpen", eyeOpen);
           setModelParameter(model, unavailableParams, "ParamEyeROpen", eyeOpen);
+          applyAccessoryParameters(model, unavailableParams, accessoryParamsRef.current);
         });
 
         host.addEventListener("pointerenter", onPointerEnter);

@@ -3,20 +3,11 @@
 	"FileReferences": {
 		"Moc": "bunny.moc3",
 		"Textures": [
-			"textures/texture_01.png"
+			"bunny.1024/texture_00.png",
+			"bunny.1024/texture_01.png",
+			"bunny.1024/texture_02.png",
+			"bunny.1024/texture_03.png"
 		],
 		"DisplayInfo": "bunny.cdi3.json"
-	},
-	"Groups": [
-		{
-			"Target": "Parameter",
-			"Name": "EyeBlink",
-			"Ids": []
-		},
-		{
-			"Target": "Parameter",
-			"Name": "LipSync",
-			"Ids": []
-		}
-	]
+	}
 }
