@@ -3311,7 +3311,11 @@ button {
     min-height: 0;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    overflow: hidden;
+    overflow: visible;
+  }
+
+  .group-progress {
+    z-index: 10;
   }
 
   .group-task-board__header {
@@ -3339,41 +3343,5 @@ button {
     margin-top: 18px;
     padding-top: 0;
     background: var(--color-inner-block-bg);
-  }
-}
-
-@media (max-width: 1279px) {
-  .group-panel--overview {
-    height: auto;
-    min-height: 430px;
-  }
-
-  .group-task-board {
-    display: flex;
-    flex-direction: column;
-    min-height: 340px;
-    overflow: visible;
-  }
-
-  .group-task-board .task-list {
-    max-height: 414px;
-    overflow-y: auto;
-  }
-
-  .group-task-board__footer {
-    margin-top: 18px;
-    padding-top: 0;
-  }
-}
-
-@media (max-width: 760px) {
-  .group-task-board {
-    min-height: 340px;
-  }
-
-  .group-task-board .task-list {
-    max-height: none;
-    overflow-y: visible;
-    padding-right: 0;
   }
 }
