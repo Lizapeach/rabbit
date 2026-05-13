@@ -303,6 +303,18 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     };
   }, [loadHabits, userProfile?.id]);
 
+  useEffect(() => {
+    const handleHabitsChanged = () => {
+      void loadHabits({ silent: true });
+    };
+
+    window.addEventListener("habits:changed", handleHabitsChanged);
+
+    return () => {
+      window.removeEventListener("habits:changed", handleHabitsChanged);
+    };
+  }, [loadHabits]);
+
   const toggleCategory = (id) => {
     setExpandedCategories((prev) => ({ ...prev, [id]: !prev[id] }));
   };

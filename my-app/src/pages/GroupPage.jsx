@@ -266,7 +266,13 @@ async function apiRequest(path, { method = "GET", token, body } = {}) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text ? { message: text } : null;
+  }
 
   if (!response.ok) {
     throw new Error(data?.message || `Ошибка ${response.status}`);
@@ -361,6 +367,39 @@ function normalizeBackendPage(pageData) {
     progress: pageData?.progress || null,
     memberProgress: pageData?.memberProgress || {},
     habit: pageData?.habit || null,
+  };
+}
+
+function normalizeLeaveOwnerCandidate(candidate) {
+  const memberId = String(candidate?.memberId || candidate?.id || "");
+  const userId = candidate?.userId ? String(candidate.userId) : "";
+  const fallbackName = candidate?.name || candidate?.login || "Участник";
+  const avatar = normalizeBackendAvatar(candidate?.avatar, {
+    id: memberId || userId,
+    name: fallbackName,
+    login: candidate?.login,
+    displayColor: candidate?.displayColor || candidate?.avatar?.bgColor || candidate?.avatar?.bg_color,
+  });
+  const color = normalizeHexColor(
+    candidate?.displayColor || candidate?.avatar?.bgColor || candidate?.avatar?.bg_color || avatar.color,
+    USER.avatarColor
+  );
+
+  return {
+    id: memberId || userId || `candidate-${fallbackName}`,
+    backendMemberId: memberId,
+    userId,
+    role: candidate?.role || "member",
+    name: fallbackName,
+    login: candidate?.login || "",
+    email: candidate?.login || "",
+    initials: avatar.label || getInitial(fallbackName),
+    color,
+    avatarColor: color,
+    avatar: {
+      ...avatar,
+      color: avatar.color || color,
+    },
   };
 }
 
@@ -1181,6 +1220,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [isMemberInfoOpen, setIsMemberInfoOpen] = useState(false);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [exitModalStep, setExitModalStep] = useState("confirm");
+  const [exitPreview, setExitPreview] = useState(null);
+  const [exitRequestStatus, setExitRequestStatus] = useState("idle");
+  const [exitRequestError, setExitRequestError] = useState("");
   const [adminTransferMemberId, setAdminTransferMemberId] = useState("");
   const [adminMemberId, setAdminMemberId] = useState("me");
   const [removedMemberIds, setRemovedMemberIds] = useState([]);
@@ -1375,7 +1417,6 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     [membersData, removedMemberIds]
   );
 
-  const isLastActiveMember = activeFriendsData.length <= 1;
 
   const friendsWithColors = useMemo(
     () =>
@@ -1500,13 +1541,29 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     [friendsWithColors]
   );
 
+  const previewAdminTransferMembers = useMemo(
+    () =>
+      Array.isArray(exitPreview?.newOwnerCandidates)
+        ? exitPreview.newOwnerCandidates.map(normalizeLeaveOwnerCandidate)
+        : [],
+    [exitPreview]
+  );
+
+  const exitTransferMembers = useMemo(
+    () =>
+      exitPreview?.mode === "transfer_owner_before_leave"
+        ? previewAdminTransferMembers
+        : adminTransferMembers,
+    [adminTransferMembers, exitPreview?.mode, previewAdminTransferMembers]
+  );
+
   const activeAdminTransferMemberId = useMemo(() => {
-    if (adminTransferMembers.some((member) => member.id === adminTransferMemberId)) {
+    if (exitTransferMembers.some((member) => member.id === adminTransferMemberId)) {
       return adminTransferMemberId;
     }
 
-    return adminTransferMembers[0]?.id || "";
-  }, [adminTransferMemberId, adminTransferMembers]);
+    return exitTransferMembers[0]?.id || "";
+  }, [adminTransferMemberId, exitTransferMembers]);
 
   const weekAnalyticsData = useMemo(
     () =>
@@ -1734,59 +1791,119 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setIsGroupInfoEditorOpen(false);
   };
 
-  const handleRequestExitGroup = () => {
-    setExitModalStep("confirm");
-    setAdminTransferMemberId(adminTransferMembers[0]?.id || "");
+  const handleRequestExitGroup = async () => {
+    setIsGroupSettingsOpen(false);
     setIsExitConfirmOpen(true);
-  };
-
-  const closeExitConfirm = () => {
-    setIsExitConfirmOpen(false);
     setExitModalStep("confirm");
-  };
+    setExitPreview(null);
+    setExitRequestError("");
+    setExitRequestStatus("loading");
 
-  const leaveGroup = async (body = {}) => {
     if (!habitId || !authToken) {
-      setPageError(!habitId ? "Не найден habitId для выхода из группы" : "Не найден токен авторизации");
+      const message = !habitId
+        ? "Не найден habitId для выхода из группы"
+        : "Не найден токен авторизации";
+
+      setExitRequestError(message);
+      setExitRequestStatus("error");
+      setPageError(message);
       return;
     }
 
     try {
+      const preview = await apiRequest(`/api/habits/${habitId}/leave-preview`, {
+        token: authToken,
+      });
+      const candidates = Array.isArray(preview?.newOwnerCandidates)
+        ? preview.newOwnerCandidates.map(normalizeLeaveOwnerCandidate)
+        : [];
+
+      setExitPreview(preview);
+      setExitModalStep(preview?.mode === "transfer_owner_before_leave" ? "transfer" : "confirm");
+      setAdminTransferMemberId(candidates[0]?.id || "");
+      setExitRequestStatus("ready");
+      setExitRequestError("");
+    } catch (error) {
+      const message = getErrorMessage(error);
+
+      setExitRequestError(message);
+      setExitRequestStatus("error");
+      setPageError(message);
+    }
+  };
+
+  const closeExitConfirm = () => {
+    if (exitRequestStatus === "submitting") return;
+
+    setIsExitConfirmOpen(false);
+    setExitModalStep("confirm");
+    setExitPreview(null);
+    setExitRequestStatus("idle");
+    setExitRequestError("");
+  };
+
+  const leaveGroup = async (body = {}) => {
+    if (!habitId || !authToken) {
+      const message = !habitId ? "Не найден habitId для выхода из группы" : "Не найден токен авторизации";
+
+      setExitRequestError(message);
+      setExitRequestStatus("error");
+      setPageError(message);
+      return;
+    }
+
+    try {
+      setExitRequestStatus("submitting");
+      setExitRequestError("");
+
       await apiRequest(`/api/habits/${habitId}/leave`, {
         method: "POST",
         token: authToken,
         body,
       });
 
+      window.dispatchEvent(new CustomEvent("habits:changed"));
       setIsExitConfirmOpen(false);
       setExitModalStep("confirm");
+      setExitPreview(null);
+      setExitRequestStatus("idle");
       setIsGroupSettingsOpen(false);
       navigate?.("/lobby");
     } catch (error) {
-      setPageError(getErrorMessage(error));
+      const message = getErrorMessage(error);
+
+      setExitRequestError(message);
+      setExitRequestStatus("error");
+      setPageError(message);
     }
   };
 
   const handleConfirmExitGroup = async () => {
-    if (exitModalStep === "confirm") {
-      if (isOwner && adminTransferMembers.length > 0) {
-        setExitModalStep("transfer");
-        setAdminTransferMemberId(activeAdminTransferMemberId);
+    if (exitRequestStatus === "loading" || exitRequestStatus === "submitting") return;
+
+    const mode = exitPreview?.mode;
+
+    if (mode === "delete_habit_on_leave") {
+      await leaveGroup({ confirmDeleteHabit: true });
+      return;
+    }
+
+    if (mode === "transfer_owner_before_leave" || exitModalStep === "transfer") {
+      const newOwner = exitTransferMembers.find((member) => member.id === activeAdminTransferMemberId);
+
+      if (!newOwner?.backendMemberId) {
+        const message = "Нужно выбрать нового владельца группы";
+
+        setExitRequestError(message);
+        setPageError(message);
         return;
       }
 
-      await leaveGroup({});
+      await leaveGroup({ newOwnerMemberId: newOwner.backendMemberId });
       return;
     }
 
-    const newOwner = adminTransferMembers.find((member) => member.id === activeAdminTransferMemberId);
-
-    if (!newOwner?.backendMemberId) {
-      setPageError("Нужно выбрать нового владельца группы");
-      return;
-    }
-
-    await leaveGroup({ newOwnerMemberId: newOwner.backendMemberId });
+    await leaveGroup({});
   };
 
   const handleToggleTask = async (taskId) => {
@@ -2647,15 +2764,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
             onClick={closeExitConfirm}
           >
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              {exitModalStep === "confirm" ? (
+              {exitRequestStatus === "loading" ? (
                 <>
-                  <div className="modal-card__title">Выйти из группы?</div>
+                  <div className="modal-card__title">Проверка выхода</div>
                   <div className="modal-card__text">
-                    {isLastActiveMember
-                      ? "Ты последний активный участник. После выхода группа будет удалена, код приглашения перестанет работать, а данные группы будут очищены."
-                      : isOwner
-                        ? "Ты больше не будешь видеть задания, заметки и прогресс группы. Если в группе есть другие активные участники, перед выходом нужно будет передать права администратора."
-                        : "Ты больше не будешь видеть задания, заметки и прогресс группы. В течение 48 часов можно будет вернуться по коду приглашения без потери заданий и прогресса."}
+                    Проверяем, можно ли выйти из группы без передачи прав или удаления привычки.
+                  </div>
+                </>
+              ) : exitRequestStatus === "error" ? (
+                <>
+                  <div className="modal-card__title">Не удалось выйти из группы</div>
+                  <div className="modal-card__text modal-card__text--warning">
+                    {exitRequestError || pageError || "Ошибка запроса к серверу"}
                   </div>
 
                   <div className="modal-card__actions">
@@ -2664,14 +2784,51 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                       className="modal-card__button modal-card__button--ghost"
                       onClick={closeExitConfirm}
                     >
+                      Закрыть
+                    </button>
+                  </div>
+                </>
+              ) : exitModalStep === "confirm" ? (
+                <>
+                  <div className="modal-card__title">
+                    {exitPreview?.mode === "delete_habit_on_leave" ? "Удалить группу при выходе?" : "Выйти из группы?"}
+                  </div>
+                  <div
+                    className={`modal-card__text ${
+                      exitPreview?.mode === "delete_habit_on_leave" ? "modal-card__text--warning" : ""
+                    }`}
+                  >
+                    {exitPreview?.mode === "delete_habit_on_leave"
+                      ? "Если Вы покинете привычку, она будет удалена вместе с прогрессом. Восстановлению группа не подлежит."
+                      : "Вы уверены, что хотите выйти из группы? Вы сможете вернуться в течение 48 часов без потери прогресса."}
+                  </div>
+
+                  {exitRequestError && (
+                    <div className="modal-card__text modal-card__text--warning">
+                      {exitRequestError}
+                    </div>
+                  )}
+
+                  <div className="modal-card__actions">
+                    <button
+                      type="button"
+                      className="modal-card__button modal-card__button--ghost"
+                      onClick={closeExitConfirm}
+                      disabled={exitRequestStatus === "submitting"}
+                    >
                       Остаться
                     </button>
                     <button
                       type="button"
                       className="modal-card__button modal-card__button--danger"
                       onClick={handleConfirmExitGroup}
+                      disabled={exitRequestStatus === "submitting"}
                     >
-                      Выйти
+                      {exitRequestStatus === "submitting"
+                        ? "Выход..."
+                        : exitPreview?.mode === "delete_habit_on_leave"
+                          ? "Выйти и удалить"
+                          : "Выйти"}
                     </button>
                   </div>
                 </>
@@ -2679,12 +2836,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                 <>
                   <div className="modal-card__title">Передать права администратора</div>
                   <div className="modal-card__text">
-                    Тогда выберите участника, которому вы хотите передать права администратора.
+                    Перед выходом нужно выбрать нового владельца группы.
                   </div>
 
-                  {adminTransferMembers.length > 0 ? (
+                  {exitTransferMembers.length > 0 ? (
                     <div className="admin-transfer-list">
-                      {adminTransferMembers.map((member) => (
+                      {exitTransferMembers.map((member) => (
                         <label
                           key={member.id}
                           className={`admin-transfer-option ${
@@ -2707,25 +2864,39 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                           </span>
                           <span className="admin-transfer-option__text">
                             <strong>{member.name}</strong>
-                            <small>{member.email}</small>
+                            <small>{member.login || member.email}</small>
                           </span>
                         </label>
                       ))}
                     </div>
                   ) : (
                     <div className="modal-card__text modal-card__text--warning">
-                      В группе больше нет других участников, поэтому передать права администратора некому.
+                      Сервер не вернул участников, которым можно передать права владельца.
+                    </div>
+                  )}
+
+                  {exitRequestError && (
+                    <div className="modal-card__text modal-card__text--warning">
+                      {exitRequestError}
                     </div>
                   )}
 
                   <div className="modal-card__actions">
                     <button
                       type="button"
+                      className="modal-card__button modal-card__button--ghost"
+                      onClick={closeExitConfirm}
+                      disabled={exitRequestStatus === "submitting"}
+                    >
+                      Остаться
+                    </button>
+                    <button
+                      type="button"
                       className="modal-card__button modal-card__button--danger"
                       onClick={handleConfirmExitGroup}
-                      disabled={adminTransferMembers.length === 0}
+                      disabled={exitTransferMembers.length === 0 || exitRequestStatus === "submitting"}
                     >
-                      Выйти
+                      {exitRequestStatus === "submitting" ? "Выход..." : "Передать и выйти"}
                     </button>
                   </div>
                 </>
