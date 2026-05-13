@@ -6,7 +6,7 @@ button {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background: var(--color-paper);
+  background: var(--surface-page-gradient);
   color: var(--color-text-main);
 }
 
@@ -36,7 +36,7 @@ button {
   padding: 40px 24px;
   border: 1px solid var(--color-card-border);
   border-radius: 36px;
-  background: var(--color-hero-bg);
+  background: var(--surface-hero-gradient);
   box-shadow: 0 24px 60px var(--color-shadow-card);
   backdrop-filter: blur(32px);
 }
@@ -100,7 +100,7 @@ button {
   position: relative;
   padding: 24px;
   border: 1px solid var(--color-card-border);
-  background: var(--color-panel-bg);
+  background: var(--surface-panel-gradient);
   box-shadow: 0 24px 60px var(--color-shadow-card);
   backdrop-filter: blur(32px);
 }
@@ -241,7 +241,7 @@ button {
 .category-card__button:active {
   transform: scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 .category-card__left {
@@ -262,7 +262,7 @@ button {
   overflow: hidden;
   border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--category-color, var(--color-category-reading)) 76%, var(--color-white));
+  background: var(--category-circle-color, var(--color-category-empty-circle));
   color: var(--color-text-main);
   box-shadow: 0 8px 18px var(--color-shadow-small);
 }
@@ -309,7 +309,7 @@ button {
   align-items: center;
   justify-content: center;
   border-radius: 50px;
-  background: #ff6e51;
+  background: var(--color-action-primary);
   transition: transform 0.3s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -380,7 +380,7 @@ button {
   padding: 16px;
   border: 1px solid var(--color-border-soft);
   border-radius: 20px 16px 24px 18px / 16px 24px 18px 22px;
-  background: var(--color-inner-block-bg);
+  background: var(--surface-inner-gradient);
   transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
 }
@@ -398,7 +398,7 @@ button {
 .group-card:active {
   transform: translateY(0) scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 .group-card__top {
@@ -427,7 +427,7 @@ button {
   justify-self: end;
   padding: 8px 12px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--category-color) 66%, var(--color-transparent));
+  background: var(--category-progress-bg, var(--color-category-selected-bg));
   color: var(--color-text-main);
   font-size: 14px;
   font-weight: 500;
@@ -523,8 +523,8 @@ button {
   overflow: hidden;
   border: 1px solid var(--color-border-soft);
   border-radius: 24px 20px 28px 22px / 20px 28px 22px 24px;
-  background: rgba(255, 255, 255, 0.34);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  background: var(--color-glass-highlight-soft);
+  box-shadow: inset 0 1px 0 var(--color-glass-highlight);
 }
 
 .record-streak__days,
@@ -532,7 +532,7 @@ button {
   min-width: 0;
   max-width: 100%;
   border: 1px solid var(--color-border-soft);
-  background: rgba(255, 255, 255, 0.74);
+  background: var(--color-glass-highlight-strong);
   box-shadow: 0 12px 24px var(--color-shadow-small);
 }
 
@@ -749,7 +749,7 @@ button {
   }
 
   .content-grid__side {
-    height: 720px;
+    height: 735px;
     grid-template-rows: minmax(0, 0.4fr) minmax(0, 0.6fr);
   }
 
@@ -764,7 +764,7 @@ button {
   }
 
   .panel-card--categories {
-    height: 720px;
+    height: 735px;
   }
 
   .panel-card--record,
@@ -870,4 +870,124 @@ button {
     padding: 7px 10px;
     font-size: 12px;
   }
+}
+/* === Lively cream palette refinements === */
+.category-card {
+  background: var(--surface-category-gradient);
+}
+
+.category-card--reading {
+  --category-color: var(--color-category-reading);
+  --category-circle-color: var(--color-category-reading-circle);
+  --category-progress-bg: var(--color-category-reading-progress);
+}
+
+.category-card--sport {
+  --category-color: var(--color-category-sport);
+  --category-circle-color: var(--color-category-sport-circle);
+  --category-progress-bg: var(--color-category-sport-progress);
+}
+
+.category-card--nutrition {
+  --category-color: var(--color-category-nutrition);
+  --category-circle-color: var(--color-category-nutrition-circle);
+  --category-progress-bg: var(--color-category-nutrition-progress);
+}
+
+.category-card--cleaning {
+  --category-color: var(--color-category-cleaning);
+  --category-circle-color: var(--color-category-cleaning-circle);
+  --category-progress-bg: var(--color-category-cleaning-progress);
+}
+
+.category-card__icon {
+  background: var(--category-circle-color, var(--color-category-empty-circle));
+  box-shadow:
+    inset 0 0 0 2px var(--color-border-white-soft),
+    0 10px 22px var(--color-shadow-soft);
+}
+
+.category-card__arrow {
+  border: 1px solid var(--color-arrow-accent-border);
+  background: var(--color-arrow-accent-bg);
+  box-shadow: 0 12px 24px var(--color-arrow-shadow);
+}
+
+.category-card__button:hover .category-card__arrow {
+  background: var(--color-arrow-accent-bg-hover);
+  box-shadow: 0 14px 28px var(--color-arrow-shadow);
+}
+
+.category-card__arrow-shape::before,
+.category-card__arrow-shape::after {
+  background: var(--color-arrow-icon);
+}
+
+.category-card__arrow-shape::after {
+  border-top-color: var(--color-arrow-icon);
+  border-right-color: var(--color-arrow-icon);
+}
+
+.group-card__progress {
+  background: var(--category-progress-bg, var(--color-category-selected-bg));
+}
+
+
+/* === Final palette corrections: clear white arrows, no arrow-circle shadow === */
+.category-card__arrow {
+  border-color: var(--color-arrow-accent-border);
+  background: var(--color-arrow-accent-bg);
+  box-shadow: none;
+}
+
+.category-card__button:hover .category-card__arrow {
+  background: var(--color-arrow-accent-bg-hover);
+  box-shadow: none;
+}
+
+.category-card__arrow-shape::before {
+  background: var(--color-arrow-icon);
+}
+
+.category-card__arrow-shape::after {
+  background: transparent;
+  border-top-color: var(--color-arrow-icon);
+  border-right-color: var(--color-arrow-icon);
+}
+
+
+/* === Final requested refinements: orange plus and category-like inner cards === */
+.add-category__button {
+  border-color: var(--color-action-primary-border);
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 12px 26px var(--color-action-primary-shadow);
+}
+
+.add-category__button:hover {
+  background: var(--button-primary-hover-gradient);
+  box-shadow: 0 14px 30px var(--color-action-primary-shadow-hover);
+}
+
+.add-category__plus::before,
+.add-category__plus::after {
+  background: var(--color-text-on-accent);
+}
+
+.record-streak__days,
+.record-streak__meta-card,
+.achievement-card {
+  background: var(--surface-category-like-gradient);
+  border-color: var(--color-border-category-card);
+}
+
+/* === Round 4: lobby group cards match task cards on the group page === */
+.group-card,
+.group-card:hover {
+  border-color: var(--color-border-soft);
+  background: var(--surface-work-gradient);
+}
+
+.group-card:hover {
+  box-shadow: 0 10px 22px var(--color-shadow-soft);
 }

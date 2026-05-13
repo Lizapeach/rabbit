@@ -17,7 +17,7 @@
   padding: 12px 16px;
   border: 1px solid var(--color-border-topbar);
   border-radius: 28px;
-  background: var(--color-topbar-bg);
+  background: var(--surface-panel-gradient);
   box-shadow: 0 14px 42px var(--color-shadow-topbar);
   backdrop-filter: blur(24px);
 }
@@ -50,9 +50,8 @@
 }
 
 .brand-logo__image {
-  height: 500px;
+  height: 80%;
   width: auto;
-  transform: translateX(-70px);
   display: block;
   object-fit: contain;
   user-select: none;
@@ -344,10 +343,10 @@
   justify-content: center;
   margin-top: 0;
   padding: 0;
-  border: 1px solid #e2b8b3;
+  border: 1px solid var(--color-error-border);
   border-radius: 50%;
-  background: #fff5f3;
-  color: #a86058;
+  background: var(--color-error-soft);
+  color: var(--color-error);
   cursor: pointer;
   font-family: inherit;
   font-size: 22px;
@@ -359,8 +358,8 @@
 
 .notifications__remove-button:hover {
   transform: translateY(-1px) scale(1.04);
-  background: #ffe9e6;
-  box-shadow: 0 8px 18px rgba(168, 96, 88, 0.14);
+  background: var(--color-action-primary-softer);
+  box-shadow: 0 8px 18px var(--color-shadow-danger-soft);
 }
 
 .notifications__remove-button:active {
@@ -475,4 +474,78 @@
     right: 0;
     width: min(320px, calc(100vw - 40px));
   }
+}
+
+/* === Final palette corrections: notification badge matches arrow circles === */
+.notification-count {
+  border: 1px solid var(--color-arrow-accent-border);
+  background: var(--color-arrow-accent-bg);
+  color: var(--color-text-on-accent);
+  box-shadow: none;
+}
+
+
+/* === Final requested refinements: notification bubble uses orange accent === */
+.notification-count {
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+  border: 1px solid var(--color-action-primary-border);
+}
+
+/* === Round 5: notifications above group page and unified accent controls === */
+.lobby-header,
+.topbar,
+.topbar-actions {
+  position: relative;
+  z-index: 220;
+}
+
+.notifications {
+  z-index: 520;
+}
+
+.notifications__item,
+.notifications__empty {
+  border-color: var(--color-border-category-card);
+  background: var(--surface-category-like-gradient);
+  color: var(--color-text-main);
+}
+
+.notifications__clear-button,
+.notifications__remove-button {
+  border-color: var(--color-action-primary-border);
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+}
+
+.notifications__clear-button {
+  font-weight: 700;
+  box-shadow: 0 10px 20px var(--color-action-primary-shadow);
+}
+
+.notifications__clear-button:hover,
+.notifications__remove-button:hover {
+  background: var(--button-primary-hover-gradient);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 12px 24px var(--color-action-primary-shadow-hover);
+}
+
+.notifications__clear-button:active,
+.notifications__remove-button:active {
+  background: var(--button-primary-hover-gradient);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 8px 16px var(--color-action-primary-shadow);
+}
+
+/* === Round 6: opened header windows use solid category-like color === */
+.notifications,
+.coins-widget__panel,
+.profile-widget__panel {
+  background: var(--color-modal-category-solid);
+  backdrop-filter: none;
+}
+
+.notifications__item,
+.notifications__empty {
+  background: var(--color-modal-inner-solid);
 }

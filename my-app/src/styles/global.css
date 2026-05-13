@@ -21,95 +21,259 @@ body {
 }
 
 :root {
-  /* Базовые цвета */
+  /* Базовая палитра: кремовый мир + мягкие candy-акценты */
   --color-transparent: transparent;
   --color-white: #ffffff;
-
-  /* Системные состояния */
-  --color-error: #e84d3f;
-  --color-arrow-bg: var(--color-button-bg);
-
-  /* BorderGlow */
-  --color-border-glow-center: rgb(218, 33, 12);
-  --color-border-glow-middle: rgba(180, 120, 80, 0.55);
+  --color-cream-00: #fffdf8;
+  --color-cream-01: #fff8ec;
+  --color-cream-02: #fff1d9;
+  --color-cream-03: #f7e3bf;
+  --color-cream-04: #ead3ad;
+  --color-cocoa-900: #4b321d;
+  --color-cocoa-700: #6f543f;
+  --color-cocoa-600: #846d5c;
+  --color-cocoa-500: #9b897b;
 
   /* Основные цвета страницы */
-  --color-paper: #faebca;
-  --color-paper-light: #f7d29a;
+  --color-paper: #fff6e7;
+  --color-paper-light: #f8dfb8;
+  --color-page-orb-cream: rgba(255, 235, 190, 0.44);
+  --color-page-orb-mint: rgba(189, 241, 207, 0.32);
+  --color-page-orb-sky: rgba(190, 231, 255, 0.28);
+  --color-page-orb-lilac: rgba(218, 207, 255, 0.28);
+  --color-page-orb-blush: rgba(255, 207, 196, 0.22);
 
   /* Текст */
-  --color-text-main: #3b240a;
-  --color-text-soft: #7b6d66;
-  --color-text-muted: #94867e;
-  --color-text-panel: #4f433d;
-  --color-text-notification: #655952;
-  --color-text-clear-button: #5f524b;
-  --color-text-category-icon: #4b413c;
-  --color-text-arrow: #5d514b;
-  --color-text-plus: #6b5f59;
-  --color-text-members: #9a8d85;
-  --color-text-achievement-icon: #5e514b;
+  --color-text-main: #4b321d;
+  --color-text-soft: #7c6755;
+  --color-text-muted: #a08c79;
+  --color-text-panel: #634b38;
+  --color-text-notification: #735f4e;
+  --color-text-clear-button: #6e5846;
+  --color-text-category-icon: #4f3927;
+  --color-text-arrow: #ffffff;
+  --color-text-plus: #6d563f;
+  --color-text-members: #a48f7a;
+  --color-text-achievement-icon: #6a513a;
+  --color-text-on-accent: #fffdf8;
+
+  /* Смысловые акценты */
+  --color-accent-apricot: #ffb479;
+  --color-accent-peach: #ffc89d;
+  --color-accent-honey: #ffe28a;
+  --color-accent-butter: #fff0ad;
+  --color-accent-mint: #bff1cc;
+  --color-accent-sage: #d8efc9;
+  --color-accent-sky: #bde9ff;
+  --color-accent-aqua: #b7f4ec;
+  --color-accent-lilac: #d8ceff;
+  --color-accent-blush: #ffd5cf;
+  --color-accent-berry-soft: #ffc4d6;
+
+  /* Главные действия: сохранить / выйти / купить / продолжить */
+  --color-action-primary: #ff955f;
+  --color-action-primary-hover: #ffa873;
+  --color-action-primary-active: #f37f4b;
+  --color-action-primary-soft: #ffe4cf;
+  --color-action-primary-softer: #fff0e5;
+  --color-action-primary-border: rgba(255, 255, 255, 0.72);
+  --color-action-primary-shadow: rgba(255, 149, 95, 0.28);
+  --color-action-primary-shadow-hover: rgba(255, 149, 95, 0.34);
+
+  /* Состояния */
+  --color-success: #78b66f;
+  --color-success-soft: #eaf7e4;
+  --color-success-border: rgba(120, 182, 111, 0.38);
+  --color-success-text: #456f3d;
+  --color-error: #d86a5b;
+  --color-error-soft: #fff0ea;
+  --color-error-softer: #fff7f3;
+  --color-error-border: rgba(216, 106, 91, 0.42);
+  --color-error-shadow: rgba(216, 106, 91, 0.18);
+  --color-warning: #d69a30;
+  --color-warning-soft: #fff3ca;
+  --color-warning-border: #e8cf83;
+  --color-warning-text: #6b5220;
+
+  /* Стрелки и круглые контролы */
+  --color-arrow-bg: var(--color-arrow-accent-bg);
+  --color-arrow-accent-bg: linear-gradient(135deg, #ffb36f 0%, #ff8f5e 100%);
+  --color-arrow-accent-bg-hover: linear-gradient(135deg, #ffc081 0%, #ff9c6d 100%);
+  --color-arrow-accent-border: rgba(255, 255, 255, 0.78);
+  --color-arrow-accent-text: #fffdf8;
+  --color-arrow-icon: #fffdf8;
+  --color-arrow-shadow: rgba(255, 149, 95, 0.26);
+
+  /* BorderGlow */
+  --color-border-glow-center: #ffb36f;
+  --color-border-glow-middle: rgba(255, 180, 121, 0.52);
 
   /* Обводки */
-  --color-border-main: #e7dad2;
-  --color-border-soft: #f0e6e0;
-  --color-border-topbar: #e5d8d0;
-  --color-border-control: #e2d3cb;
-  --color-border-button: #e9dcd4;
-  --color-border-category-card: #efe3dc;
-  --color-border-notification-item: #f0e7e1;
-  --color-border-inner-divider: #f3e9e3;
-  --color-border-card-glass: rgba(255, 255, 255, 0.6);
+  --color-border-main: #eadac7;
+  --color-border-soft: #f3e6d4;
+  --color-border-topbar: #eadbc8;
+  --color-border-control: #e5d4bd;
+  --color-border-button: #ead8c2;
+  --color-border-category-card: #f0dfc9;
+  --color-border-notification-item: #f2e5d4;
+  --color-border-inner-divider: #f4e7d5;
+  --color-border-card-glass: rgba(255, 255, 255, 0.64);
+  --color-border-white-soft: rgba(255, 255, 255, 0.72);
+  --color-border-white-strong: rgba(255, 255, 255, 0.86);
 
   /* Фоны блоков */
-  --color-topbar-bg: rgba(255, 255, 255, 0.72);
-  --color-card-bg: rgba(255, 255, 255, 0.54);
-  --color-card-border: rgba(255, 255, 255, 0.6);
-  --color-hero-bg: rgba(255, 255, 255, 0.52);
-  --color-panel-bg: rgba(255, 255, 255, 0.54);
-  --color-category-card-bg: rgba(251, 206, 167, 0.78);
-  --color-achievement-card-bg: rgba(255, 255, 255, 0.78);
-  --color-card-hover-bg: rgba(255, 255, 255, 0.95);
-  --color-notifications-bg: rgba(255, 255, 255, 0.96);
-  --color-inner-block-bg: #fcfaf8;
-  --color-control-bg: #fcfaf8;
-  --color-button-bg: #ffffff;
-  --color-button-hover-bg: #fffdfc;
+  --color-topbar-bg: rgba(255, 252, 246, 0.78);
+  --color-card-bg: rgba(255, 252, 246, 0.62);
+  --color-card-border: rgba(255, 255, 255, 0.68);
+  --color-hero-bg: rgba(255, 253, 249, 0.58);
+  --color-panel-bg: rgba(255, 252, 246, 0.62);
+  --color-category-card-bg: rgba(255, 244, 222, 0.82);
+  --color-achievement-card-bg: rgba(255, 253, 247, 0.84);
+  --color-card-hover-bg: rgba(255, 255, 255, 0.96);
+  --color-notifications-bg: rgba(255, 253, 248, 0.96);
+  --color-inner-block-bg: #fffaf2;
+  --color-control-bg: #fffaf2;
+  --color-button-bg: #fffdf8;
+  --color-button-hover-bg: #ffffff;
+  --color-backdrop-bg: rgba(68, 48, 31, 0.24);
+  --color-backdrop-bg-soft: rgba(68, 48, 31, 0.18);
+  --color-modal-bg: rgba(255, 253, 248, 0.94);
+  --color-modal-bg-solid: rgba(255, 253, 248, 0.98);
+  --color-glass-highlight: rgba(255, 255, 255, 0.42);
+  --color-glass-highlight-strong: rgba(255, 255, 255, 0.72);
+  --color-glass-highlight-soft: rgba(255, 255, 255, 0.24);
+  --color-dark-overlay: rgba(35, 25, 18, 0.64);
 
   /* Уведомления */
-  --color-notification: #e8c4b7;
-  --color-notification-item-bg: #fcfaf8;
-  --color-notification-clear-bg: #f8f3ee;
+  --color-notification: #ffc89d;
+  --color-notification-item-bg: #fffaf2;
+  --color-notification-clear-bg: #fff2df;
   --color-notification-clear-hover-bg: #ffffff;
 
   /* Разделители */
-  --color-divider: #e4cfc4;
+  --color-divider: #ead1b5;
 
-  /* Цвета категорий */
-  --color-category-reading: #d8cde3;
-  --color-category-sport: #c7d8c0;
-  --color-category-nutrition: #e8c4b7;
-  --color-category-cleaning: #e7d8bf;
+  /* Цвета категорий: карточка и кружочек отдельно */
+  --color-category-reading: #efe9ff;
+  --color-category-reading-circle: #d2c4ff;
+  --color-category-reading-accent: #8f78e8;
+  --color-category-reading-progress: #ded4ff;
+  --color-category-sport: #e1f7df;
+  --color-category-sport-circle: #b9efc5;
+  --color-category-sport-accent: #65b875;
+  --color-category-sport-progress: #c7efcf;
+  --color-category-nutrition: #ffe8cf;
+  --color-category-nutrition-circle: #ffc48d;
+  --color-category-nutrition-accent: #ef8d4f;
+  --color-category-nutrition-progress: #ffd5aa;
+  --color-category-cleaning: #e6f5ff;
+  --color-category-cleaning-circle: #b9eaff;
+  --color-category-cleaning-accent: #55aede;
+  --color-category-cleaning-progress: #ccefff;
+  --color-category-empty-circle: #fff4dd;
+  --color-category-selected-soft: rgba(255, 196, 141, 0.28);
+  --color-category-selected-bg: #fff0df;
+  --color-category-selected-bg-strong: #ffe0c2;
+  --color-category-hint-bg: #f4efff;
 
   /* Достижения */
-  --color-achievement-gradient-from: #e8c4b7;
-  --color-achievement-gradient-to: #d7e2cf;
-  --color-achievement-icon-highlight: rgba(255, 255, 255, 0.45);
+  --color-achievement-gradient-from: #ffe28a;
+  --color-achievement-gradient-to: #bff1cc;
+  --color-achievement-icon-highlight: rgba(255, 255, 255, 0.58);
+
+  /* Календарь и аналитика */
+  --color-calendar-track: #eee3d6;
+  --color-calendar-complete-bg: #dff3d8;
+  --color-calendar-complete-border: #aed49e;
+  --color-calendar-complete-text: #3f6839;
+  --color-calendar-broken-bg: #ffe0d7;
+  --color-calendar-broken-border: #eba99d;
+  --color-chart-axis: #d9c7b4;
+  --color-chart-grid: #f0e4d5;
+  --color-chart-line-from: #b9efc5;
+  --color-chart-line-to: #ffc48d;
+
+  /* Заметки */
+  --color-note-bg: #fff0a8;
+  --color-note-bg-light: #fff8d3;
+  --color-note-bg-fold: #f1db83;
+  --color-note-border: #d7c76e;
+  --color-note-text: #5d4b1b;
+  --color-note-text-soft: #735f27;
+  --color-note-text-muted: #8d7a42;
+  --color-note-placeholder: #aa9652;
+  --color-note-pin: #d96555;
+  --color-note-shadow: rgba(91, 72, 20, 0.18);
+  --color-note-shadow-hover: rgba(91, 72, 20, 0.22);
+  --color-note-shadow-drag: rgba(91, 72, 20, 0.26);
+  --color-note-action-bg: #e8d16c;
+  --color-note-action-shadow: rgba(84, 71, 28, 0.18);
+
+  /* Специальные задания / фото */
+  --color-special-bg: #fff0bd;
+  --color-special-bg-light: #fff8d9;
+  --color-special-border: #e7d7a7;
+  --color-special-strong: #c19804;
+  --color-special-text: #5f4b18;
+  --color-special-text-soft: #6c5924;
+  --color-special-shadow: rgba(138, 110, 33, 0.08);
+
+
+  /* Готовые поверхности и градиенты */
+  --surface-page-gradient:
+    radial-gradient(circle at 12% 8%, var(--color-page-orb-cream), var(--color-transparent) 32%),
+    radial-gradient(circle at 88% 18%, var(--color-page-orb-sky), var(--color-transparent) 30%),
+    radial-gradient(circle at 30% 92%, var(--color-page-orb-mint), var(--color-transparent) 34%),
+    linear-gradient(135deg, var(--color-paper) 0%, var(--color-cream-02) 100%);
+  --surface-panel-gradient:
+    linear-gradient(135deg, var(--color-glass-highlight), var(--color-glass-highlight-soft)),
+    var(--color-panel-bg);
+  --surface-hero-gradient:
+    radial-gradient(circle at 18% 12%, var(--color-glass-highlight), var(--color-transparent) 36%),
+    linear-gradient(135deg, var(--color-cream-00), var(--color-cream-01));
+  --surface-inner-gradient:
+    linear-gradient(135deg, var(--color-white), var(--color-inner-block-bg));
+  --surface-card-gradient:
+    linear-gradient(135deg, var(--color-white), var(--color-cream-01));
+  --surface-category-gradient:
+    linear-gradient(135deg, var(--category-color, var(--color-category-card-bg)), var(--color-cream-01));
+  --surface-modal-gradient:
+    linear-gradient(135deg, var(--color-modal-bg), var(--color-cream-00));
+  --button-primary-gradient: linear-gradient(135deg, var(--color-action-primary-hover), var(--color-action-primary));
+  --button-primary-hover-gradient: linear-gradient(135deg, var(--color-action-primary-hover), var(--color-action-primary-active));
+  --button-soft-gradient: linear-gradient(135deg, var(--color-button-bg), var(--color-cream-01));
+  --button-note-gradient: linear-gradient(135deg, var(--color-note-action-bg), var(--color-accent-honey));
 
   /* Скролл */
-  --color-scrollbar-track: #f3e9e3;
-  --color-scrollbar-thumb: #d8c7bd;
-  --color-scrollbar-thumb-hover: #c7b4aa;
+  --color-scrollbar-track: #f4e7d5;
+  --color-scrollbar-thumb: #d8c4ad;
+  --color-scrollbar-thumb-soft: rgba(216, 196, 173, 0.74);
+  --color-scrollbar-thumb-hover: #c7ad91;
 
   /* Тени */
-  --color-shadow-topbar: rgba(59, 48, 43, 0.08);
-  --color-shadow-small: rgba(59, 48, 43, 0.04);
-  --color-shadow-soft: rgba(59, 48, 43, 0.05);
-  --color-shadow-card: rgba(59, 48, 43, 0.06);
-  --color-shadow-hover: rgba(59, 48, 43, 0.07);
-  --color-shadow-strong-hover: rgba(59, 48, 43, 0.1);
-  --color-shadow-notifications: rgba(41, 35, 31, 0.13);
+  --color-shadow-topbar: rgba(75, 50, 29, 0.08);
+  --color-shadow-small: rgba(75, 50, 29, 0.05);
+  --color-shadow-soft: rgba(75, 50, 29, 0.06);
+  --color-shadow-card: rgba(75, 50, 29, 0.07);
+  --color-shadow-hover: rgba(75, 50, 29, 0.09);
+  --color-shadow-strong-hover: rgba(75, 50, 29, 0.12);
+  --color-shadow-notifications: rgba(57, 39, 26, 0.14);
   --color-shadow-neutral: rgba(0, 0, 0, 0.06);
+  --color-shadow-modal: rgba(57, 39, 26, 0.18);
+  --color-shadow-modal-strong: rgba(57, 39, 26, 0.2);
+  --color-shadow-danger-soft: rgba(216, 106, 91, 0.14);
+
+  /* Малые состояния/кольца */
+  --color-focus-ring: rgba(255, 180, 121, 0.32);
+  --color-focus-ring-strong: rgba(255, 149, 95, 0.24);
+  --color-inset-pressed: rgba(80, 55, 35, 0.06);
+  --color-avatar-remove-bg: rgba(35, 25, 18, 0.64);
+  --color-unsaved-row-bg: rgba(255, 240, 229, 0.72);
+  --color-unsaved-border: rgba(216, 106, 91, 0.34);
+  --color-selected-member-outline: rgba(75, 50, 29, 0.14);
+  --color-swatch-inset: rgba(75, 50, 29, 0.09);
+  --color-swatch-inset-hover: rgba(75, 50, 29, 0.12);
+  --ripple-button-ripple-color: rgba(79, 67, 61, 0.16);
 }
 
 .click-spark {
@@ -258,4 +422,129 @@ body {
   .ripple-button__ripple {
     animation-duration: 0.01ms;
   }
+}
+
+/* === Final palette corrections: clean background, dark text, orange accents === */
+:root {
+  /* page background without color spots/stripes */
+  --surface-page-gradient: var(--color-paper);
+
+  /* text: one dark-brown base across the interface */
+  --color-text-main: #4b321d;
+  --color-text-soft: #4b321d;
+  --color-text-muted: #4b321d;
+  --color-text-panel: #4b321d;
+  --color-text-notification: #4b321d;
+  --color-text-clear-button: #4b321d;
+  --color-text-category-icon: #4b321d;
+  --color-text-plus: #4b321d;
+  --color-text-members: #4b321d;
+  --color-text-achievement-icon: #4b321d;
+  --color-text-on-accent: #fffdf8;
+
+  /* orange action buttons: save / exit / buy / continue */
+  --color-action-primary: #ff955f;
+  --color-action-primary-hover: #ffa873;
+  --color-action-primary-active: #f37f4b;
+  --color-action-primary-soft: #ffe4cf;
+  --color-action-primary-softer: #fff0e5;
+  --color-action-primary-border: rgba(255, 255, 255, 0.82);
+  --color-action-primary-shadow: rgba(255, 149, 95, 0.24);
+  --color-action-primary-shadow-hover: rgba(255, 149, 95, 0.32);
+
+  /* warning/error colors stay red */
+  --color-error: #d86a5b;
+  --color-error-soft: #fff0ea;
+  --color-error-softer: #fff7f3;
+  --color-error-border: rgba(216, 106, 91, 0.42);
+  --color-error-shadow: rgba(216, 106, 91, 0.18);
+
+  /* arrow circles and matching accent circles */
+  --color-arrow-bg: var(--color-arrow-accent-bg);
+  --color-arrow-accent-bg: linear-gradient(135deg, #ffb36f 0%, #ff8f5e 100%);
+  --color-arrow-accent-bg-hover: linear-gradient(135deg, #ffc081 0%, #ff9c6d 100%);
+  --color-arrow-accent-border: rgba(255, 255, 255, 0.86);
+  --color-arrow-accent-text: #fffdf8;
+  --color-arrow-icon: #fffdf8;
+  --color-text-arrow: #fffdf8;
+  --color-arrow-shadow: rgba(255, 149, 95, 0);
+  --color-notification: #ff955f;
+}
+
+/* === Shared category-like surface for inner cards === */
+:root {
+  --surface-category-like-gradient: linear-gradient(135deg, var(--color-category-card-bg), var(--color-cream-01));
+}
+
+/* === Round 3 corrections: softer brown text and shared light work surfaces === */
+:root {
+  --color-text-main: #5f432d;
+  --color-text-soft: #7a604c;
+  --color-text-muted: #927865;
+  --color-text-panel: #6b4f39;
+  --color-text-notification: #745844;
+  --color-text-clear-button: #745844;
+  --color-text-category-icon: #5f432d;
+  --color-text-plus: #5f432d;
+  --color-text-members: #927865;
+  --color-text-achievement-icon: #6b4f39;
+
+  --color-work-surface: #fffdf8;
+  --color-work-surface-soft: #fff8ec;
+  --surface-work-gradient: linear-gradient(135deg, var(--color-work-surface), var(--color-work-surface-soft));
+
+  --color-calendar-complete-bg: rgba(223, 243, 216, 0.92);
+  --color-calendar-broken-bg: rgba(255, 224, 215, 0.94);
+  --color-calendar-complete-border: rgba(174, 212, 158, 0.72);
+  --color-calendar-broken-border: rgba(235, 169, 157, 0.72);
+}
+
+/* === Round 4 corrections: monotone work blocks, full calendar statuses, clearer selection, gold special task === */
+:root {
+  --color-work-surface: #fffdf8;
+  --color-work-surface-soft: #fffdf8;
+  --surface-work-gradient: var(--color-work-surface);
+
+  --color-calendar-complete-bg: #dff3d8;
+  --color-calendar-complete-border: #9fca8e;
+  --color-calendar-complete-text: #3f6839;
+  --color-calendar-broken-bg: #ffe0d7;
+  --color-calendar-broken-border: #de9488;
+
+  --color-special-bg: #fff0bd;
+  --color-special-bg-light: #fff8d9;
+  --color-special-border: #dfbe4f;
+  --color-special-strong: #d0a017;
+  --color-special-text: #604510;
+  --color-special-text-soft: #7a5f19;
+  --color-special-shadow: rgba(151, 111, 13, 0.16);
+}
+
+/* === Round 5: slightly lighter brown text while keeping white accent text === */
+:root {
+  --color-text-main: #6a503a;
+  --color-text-soft: #826754;
+  --color-text-muted: #9a7f6b;
+  --color-text-panel: #725741;
+  --color-text-notification: #725741;
+  --color-text-clear-button: #725741;
+  --color-text-category-icon: #6a503a;
+  --color-text-plus: #6a503a;
+  --color-text-members: #9a7f6b;
+  --color-text-achievement-icon: #725741;
+  --color-text-on-accent: #ffffff;
+}
+
+/* === Round 6: solid modal/category surfaces === */
+:root {
+  --color-category-card-bg: #fff4de;
+  --color-modal-bg: #fff4de;
+  --color-modal-bg-solid: #fff4de;
+  --color-modal-category-solid: #fff4de;
+  --color-modal-inner-solid: #fffdf8;
+  --color-modal-inner-hover-solid: #ffffff;
+  --color-price-soft-bg: #fff0df;
+  --color-price-soft-border: #ead1b5;
+  --surface-modal-gradient: var(--color-modal-category-solid);
+  --surface-category-like-gradient: var(--color-category-card-bg);
 }

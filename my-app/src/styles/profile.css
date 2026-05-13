@@ -5,14 +5,14 @@
   --profile-border: var(--color-card-border);
   --profile-border-strong: var(--color-border-main);
   --profile-shadow: var(--color-shadow-card);
-  --profile-orb-one: rgba(232, 196, 183, 0.26);
-  --profile-orb-two: rgba(215, 226, 207, 0.24);
-  --profile-orb-three: rgba(240, 217, 208, 0.24);
+  --profile-orb-one: var(--color-page-orb-blush);
+  --profile-orb-two: var(--color-page-orb-mint);
+  --profile-orb-three: var(--color-page-orb-blush);
 
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background: var(--profile-bg);
+  background: var(--surface-page-gradient);
   color: var(--color-text-main);
 }
 
@@ -34,8 +34,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.24), transparent 34%),
-    radial-gradient(circle at 80% 22%, rgba(255, 255, 255, 0.18), transparent 30%);
+    radial-gradient(circle at 20% 10%, var(--color-glass-highlight-soft), transparent 34%),
+    radial-gradient(circle at 80% 22%, var(--color-glass-highlight-soft), transparent 30%);
 }
 
 .profile-page__orb {
@@ -89,7 +89,7 @@
 .profile-hero__inner,
 .profile-panel {
   border: 1px solid var(--profile-border);
-  background: var(--profile-panel);
+  background: var(--surface-panel-gradient);
   box-shadow: 0 24px 60px var(--profile-shadow);
   backdrop-filter: blur(32px);
 }
@@ -114,7 +114,7 @@
   gap: 12px;
   border: 1px solid var(--profile-border-strong);
   border-radius: 999px;
-  background: var(--profile-soft);
+  background: var(--surface-inner-gradient);
   color: var(--color-text-main);
   box-shadow: 0 8px 18px var(--color-shadow-small);
 }
@@ -241,7 +241,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(30, 24, 21, 0.68);
+  background: var(--color-avatar-remove-bg);
   color: var(--color-white);
   font-size: 18px;
   line-height: 1;
@@ -378,14 +378,14 @@
   padding: 16px;
   border: 1px solid var(--profile-border-strong);
   border-radius: 22px;
-  background: var(--profile-soft);
+  background: var(--surface-inner-gradient);
   box-shadow: 0 10px 24px var(--color-shadow-small);
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .profile-info-card--locked {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
+    linear-gradient(135deg, var(--color-glass-highlight-soft), var(--color-transparent)),
     var(--profile-soft);
 }
 
@@ -440,8 +440,8 @@
 }
 
 .profile-info-card__input:focus {
-  border-color: #d7c8bf;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
+  border-color: var(--color-border-control);
+  box-shadow: 0 0 0 3px var(--color-glass-highlight-strong);
 }
 
 /* === Password confirmation field === */
@@ -456,13 +456,13 @@
 }
 
 .profile-info-card__input--error {
-  border-color: var(--color-error, #e84d3f);
-  background: color-mix(in srgb, var(--color-error, #e84d3f) 7%, var(--color-white));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error, #e84d3f) 16%, transparent);
+  border-color: var(--color-error);
+  background: var(--color-error-softer);
+  box-shadow: 0 0 0 3px var(--color-error-shadow);
 }
 
 .profile-info-card__error {
-  color: var(--color-error, #e84d3f);
+  color: var(--color-error);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
@@ -499,7 +499,7 @@
   padding: 12px 18px;
   border: 1px solid var(--profile-border-strong);
   border-radius: 18px;
-  background: var(--profile-soft);
+  background: var(--surface-inner-gradient);
   color: var(--color-text-main);
   cursor: pointer;
   font-family: inherit;
@@ -520,7 +520,7 @@
 }
 
 .profile-action-button--danger {
-  color: #a86058;
+  color: var(--color-error);
 }
 
 .modal-backdrop {
@@ -531,7 +531,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(33, 28, 26, 0.28);
+  background: var(--color-backdrop-bg);
   backdrop-filter: blur(8px);
 }
 
@@ -540,8 +540,8 @@
   padding: 24px;
   border: 1px solid var(--color-card-border);
   border-radius: 28px;
-  background: var(--color-notifications-bg);
-  box-shadow: 0 28px 60px rgba(41, 35, 31, 0.18);
+  background: var(--surface-modal-gradient);
+  box-shadow: 0 28px 60px var(--color-shadow-modal);
 }
 
 .modal-card__title {
@@ -592,9 +592,9 @@
 }
 
 .modal-card__button--danger {
-  background: #e3a39d;
+  background: var(--color-action-primary);
   color: var(--color-white);
-  box-shadow: 0 12px 24px rgba(168, 96, 88, 0.18);
+  box-shadow: 0 12px 24px var(--color-action-primary-shadow);
 }
 
 @media (min-width: 640px) {
@@ -786,7 +786,7 @@
   padding: 0 18px;
   border: 1px solid var(--profile-border-strong);
   border-radius: 18px;
-  background: var(--profile-soft);
+  background: var(--surface-inner-gradient);
   color: var(--color-text-panel);
   box-shadow: 0 8px 18px var(--color-shadow-small);
   font-size: 14px;
@@ -842,7 +842,7 @@
 }
 
 .profile-info-card--display {
-  background: rgba(255, 255, 255, 0.42);
+  background: var(--color-glass-highlight);
 }
 
 .profile-info-card--display .profile-info-card__content {
@@ -914,4 +914,89 @@
     align-items: flex-start;
     gap: 5px;
   }
+}
+/* === Lively cream palette refinements === */
+.profile-edit-mode-button--save,
+.profile-action-button--danger,
+.modal-card__button--danger {
+  border-color: var(--color-action-primary-border);
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 12px 26px var(--color-action-primary-shadow);
+}
+
+.profile-edit-mode-button--save:hover,
+.profile-action-button--danger:hover,
+.modal-card__button--danger:hover {
+  background: var(--button-primary-hover-gradient);
+  box-shadow: 0 14px 30px var(--color-action-primary-shadow-hover);
+}
+
+
+/* === Final palette corrections: no decorative color spots in the page background === */
+.profile-page__decor,
+.profile-page__decor::before,
+.profile-page__orb {
+  display: none;
+}
+
+
+/* === Final palette corrections: clear white arrows, no arrow-circle shadow === */
+.profile-avatar-carousel__arrow {
+  border-color: var(--color-arrow-accent-border);
+  background: var(--color-arrow-accent-bg);
+  color: var(--color-text-arrow);
+  box-shadow: none;
+}
+
+.profile-avatar-carousel__arrow:hover {
+  background: var(--color-arrow-accent-bg-hover);
+  box-shadow: none;
+}
+
+.profile-avatar-carousel__arrow-shape::before {
+  background: var(--color-arrow-icon);
+}
+
+.profile-avatar-carousel__arrow-shape::after {
+  background: transparent;
+  border-top-color: var(--color-arrow-icon);
+  border-right-color: var(--color-arrow-icon);
+}
+
+
+/* === Final requested refinements: accent buttons keep white text === */
+.auth-submit,
+.profile-save-button,
+.profile-avatar-actions__button--primary,
+.bunny-shop-buy,
+.bunny-shop-save,
+.bunny-shop-action-button,
+.bunny-shop-modal__button--primary {
+  color: var(--color-text-on-accent);
+}
+
+/* === Round 6: profile info blocks keep category color while editing === */
+.profile-info-card,
+.profile-info-card--locked,
+.profile-info-card--editing,
+.profile-info-card--display,
+.profile-info-grid--view .profile-info-card {
+  border-color: var(--color-border-category-card);
+  background: var(--color-category-card-bg);
+}
+
+.profile-info-card__input,
+.profile-info-card__input:focus {
+  background: var(--color-category-card-bg);
+}
+
+.profile-info-card__input:focus {
+  border-color: var(--color-border-control);
+  box-shadow: 0 0 0 3px var(--color-border-white-strong);
+}
+
+.modal-card {
+  background: var(--color-modal-category-solid);
+  backdrop-filter: none;
 }

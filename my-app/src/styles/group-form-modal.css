@@ -13,8 +13,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.42), transparent 34%),
-    rgba(59, 36, 10, 0.26);
+    radial-gradient(circle at 50% 20%, var(--color-glass-highlight), transparent 34%),
+    var(--color-backdrop-bg);
   backdrop-filter: blur(14px);
 }
 
@@ -29,7 +29,7 @@
   padding: 30px;
   border: 1px solid var(--color-card-border);
   border-radius: 34px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--color-modal-bg);
   box-shadow: 0 28px 80px var(--color-shadow-notifications);
   color: var(--color-text-main);
 }
@@ -42,7 +42,7 @@
   height: 42px;
   border: 1px solid var(--color-border-button);
   border-radius: 50%;
-  background: var(--color-button-bg);
+  background: var(--button-soft-gradient);
   color: var(--color-text-plus);
   font-size: 28px;
   line-height: 1;
@@ -95,7 +95,7 @@
   padding: 16px;
   border: 1px solid var(--color-border-soft);
   border-radius: 28px;
-  background: var(--color-inner-block-bg);
+  background: var(--surface-inner-gradient);
 }
 
 .group-stepper__indicator-wrap {
@@ -119,7 +119,7 @@
   padding: 0;
   border: 1px solid var(--color-border-control);
   border-radius: 50%;
-  background: var(--color-button-bg);
+  background: var(--button-soft-gradient);
   color: var(--color-text-muted);
   font-size: 14px;
   font-weight: 700;
@@ -134,14 +134,14 @@
 .group-stepper__indicator:active {
   transform: scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 .group-stepper__indicator--active,
 .group-stepper__indicator--complete {
   background: var(--color-category-nutrition);
   color: var(--color-text-main);
-  border-color: rgba(255, 255, 255, 0.72);
+  border-color: var(--color-border-white-soft);
 }
 
 .group-stepper__indicator--active span {
@@ -259,7 +259,7 @@
 
 .group-form-step--details .group-form-step__body::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-scrollbar-thumb) 74%, transparent);
+  background: var(--color-scrollbar-thumb-soft);
 }
 
 .group-form-step--details .group-form-step__body::-webkit-scrollbar-thumb:hover {
@@ -288,7 +288,7 @@
 
 .group-form-task-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-scrollbar-thumb) 74%, transparent);
+  background: var(--color-scrollbar-thumb-soft);
 }
 
 .group-form-task-scroll::-webkit-scrollbar-thumb:hover {
@@ -313,7 +313,7 @@
   gap: 14px;
   border: 1px solid var(--color-border-soft);
   border-radius: 24px;
-  background: var(--color-inner-block-bg);
+  background: var(--surface-inner-gradient);
   cursor: pointer;
   transition:
     transform 0.18s ease,
@@ -358,7 +358,7 @@
   flex: 0 0 20px;
   border: 2px solid var(--color-border-control);
   border-radius: 50%;
-  background: var(--color-button-bg);
+  background: var(--button-soft-gradient);
   box-shadow: inset 0 0 0 5px var(--color-button-bg);
 }
 
@@ -367,7 +367,7 @@
 .group-form-template:has(input:checked),
 .group-form-custom-task:has(input:checked) {
   border-color: var(--color-category-nutrition);
-  background: color-mix(in srgb, var(--color-category-nutrition) 24%, var(--color-white));
+  background: var(--color-category-selected-bg);
 }
 
 .group-form-radio-card--checked .group-form-radio-card__dot,
@@ -410,7 +410,7 @@
   width: 100%;
   border: 1px solid var(--color-border-control);
   border-radius: 18px;
-  background: var(--color-control-bg);
+  background: var(--surface-inner-gradient);
   color: var(--color-text-main);
   font-family: inherit;
   font-size: 15px;
@@ -436,14 +436,14 @@
 .group-form-template__text input:focus {
   border-color: var(--color-category-nutrition);
   background: var(--color-white);
-  box-shadow: 0 0 0 4px rgba(232, 196, 183, 0.28);
+  box-shadow: 0 0 0 4px var(--color-focus-ring);
 }
 
 .group-form-hint-card {
   padding: 16px;
   border: 1px dashed var(--color-border-control);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--color-category-reading) 24%, var(--color-white));
+  background: var(--color-category-hint-bg);
   color: var(--color-text-soft);
   font-size: 13px;
   line-height: 1.6;
@@ -532,7 +532,7 @@
   border: 1px solid var(--color-border-soft);
   border-radius: 28px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.24)),
+    linear-gradient(135deg, var(--color-card-bg), var(--color-glass-highlight-soft)),
     var(--color-category-reading);
   text-align: center;
 }
@@ -544,7 +544,7 @@
 
 .group-form-code-card button {
   padding: 14px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--color-border-white-soft);
   border-radius: 999px;
   background: var(--color-white);
   color: var(--color-text-main);
@@ -562,7 +562,7 @@
 .group-form-code-card button:active {
   transform: scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 .group-form-code-card small {
@@ -606,16 +606,16 @@
 
 .group-form-modal__button--ghost {
   padding: 12px 18px;
-  background: var(--color-button-bg);
+  background: var(--button-soft-gradient);
   color: var(--color-text-soft);
 }
 
 .group-form-modal__button--main {
   padding: 13px 22px;
-  background: #ff6e51;
+  background: var(--color-action-primary);
   color: var(--color-white);
-  border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 12px 26px rgba(255, 110, 81, 0.26);
+  border-color: var(--color-action-primary-border);
+  box-shadow: 0 12px 26px var(--color-action-primary-shadow);
 }
 
 .group-form-category-select {
@@ -638,7 +638,7 @@
   padding: 10px 12px;
   border: 1px solid var(--color-border-soft);
   border-radius: 22px;
-  background: var(--color-inner-block-bg);
+  background: var(--surface-inner-gradient);
   color: var(--color-text-main);
   font-family: inherit;
   cursor: pointer;
@@ -653,7 +653,7 @@
 .group-form-category-select__button:active {
   transform: scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 .group-form-category-select__left {
@@ -680,7 +680,7 @@
 
 .group-form-category-select__icon {
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-category-nutrition) 28%, var(--color-white));
+  background: var(--color-category-selected-bg);
 }
 
 .group-form-category-select__button--sport .group-form-category-select__icon {
@@ -700,12 +700,12 @@
 }
 
 .group-form-category-select__button--empty .group-form-category-select__icon {
-  background: var(--color-button-bg);
+  background: var(--button-soft-gradient);
 }
 
 .group-form-category-select__option-icon {
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-category-reading) 24%, var(--color-white));
+  background: var(--color-category-hint-bg);
 }
 
 .group-form-category-select__option--sport .group-form-category-select__option-icon {
@@ -813,7 +813,7 @@
   padding: 10px 12px;
   border: 1px solid var(--color-border-soft);
   border-radius: 18px;
-  background: var(--color-control-bg);
+  background: var(--surface-inner-gradient);
   color: var(--color-text-main);
   font-family: inherit;
   font-size: 14px;
@@ -830,12 +830,12 @@
 .group-form-category-select__option:active {
   transform: scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 .group-form-category-select__option--active {
   border-color: var(--color-category-nutrition);
-  background: color-mix(in srgb, var(--color-category-nutrition) 18%, var(--color-white));
+  background: var(--color-category-selected-soft);
 }
 
 .group-form-field--description textarea {
@@ -844,17 +844,17 @@
   max-height: 48px;
   padding: 14px 16px;
   border-color: var(--color-border-control);
-  background: var(--color-control-bg);
+  background: var(--surface-inner-gradient);
   box-shadow: none;
   line-height: 1.25;
 }
 
 .group-stepper__indicator--complete .group-stepper__check {
-  color: #ffffff;
+  color: var(--color-white);
 }
 
 .group-form-error {
-  color: var(--color-error, #e84d3f);
+  color: var(--color-error);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
@@ -862,10 +862,10 @@
 
 .group-form-error-card {
   padding: 11px 14px;
-  border: 1px solid color-mix(in srgb, var(--color-error, #e84d3f) 58%, transparent);
+  border: 1px solid var(--color-error-border);
   border-radius: 18px;
-  background: color-mix(in srgb, var(--color-error, #e84d3f) 10%, var(--color-white));
-  color: var(--color-error, #e84d3f);
+  background: var(--color-error-soft);
+  color: var(--color-error);
   font-size: 13px;
   font-weight: 800;
   line-height: 1.35;
@@ -876,9 +876,9 @@
 .group-form-category-select--error .group-form-category-select__button,
 .group-form-template--error,
 .group-form-custom-task--error {
-  border-color: var(--color-error, #e84d3f);
-  background: color-mix(in srgb, var(--color-error, #e84d3f) 7%, var(--color-white));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-error, #e84d3f) 18%, transparent);
+  border-color: var(--color-error);
+  background: var(--color-error-softer);
+  box-shadow: 0 0 0 4px var(--color-error-shadow);
 }
 
 .group-form-field--error input:focus,
@@ -886,20 +886,20 @@
 .group-form-category-select--error .group-form-category-select__button:hover,
 .group-form-template--error:hover,
 .group-form-custom-task--error:hover {
-  border-color: var(--color-error, #e84d3f);
-  background: color-mix(in srgb, var(--color-error, #e84d3f) 7%, var(--color-white));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-error, #e84d3f) 22%, transparent);
+  border-color: var(--color-error);
+  background: var(--color-error-softer);
+  box-shadow: 0 0 0 4px var(--color-error-shadow);
 }
 
 .group-form-template--error .group-form-template__text input {
-  border-color: var(--color-error, #e84d3f);
+  border-color: var(--color-error);
   background: var(--color-white);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error, #e84d3f) 14%, transparent);
+  box-shadow: 0 0 0 3px var(--color-error-shadow);
 }
 
 .group-form-template--error .group-form-template__dot,
 .group-form-custom-task--error .group-form-template__dot {
-  border-color: var(--color-error, #e84d3f);
+  border-color: var(--color-error);
 }
 
 /* === Step 4: selected data review === */
@@ -924,7 +924,7 @@
 
 .group-form-step--review .group-form-step__body::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-scrollbar-thumb) 74%, transparent);
+  background: var(--color-scrollbar-thumb-soft);
 }
 
 .group-form-review {
@@ -938,7 +938,7 @@
   padding: 14px 16px;
   border: 1px solid var(--color-border-soft);
   border-radius: 20px;
-  background: var(--color-inner-block-bg);
+  background: var(--surface-inner-gradient);
   box-shadow: 0 8px 18px var(--color-shadow-small);
 }
 
@@ -985,7 +985,7 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(59, 36, 10, 0.26);
+  background: var(--color-backdrop-bg);
   cursor: pointer;
   backdrop-filter: blur(14px);
 }
@@ -996,7 +996,7 @@
   padding: 28px;
   border: 1px solid var(--color-card-border);
   border-radius: 32px;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--color-modal-bg);
   box-shadow: 0 28px 80px var(--color-shadow-notifications);
   color: var(--color-text-main);
   text-align: center;
@@ -1025,9 +1025,9 @@
   width: 100%;
   margin-top: 20px;
   padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--color-border-white-soft);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-category-reading) 42%, var(--color-white));
+  background: var(--color-category-reading-progress);
   color: var(--color-text-main);
   box-shadow: 0 12px 24px var(--color-shadow-soft);
   cursor: pointer;
@@ -1045,7 +1045,7 @@
 .group-form-invite-modal__code:active {
   transform: scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 .group-form-invite-modal__copy-state {
@@ -1059,18 +1059,18 @@
   padding: 12px 14px;
   border: 1px dashed var(--color-border-control);
   border-radius: 18px;
-  background: var(--color-inner-block-bg);
+  background: var(--surface-inner-gradient);
 }
 
 .group-form-invite-modal__ok {
   min-width: 130px;
   margin-top: 20px;
   padding: 13px 22px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--color-action-primary-border);
   border-radius: 999px;
-  background: #ff6e51;
+  background: var(--color-action-primary);
   color: var(--color-white);
-  box-shadow: 0 12px 26px rgba(255, 110, 81, 0.26);
+  box-shadow: 0 12px 26px var(--color-action-primary-shadow);
   cursor: pointer;
   font-family: inherit;
   font-size: 15px;
@@ -1085,7 +1085,7 @@
 .group-form-invite-modal__ok:active {
   transform: scale(0.97);
   filter: brightness(0.98);
-  box-shadow: inset 0 2px 6px rgba(80, 55, 35, 0.06);
+  box-shadow: inset 0 2px 6px var(--color-inset-pressed);
 }
 
 /* === Template field types: number / text / choice / none === */
@@ -1125,7 +1125,7 @@
   padding: 8px 12px;
   border: 1px solid var(--color-border-control);
   border-radius: 999px;
-  background: var(--color-button-bg);
+  background: var(--button-soft-gradient);
   color: var(--color-text-main);
   cursor: pointer;
   font-family: inherit;
@@ -1153,13 +1153,13 @@
 
 .group-form-choice-chip--active {
   border-color: var(--color-category-nutrition);
-  background: color-mix(in srgb, var(--color-category-nutrition) 42%, var(--color-white));
+  background: var(--color-category-selected-bg-strong);
 }
 
 /* === Backend-driven task template helpers === */
 .group-form-hint-card--warning {
   border-style: solid;
-  background: color-mix(in srgb, var(--color-category-cleaning) 30%, var(--color-white));
+  background: var(--color-warning-soft);
 }
 
 .group-form-custom-task__body {
@@ -1174,7 +1174,7 @@
   padding: 11px 13px;
   border: 1px solid var(--color-border-control);
   border-radius: 18px;
-  background: var(--color-control-bg);
+  background: var(--surface-inner-gradient);
   color: var(--color-text-main);
   font-family: inherit;
   font-size: 15px;
@@ -1185,13 +1185,13 @@
 .group-form-custom-task__body > input:focus {
   border-color: var(--color-category-nutrition);
   background: var(--color-white);
-  box-shadow: 0 0 0 4px rgba(232, 196, 183, 0.28);
+  box-shadow: 0 0 0 4px var(--color-focus-ring);
 }
 
 .group-form-custom-task--error .group-form-custom-task__body > input {
-  border-color: var(--color-error, #e84d3f);
+  border-color: var(--color-error);
   background: var(--color-white);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error, #e84d3f) 14%, transparent);
+  box-shadow: 0 0 0 3px var(--color-error-shadow);
 }
 
 .group-form-modal__button:disabled {
@@ -1280,4 +1280,313 @@
   .group-form-template__error {
     padding-left: 46px;
   }
+}
+/* === Lively cream palette refinements === */
+.group-form-modal__button--main,
+.group-form-invite-modal__ok {
+  border-color: var(--color-action-primary-border);
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 12px 26px var(--color-action-primary-shadow);
+}
+
+.group-form-modal__button--main:hover,
+.group-form-invite-modal__ok:hover {
+  background: var(--button-primary-hover-gradient);
+  box-shadow: 0 14px 30px var(--color-action-primary-shadow-hover);
+}
+
+.group-stepper__indicator--active,
+.group-stepper__indicator--complete,
+.group-stepper__connector::before {
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+}
+
+.group-form-radio-card--checked,
+.group-form-template--checked,
+.group-form-template:has(input:checked),
+.group-form-custom-task:has(input:checked),
+.group-form-category-select__option--active,
+.group-form-choice-chip--active {
+  border-color: var(--color-action-primary);
+  background: var(--color-category-selected-bg);
+}
+
+.group-form-radio-card--checked .group-form-radio-card__dot,
+.group-form-template--checked .group-form-template__dot,
+.group-form-template:has(input:checked) .group-form-template__dot,
+.group-form-custom-task:has(input:checked) .group-form-template__dot {
+  border-color: var(--color-action-primary);
+  background: var(--color-action-primary);
+}
+
+.group-form-category-select__button--sport .group-form-category-select__icon,
+.group-form-category-select__option--sport .group-form-category-select__option-icon {
+  background: var(--color-category-sport-circle);
+}
+
+.group-form-category-select__button--cleaning .group-form-category-select__icon,
+.group-form-category-select__option--cleaning .group-form-category-select__option-icon {
+  background: var(--color-category-cleaning-circle);
+}
+
+.group-form-category-select__button--reading .group-form-category-select__icon,
+.group-form-category-select__option--reading .group-form-category-select__option-icon {
+  background: var(--color-category-reading-circle);
+}
+
+.group-form-category-select__button--nutrition .group-form-category-select__icon,
+.group-form-category-select__option--nutrition .group-form-category-select__option-icon {
+  background: var(--color-category-nutrition-circle);
+}
+
+
+/* === Final palette corrections: modal background without color spot === */
+.group-form-modal__backdrop {
+  background: var(--color-backdrop-bg);
+}
+
+/* === Final palette corrections: circle near “Вписать своё задание” matches arrow circles === */
+.group-form-info {
+  border: 1px solid var(--color-arrow-accent-border);
+  background: var(--color-arrow-accent-bg);
+  color: var(--color-text-on-accent);
+  box-shadow: none;
+}
+
+/* === Final palette corrections: group code block gets the accent, code button stays neutral === */
+.group-form-code-card {
+  border-color: var(--color-action-primary);
+  background: linear-gradient(135deg, var(--color-action-primary-soft), var(--color-action-primary-softer));
+}
+
+.group-form-code-card span,
+.group-form-code-card small {
+  color: var(--color-text-main);
+}
+
+.group-form-code-card button,
+.group-form-code-card button:hover,
+.group-form-code-card button:active {
+  background: var(--color-white);
+  color: var(--color-text-main);
+}
+
+
+/* === Final requested refinements: orange accent, white accent text, category-like code card === */
+.group-form-modal__button--main,
+.group-form-invite-modal__ok,
+.group-stepper__indicator--active,
+.group-stepper__indicator--complete,
+.group-stepper__connector::before {
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+}
+
+.group-form-info,
+.group-form-radio-card--checked .group-form-radio-card__dot,
+.group-form-template--checked .group-form-template__dot,
+.group-form-template:has(input:checked) .group-form-template__dot,
+.group-form-custom-task:has(input:checked) .group-form-template__dot {
+  border-color: var(--color-action-primary-border);
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+}
+
+.group-form-code-card {
+  border-color: var(--color-border-category-card);
+  background: var(--surface-category-like-gradient);
+}
+
+.group-form-code-card button,
+.group-form-code-card button:hover,
+.group-form-code-card button:active {
+  background: var(--color-white);
+  color: var(--color-text-main);
+}
+
+/* === Round 5: restore details scroll and unify inner cards/close button === */
+.group-form-modal__close {
+  border-color: var(--color-action-primary-border);
+  background: var(--button-primary-gradient);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 10px 20px var(--color-action-primary-shadow);
+}
+
+.group-form-modal__close:hover {
+  background: var(--button-primary-hover-gradient);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 12px 24px var(--color-action-primary-shadow-hover);
+}
+
+.group-form-step--details .group-form-step__body {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.group-form-step--details .group-form-step__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.group-form-step--details .group-form-radio-card,
+.group-form-step--details .group-form-category-select__button,
+.group-form-step--details .group-form-category-select__option,
+.group-form-step--details .group-form-category-select__content-inner,
+.group-form-step--details .group-form-field input,
+.group-form-step--details .group-form-field textarea,
+.group-form-step--details .group-form-field select,
+.group-form-step--details .group-form-hint-card {
+  border-color: var(--color-border-soft);
+  background: var(--surface-work-gradient);
+}
+
+.group-form-step--details .group-form-category-select__button:hover,
+.group-form-step--details .group-form-category-select--open .group-form-category-select__button,
+.group-form-step--details .group-form-category-select__option:hover,
+.group-form-step--details .group-form-radio-card:hover {
+  background: var(--surface-work-gradient);
+}
+
+/* === Round 6: solid modal window and light inner blocks === */
+.group-form-modal__backdrop {
+  background: var(--color-backdrop-bg);
+  backdrop-filter: blur(10px);
+}
+
+.group-form-modal__dialog,
+.group-form-invite-modal__dialog {
+  background: var(--color-modal-category-solid);
+  backdrop-filter: none;
+}
+
+.group-stepper__indicator-row,
+.group-form-radio-card,
+.group-form-template,
+.group-form-custom-task,
+.group-form-review__card,
+.group-form-invite-modal__hint,
+.group-form-code-card,
+.group-form-field input,
+.group-form-field textarea,
+.group-form-field select,
+.group-form-category-select__button,
+.group-form-category-select__content,
+.group-form-category-select__content-inner,
+.group-form-category-select__option,
+.group-form-template__text input,
+.group-form-custom-task__body > input,
+.group-form-hint-card {
+  background: var(--color-modal-inner-solid);
+}
+
+.group-form-radio-card:hover,
+.group-form-template:hover,
+.group-form-custom-task:hover,
+.group-form-category-select__button:hover,
+.group-form-category-select--open .group-form-category-select__button,
+.group-form-category-select__option:hover,
+.group-form-field input:focus,
+.group-form-field textarea:focus,
+.group-form-template__text input:focus,
+.group-form-custom-task__body > input:focus {
+  background: var(--color-modal-inner-hover-solid);
+}
+
+.group-form-radio-card--checked,
+.group-form-template--checked,
+.group-form-template:has(input:checked),
+.group-form-custom-task:has(input:checked) {
+  background: var(--color-category-selected-bg);
+}
+
+.group-form-invite-modal__code {
+  background: var(--color-modal-inner-solid);
+  border-color: var(--color-border-category-card);
+}
+
+.group-form-invite-modal__code:hover {
+  background: var(--color-modal-inner-hover-solid);
+}
+
+/* === Round 7: category selector icon/active square should not stand out from the modal === */
+.group-form-category-select__icon,
+.group-form-category-select__option-icon,
+.group-form-category-select__button--sport .group-form-category-select__icon,
+.group-form-category-select__button--cleaning .group-form-category-select__icon,
+.group-form-category-select__button--reading .group-form-category-select__icon,
+.group-form-category-select__button--nutrition .group-form-category-select__icon,
+.group-form-category-select__option--sport .group-form-category-select__option-icon,
+.group-form-category-select__option--cleaning .group-form-category-select__option-icon,
+.group-form-category-select__option--reading .group-form-category-select__option-icon,
+.group-form-category-select__option--nutrition .group-form-category-select__option-icon {
+  border: 1px solid var(--color-border-category-card);
+  background: var(--color-modal-category-solid);
+}
+
+.group-form-category-select__option--active {
+  border-color: var(--color-border-category-card);
+  background: var(--color-modal-category-solid);
+}
+
+.group-form-category-select__option--active:hover {
+  background: var(--color-modal-category-solid);
+}
+
+/* === Round 8: fix category dropdown panel in "Данные группы" === */
+/* The category icons themselves are colorful again, as before. */
+.group-form-category-select__button--sport .group-form-category-select__icon,
+.group-form-category-select__option--sport .group-form-category-select__option-icon {
+  border: 0;
+  background: var(--color-category-sport-circle);
+}
+
+.group-form-category-select__button--cleaning .group-form-category-select__icon,
+.group-form-category-select__option--cleaning .group-form-category-select__option-icon {
+  border: 0;
+  background: var(--color-category-cleaning-circle);
+}
+
+.group-form-category-select__button--reading .group-form-category-select__icon,
+.group-form-category-select__option--reading .group-form-category-select__option-icon {
+  border: 0;
+  background: var(--color-category-reading-circle);
+}
+
+.group-form-category-select__button--nutrition .group-form-category-select__icon,
+.group-form-category-select__option--nutrition .group-form-category-select__option-icon {
+  border: 0;
+  background: var(--color-category-nutrition-circle);
+}
+
+.group-form-category-select__button--empty .group-form-category-select__icon,
+.group-form-category-select__option-icon {
+  border: 0;
+}
+
+.group-form-step--details .group-form-category-select__content,
+.group-form-step--details .group-form-category-select__content-inner,
+.group-form-category-select__content,
+.group-form-category-select__content-inner {
+  background: var(--color-modal-category-solid);
+  box-shadow: none;
+}
+
+.group-form-step--details .group-form-category-select__content-inner,
+.group-form-category-select__content-inner {
+  border-color: var(--color-modal-category-solid);
+}
+
+.group-form-category-select__option--active,
+.group-form-category-select__option--active:hover {
+  border-color: var(--color-category-nutrition);
+  background: var(--color-category-selected-bg);
+}
+
+.group-form-info__tooltip {
+  border-color: var(--color-border-soft);
+  background: var(--color-modal-inner-solid);
+  color: var(--color-text-soft);
+  box-shadow: 0 10px 24px var(--color-shadow-small);
 }
