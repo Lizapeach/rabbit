@@ -218,6 +218,14 @@ const getDefaultMemberColors = (members = friendsData) =>
     return colors;
   }, {});
 
+function sortCurrentMemberFirst(items = []) {
+  return [...items].sort((first, second) => {
+    if (first?.id === "me" && second?.id !== "me") return -1;
+    if (first?.id !== "me" && second?.id === "me") return 1;
+    return 0;
+  });
+}
+
 function getStoredAuthToken() {
   if (typeof window === "undefined") return "";
 
@@ -334,11 +342,12 @@ function normalizeBackendPage(pageData) {
       };
     });
 
-  const currentMember = members.find((member) => member.id === "me") || members[0];
-  const ownerMember = members.find((member) => member.role === "owner");
+  const orderedMembers = sortCurrentMemberFirst(members);
+  const currentMember = orderedMembers.find((member) => member.id === "me") || orderedMembers[0];
+  const ownerMember = orderedMembers.find((member) => member.role === "owner");
 
   return {
-    members,
+    members: orderedMembers,
     currentMemberUiId: currentMember?.id || "me",
     currentMemberTasks: currentMember?.tasks || [],
     ownerMemberUiId: ownerMember?.id || (pageData?.isOwner ? "me" : ""),
@@ -353,6 +362,27 @@ function normalizeBackendPage(pageData) {
     memberProgress: pageData?.memberProgress || {},
     habit: pageData?.habit || null,
   };
+}
+
+function extractHabitCreatedDateKey(habit) {
+  const rawDate =
+    habit?.createdAt ||
+    habit?.created_at ||
+    habit?.createdDate ||
+    habit?.created_date ||
+    "";
+
+  if (!rawDate) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(rawDate))) {
+    return String(rawDate).slice(0, 10);
+  }
+
+  const date = new Date(rawDate);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return getDateKey(date);
 }
 
 function normalizeBackendNote(note) {
@@ -384,6 +414,62 @@ function getCalendarRange(viewedDate, mode) {
   const to = new Date(viewedDate.getFullYear(), viewedDate.getMonth() + 1, 0);
 
   return { from: getDateKey(from), to: getDateKey(to) };
+}
+
+function getAnalyticsRange(currentDate, mode, startDateKey = "") {
+  if (!startDateKey) {
+    return mode === "week"
+      ? getCalendarRange(currentDate, "week")
+      : getCalendarRange(currentDate, "month");
+  }
+
+  const periodLength = mode === "week" ? 7 : 30;
+  const groupStartDate = parseDateKey(startDateKey);
+  const current = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    currentDate.getDate()
+  );
+  const firstPeriodEnd = new Date(groupStartDate);
+
+  firstPeriodEnd.setDate(groupStartDate.getDate() + periodLength - 1);
+
+  const from = new Date(groupStartDate);
+
+  if (current > firstPeriodEnd) {
+    from.setFullYear(current.getFullYear(), current.getMonth(), current.getDate());
+    from.setDate(current.getDate() - periodLength + 1);
+  }
+
+  const to = new Date(from);
+  to.setDate(from.getDate() + periodLength - 1);
+
+  return {
+    from: getDateKey(from),
+    to: getDateKey(to),
+  };
+}
+
+function parseDateKey(dateKey) {
+  const [year, month, day] = String(dateKey || "").split("-").map(Number);
+
+  if (!year || !month || !day) return new Date();
+
+  return new Date(year, month - 1, day);
+}
+
+function buildDateKeysBetween(from, to) {
+  const start = parseDateKey(from);
+  const end = parseDateKey(to);
+  const dates = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    dates.push(getDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
 }
 
 function toPercent(value, total) {
@@ -906,14 +992,19 @@ function getMemberCompletedForDate(member, date, currentDate, myTasks, zeroTaskD
   return seed % (totalTasks + 1);
 }
 
-function buildAnalyticsSeries(daysCount, currentDate, myTasks, zeroTaskDates, membersData = friendsData) {
-  const dates = buildPastDates(daysCount, currentDate);
+function buildAnalyticsSeries(daysCount, currentDate, myTasks, zeroTaskDates, membersData = friendsData, startDateKey = "") {
+  const orderedMembers = sortCurrentMemberFirst(membersData);
+  const mode = daysCount === 7 ? "week" : "month";
+  const analyticsRange = startDateKey ? getAnalyticsRange(currentDate, mode, startDateKey) : null;
+  const dates = analyticsRange
+    ? buildDateKeysBetween(analyticsRange.from, analyticsRange.to).map(parseDateKey)
+    : buildPastDates(daysCount, currentDate);
   const maxTasks = Math.max(
     1,
-    ...membersData.map((member) => getMemberTasks(member, myTasks).length)
+    ...orderedMembers.map((member) => getMemberTasks(member, myTasks).length)
   );
 
-  const datasets = membersData.map((member) => ({
+  const datasets = orderedMembers.map((member) => ({
     id: member.id,
     name: member.name,
     initials: member.initials,
@@ -923,7 +1014,8 @@ function buildAnalyticsSeries(daysCount, currentDate, myTasks, zeroTaskDates, me
     points: dates.map((date) => ({
       id: `${member.id}-${getDateKey(date)}`,
       date,
-      value: getMemberCompletedForDate(member, date, currentDate, myTasks, zeroTaskDates, membersData),
+      value: getMemberCompletedForDate(member, date, currentDate, myTasks, zeroTaskDates, orderedMembers),
+      hasData: true,
     })),
   }));
 
@@ -931,6 +1023,92 @@ function buildAnalyticsSeries(daysCount, currentDate, myTasks, zeroTaskDates, me
     dates,
     datasets,
     maxTasks,
+  };
+}
+
+function findStatsMember(statsMember, membersData = friendsData) {
+  return membersData.find((member) => {
+    const sameHabitMemberId =
+      statsMember?.habitMemberId !== undefined &&
+      member.backendMemberId !== undefined &&
+      String(member.backendMemberId) === String(statsMember.habitMemberId);
+    const sameUserId =
+      statsMember?.userId !== undefined &&
+      member.userId !== undefined &&
+      String(member.userId) === String(statsMember.userId);
+    const sameLogin =
+      statsMember?.login && member.login && String(member.login) === String(statsMember.login);
+
+    return sameHabitMemberId || sameUserId || sameLogin;
+  });
+}
+
+function normalizeStatsResponse(statsData, membersData = friendsData) {
+  const from = statsData?.from || getDateKey(new Date());
+  const to = statsData?.to || from;
+  const dateKeys = buildDateKeysBetween(from, to);
+  const dates = dateKeys.map(parseDateKey);
+  const series = Array.isArray(statsData?.series) ? statsData.series : [];
+  const datasets = series.map((statsMember) => {
+    const matchedMember = findStatsMember(statsMember, membersData);
+    const fallbackId =
+      statsMember?.habitMemberId ?? statsMember?.userId ?? statsMember?.login ?? statsMember?.name ?? "member";
+    const memberId = matchedMember?.id || `member-${fallbackId}`;
+    const pointByDate = new Map(
+      (Array.isArray(statsMember?.points) ? statsMember.points : [])
+        .filter((point) => point?.date)
+        .map((point) => [point.date, point])
+    );
+    const color = normalizeHexColor(
+      statsMember?.displayColor || matchedMember?.color || matchedMember?.avatarColor,
+      matchedMember?.color || USER.avatarColor
+    );
+
+    return {
+      id: memberId,
+      backendMemberId: statsMember?.habitMemberId,
+      userId: statsMember?.userId,
+      name: statsMember?.name || matchedMember?.name || statsMember?.login || "Участник",
+      login: statsMember?.login || matchedMember?.login || "",
+      initials: matchedMember?.initials || getInitial(statsMember?.name || statsMember?.login),
+      avatar: matchedMember?.avatar || {
+        id: `${memberId}-avatar`,
+        type: "monogram",
+        label: getInitial(statsMember?.name || statsMember?.login),
+        color,
+      },
+      avatarColor: matchedMember?.avatarColor || color,
+      color,
+      points: dateKeys.map((dateKey) => {
+        const point = pointByDate.get(dateKey);
+        const hasData = point ? point.hasData !== false : false;
+
+        return {
+          id: `${memberId}-${dateKey}`,
+          date: parseDateKey(dateKey),
+          dateKey,
+          value: hasData ? Number(point?.completedTasksCount || 0) : 0,
+          completedTasksCount: hasData ? Number(point?.completedTasksCount || 0) : 0,
+          totalTasksCount: Number(point?.totalTasksCount || statsData?.maxTasksCount || 0),
+          hasData,
+        };
+      }),
+    };
+  });
+
+  const maxFromPoints = datasets.reduce((max, dataset) => {
+    const datasetMax = dataset.points.reduce(
+      (pointMax, point) => Math.max(pointMax, Number(point.totalTasksCount || point.value || 0)),
+      0
+    );
+
+    return Math.max(max, datasetMax);
+  }, 0);
+
+  return {
+    dates,
+    datasets: sortCurrentMemberFirst(datasets),
+    maxTasks: Math.max(1, Number(statsData?.maxTasksCount || 0), maxFromPoints),
   };
 }
 
@@ -951,6 +1129,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [isOwner, setIsOwner] = useState(false);
   const [backendStreakDays, setBackendStreakDays] = useState(null);
   const [calendarDays, setCalendarDays] = useState([]);
+  const [weekStatsResponse, setWeekStatsResponse] = useState(null);
+  const [monthStatsResponse, setMonthStatsResponse] = useState(null);
 
   const [groupInfo, setGroupInfo] = useState(() => ({
     name: window.history.state?.groupName || "Quiet Pages",
@@ -1017,8 +1197,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [activeNoteMenu, setActiveNoteMenu] = useState(null);
   const [noteEditor, setNoteEditor] = useState(null);
   const [isClearNotesConfirmOpen, setIsClearNotesConfirmOpen] = useState(false);
+  const [groupCreatedDateKey, setGroupCreatedDateKey] = useState("");
 
-  const currentDate = useMemo(() => new Date(), []);
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const displayUserName = userProfile?.name || USER.name;
   const displayUserEmail = userProfile?.email || USER.email;
   const resolvedUserAvatar = useMemo(
@@ -1028,6 +1209,29 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const displayUserInitials = resolvedUserAvatar.label || USER.initials;
 
   const zeroTaskDates = useMemo(() => createDemoZeroTaskDates(currentDate), [currentDate]);
+
+  useEffect(() => {
+    const updateCurrentDate = () => setCurrentDate(new Date());
+    const now = new Date();
+    const nextMidnight = new Date(now);
+    let intervalId = null;
+
+    nextMidnight.setDate(now.getDate() + 1);
+    nextMidnight.setHours(0, 0, 1, 0);
+
+    const timeoutId = window.setTimeout(() => {
+      updateCurrentDate();
+      intervalId = window.setInterval(updateCurrentDate, 24 * 60 * 60 * 1000);
+    }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+
+    return () => {
+      window.clearTimeout(timeoutId);
+
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, []);
 
   const loadHabitPage = useCallback(async ({ silent = false } = {}) => {
     if (!habitId || !authToken) {
@@ -1057,6 +1261,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       setIsOwner(normalized.isOwner);
       setAdminMemberId(normalized.ownerMemberUiId || "me");
       setBackendStreakDays(normalized.currentStreak);
+      setGroupCreatedDateKey(extractHabitCreatedDateKey(normalized.habit));
       setSelectedFriendId((prev) =>
         nextMembers.some((member) => member.id === prev) ? prev : normalized.currentMemberUiId || "me"
       );
@@ -1088,6 +1293,31 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     }
   }, [authToken, calendarMode, habitId, viewedDate]);
 
+  const loadStats = useCallback(async () => {
+    if (!habitId || !authToken) return;
+
+    const weekRange = getAnalyticsRange(currentDate, "week", groupCreatedDateKey);
+    const monthRange = getAnalyticsRange(currentDate, "month", groupCreatedDateKey);
+
+    try {
+      const [weekData, monthData] = await Promise.all([
+        apiRequest(`/api/habits/${habitId}/stats?from=${weekRange.from}&to=${weekRange.to}`, {
+          token: authToken,
+        }),
+        apiRequest(`/api/habits/${habitId}/stats?from=${monthRange.from}&to=${monthRange.to}`, {
+          token: authToken,
+        }),
+      ]);
+
+      setWeekStatsResponse(weekData);
+      setMonthStatsResponse(monthData);
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+      setWeekStatsResponse(null);
+      setMonthStatsResponse(null);
+    }
+  }, [authToken, currentDate, groupCreatedDateKey, habitId]);
+
   const loadNotes = useCallback(async () => {
     if (!habitId || !authToken) return;
 
@@ -1116,6 +1346,14 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   }, [loadCalendar]);
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadStats();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadStats]);
+
+  useEffect(() => {
     if (!habitId || !authToken) return undefined;
 
     const timeoutId = window.setTimeout(() => {
@@ -1133,7 +1371,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   }, [authToken, habitId, loadNotes]);
 
   const activeFriendsData = useMemo(
-    () => membersData.filter((friend) => !removedMemberIds.includes(friend.id)),
+    () => sortCurrentMemberFirst(membersData.filter((friend) => !removedMemberIds.includes(friend.id))),
     [membersData, removedMemberIds]
   );
 
@@ -1271,13 +1509,19 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   }, [adminTransferMemberId, adminTransferMembers]);
 
   const weekAnalyticsData = useMemo(
-    () => buildAnalyticsSeries(7, currentDate, myTasks, zeroTaskDates, friendsWithColors),
-    [currentDate, friendsWithColors, myTasks, zeroTaskDates]
+    () =>
+      weekStatsResponse
+        ? normalizeStatsResponse(weekStatsResponse, friendsWithColors)
+        : buildAnalyticsSeries(7, currentDate, myTasks, zeroTaskDates, friendsWithColors, groupCreatedDateKey),
+    [currentDate, friendsWithColors, groupCreatedDateKey, myTasks, weekStatsResponse, zeroTaskDates]
   );
 
   const monthAnalyticsData = useMemo(
-    () => buildAnalyticsSeries(30, currentDate, myTasks, zeroTaskDates, friendsWithColors),
-    [currentDate, friendsWithColors, myTasks, zeroTaskDates]
+    () =>
+      monthStatsResponse
+        ? normalizeStatsResponse(monthStatsResponse, friendsWithColors)
+        : buildAnalyticsSeries(30, currentDate, myTasks, zeroTaskDates, friendsWithColors, groupCreatedDateKey),
+    [currentDate, friendsWithColors, groupCreatedDateKey, monthStatsResponse, myTasks, zeroTaskDates]
   );
 
   const selectedMemberColor = selectedFriend.color;
@@ -1398,6 +1642,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
         setMemberColors(nextColors);
         setDraftMemberColors(nextColors);
         await loadHabitPage({ silent: true });
+        await loadStats();
         return;
       } catch (error) {
         setPageError(getErrorMessage(error));
@@ -1431,6 +1676,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
         setIsGroupSettingsOpen(false);
         await loadHabitPage({ silent: true });
         await loadCalendar();
+        await loadStats();
         return;
       } catch (error) {
         setPageError(getErrorMessage(error));
@@ -1566,6 +1812,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
       await loadHabitPage({ silent: true });
       await loadCalendar();
+      await loadStats();
     } catch (error) {
       setMyTasks((prev) =>
         prev.map((task) => (task.id === taskId ? { ...task, done: wasDone } : task))
@@ -2145,7 +2392,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                             </div>
                           </div>
 
-                          <div className="group-settings" ref={settingsRef} data-note-ui="true">
+                          <div
+                            className={`group-settings ${isGroupSettingsOpen ? "group-settings--open" : ""}`}
+                            ref={settingsRef}
+                            data-note-ui="true"
+                          >
                             <button
                               type="button"
                               className={`group-settings__trigger ${isGroupSettingsOpen ? "group-settings__trigger--active" : ""}`}
@@ -2189,10 +2440,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                       <div className="section-label">Календарь и аналитика</div>
                       <h2 className="section-title">Ритм группы</h2>
                       <p className="section-description">
-                        Календарь рассчитывается от даты компьютера. Зелёным отмечаются дни,
-                        когда группа выполнила все {groupStats.total} обычных заданий. Красным отмечаются дни,
-                        когда хотя бы один участник не выполнил ни одного обычного задания.
-                        Особое задание в календарь и общий прогресс не входит.
+                        Календарь рассчитывается по состоянию дня с backend: зелёный — good,
+                        красный — bad, нейтральный — ok или null. Особое задание
+                        в календарь и общий прогресс не входит.
                       </p>
                     </div>
 
@@ -3297,19 +3547,30 @@ function CalendarBlock({
                 const apiDay = calendarDayByDate.get(cell.id);
                 const progress = apiDay
                   ? {
-                      completed: Number(apiDay.completedTasksCount || 0),
-                      total: Number(apiDay.totalTasksCount || 0),
+                      completed: Number(
+                        apiDay.fullyCompletedMembersCount ??
+                        apiDay.completedMembersCount ??
+                        0
+                      ),
+                      total: Number(apiDay.totalMembersCount || 0),
                     }
                   : isFuture
-                    ? { completed: 0, total: groupStats.total }
-                    : getDayGroupProgress(cell.date, currentDate, zeroTaskDates, groupStats);
+                    ? { completed: 0, total: groupStats.members.length }
+                    : getDayGroupProgress(cell.date, currentDate, zeroTaskDates, {
+                        ...groupStats,
+                        completed: groupStats.members.filter(
+                          (member) => member.total > 0 && member.completed === member.total
+                        ).length,
+                        total: groupStats.members.length,
+                      });
+                const dayState = apiDay?.state ?? null;
                 const hasZeroMember = apiDay
-                  ? canColorDay && apiDay.state === "bad"
+                  ? canColorDay && dayState === "bad"
                   : canColorDay && !isFuture && (isToday
                     ? groupStats.members.some((member) => member.completed === 0)
                     : zeroTaskDates.has(getDateKey(cell.date)));
                 const isComplete = apiDay
-                  ? canColorDay && apiDay.state === "good"
+                  ? canColorDay && dayState === "good"
                   : canColorDay &&
                     !isFuture &&
                     progress.total > 0 &&
@@ -3326,9 +3587,6 @@ function CalendarBlock({
                     }`}
                   >
                     <span className="calendar-day__number">{cell.number}</span>
-                    <span className="calendar-day__progress">
-                      {progress.completed}/{progress.total}
-                    </span>
                   </div>
                 );
               })}
@@ -3351,7 +3609,10 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
   const padding = { top: 24, right: 28, bottom: 52, left: 48 };
   const plotWidth = chartWidth - padding.left - padding.right;
   const plotHeight = chartHeight - padding.top - padding.bottom;
-  const activeFocusedMemberId = focusedMemberId || "me";
+  const defaultFocusedMemberId = datasets.some((dataset) => dataset.id === "me")
+    ? "me"
+    : datasets[0]?.id || null;
+  const activeFocusedMemberId = focusedMemberId || defaultFocusedMemberId;
   const orderedDatasets = activeFocusedMemberId
     ? [
         ...datasets.filter((dataset) => dataset.id !== activeFocusedMemberId),
@@ -3383,6 +3644,30 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
   const handleMemberIconClick = (event, memberId) => {
     event.stopPropagation();
     setFocusedMemberId((prev) => (prev === memberId ? null : memberId));
+  };
+
+  const buildVisibleSegments = (points = []) => {
+    const segments = [];
+    let currentSegment = [];
+
+    points.forEach((point, index) => {
+      if (point.hasData === false) {
+        if (currentSegment.length > 0) {
+          segments.push(currentSegment);
+          currentSegment = [];
+        }
+
+        return;
+      }
+
+      currentSegment.push({ ...point, index });
+    });
+
+    if (currentSegment.length > 0) {
+      segments.push(currentSegment);
+    }
+
+    return segments;
   };
 
   return (
@@ -3476,9 +3761,7 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
                   {orderedDatasets.map((dataset) => {
                     const isFocused = activeFocusedMemberId === dataset.id;
                     const isDimmed = Boolean(activeFocusedMemberId) && !isFocused;
-                    const path = dataset.points
-                      .map((point, index) => `${index === 0 ? "M" : "L"} ${getX(index)} ${getY(point.value)}`)
-                      .join(" ");
+                    const visibleSegments = buildVisibleSegments(dataset.points);
 
                     return (
                       <g
@@ -3487,22 +3770,39 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
                           isDimmed ? "analytics-line-chart__series--dimmed" : ""
                         }`}
                       >
-                        <path
-                          d={path}
-                          className="analytics-line-chart__line"
-                          style={{ stroke: dataset.color }}
-                        />
+                        {visibleSegments.map((segment, segmentIndex) => {
+                          if (segment.length < 2) return null;
 
-                        {dataset.points.map((point, index) => (
-                          <circle
-                            key={point.id}
-                            cx={getX(index)}
-                            cy={getY(point.value)}
-                            r={isFocused ? "6" : "5"}
-                            className="analytics-line-chart__point"
-                            style={{ fill: dataset.color }}
-                          />
-                        ))}
+                          const path = segment
+                            .map((point, pointIndex) =>
+                              `${pointIndex === 0 ? "M" : "L"} ${getX(point.index)} ${getY(point.value)}`
+                            )
+                            .join(" ");
+
+                          return (
+                            <path
+                              key={`${dataset.id}-segment-${segmentIndex}`}
+                              d={path}
+                              className="analytics-line-chart__line"
+                              style={{ stroke: dataset.color }}
+                            />
+                          );
+                        })}
+
+                        {dataset.points.map((point, index) => {
+                          if (point.hasData === false) return null;
+
+                          return (
+                            <circle
+                              key={point.id}
+                              cx={getX(index)}
+                              cy={getY(point.value)}
+                              r={isFocused ? "6" : "5"}
+                              className="analytics-line-chart__point"
+                              style={{ fill: dataset.color }}
+                            />
+                          );
+                        })}
                       </g>
                     );
                   })}
