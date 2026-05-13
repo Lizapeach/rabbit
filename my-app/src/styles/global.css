@@ -548,3 +548,38 @@ body {
   --surface-modal-gradient: var(--color-modal-category-solid);
   --surface-category-like-gradient: var(--color-category-card-bg);
 }
+
+@media (min-width: 1024px) {
+  .lobby-page::before,
+  .group-page::before,
+  .profile-page::before,
+  .auth-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+
+    background:
+      url("../assets/icons/rabbit.svg") repeat,
+      url("../assets/icons/rabbit.svg") repeat;
+
+    background-size:
+      250px 250px,
+      250px 250px;
+
+    background-position:
+      0 0,
+      125px 125px;
+
+    opacity: 0.3;
+  }
+
+  .lobby-container,
+  .group-container,
+  .profile-container,
+  .auth-container {
+    position: relative;
+    z-index: 1;
+  }
+}
