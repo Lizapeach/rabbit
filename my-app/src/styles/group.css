@@ -4043,3 +4043,20 @@ button {
   position: relative;
   z-index: 1601;
 }
+
+.group-character-space {
+  background:
+    radial-gradient(
+      ellipse 82% 64% at 50% 43%,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.48) 34%,
+      rgba(255, 255, 255, 0.18) 60%,
+      rgba(255, 255, 255, 0) 82%
+    ),
+    radial-gradient(
+      ellipse 56% 42% at 48% 52%,
+      var(--color-glass-highlight-soft) 0%,
+      rgba(255, 255, 255, 0) 76%
+    ),
+    linear-gradient(135deg, var(--color-glass-highlight), var(--color-glass-highlight-soft));
+}
