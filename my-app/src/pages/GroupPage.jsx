@@ -21,124 +21,14 @@ import "../styles/global.css";
 import "../styles/group.css";
 
 const USER = {
-  name: "Елизавета",
-  email: "ela@gmail.com",
-  initials: "EL",
+  name: "Пользователь",
+  email: "",
+  initials: "П",
   avatarColor: "#d8cde3",
-  coins: 240,
+  coins: 0,
 };
 
-const friendsData = [
-  {
-    id: "me",
-    name: "Елизавета",
-    email: "ela@gmail.com",
-    initials: "EL",
-    color: "#d8cde3",
-    avatarColor: USER.avatarColor,
-    tasks: [
-      {
-        id: "reading_pages",
-        type: "template",
-        templateId: "reading_pages",
-        templateValue: "20",
-        title: "Прочитать 20 страниц",
-        done: false,
-      },
-      {
-        id: "reading_minutes",
-        type: "template",
-        templateId: "reading_minutes",
-        templateValue: "20",
-        title: "Читать 20 минут",
-        done: false,
-      },
-      {
-        id: "reading_note",
-        type: "template",
-        templateId: "reading_note",
-        templateValue: "мысль",
-        title: "Записать мысль из прочитанного",
-        done: false,
-      },
-    ],
-  },
-  {
-    id: "anna",
-    name: "Анна",
-    email: "anna.circle@mail.com",
-    initials: "AN",
-    color: "#c7d8c0",
-    avatarColor: "#c7d8c0",
-    tasks: [
-      {
-        id: "anna-reading_pages",
-        title: "Прочитать 10 страниц",
-        done: true,
-      },
-      {
-        id: "anna-note",
-        title: "Написать вывод",
-        done: true,
-      },
-      {
-        id: "anna-mark",
-        title: "Отметить чтение",
-        done: false,
-      },
-    ],
-  },
-  {
-    id: "mira",
-    name: "Мира",
-    email: "mira.daily@mail.com",
-    initials: "MI",
-    color: "#e8c4b7",
-    avatarColor: "#e8c4b7",
-    tasks: [
-      {
-        id: "mira-reading_minutes",
-        title: "Читать 15 минут",
-        done: false,
-      },
-      {
-        id: "mira-note",
-        title: "Открыть заметку",
-        done: false,
-      },
-      {
-        id: "mira-mark",
-        title: "Закрыть привычку",
-        done: false,
-      },
-    ],
-  },
-  {
-    id: "sofia",
-    name: "София",
-    email: "sofia.pages@mail.com",
-    initials: "SO",
-    color: "#e7d8bf",
-    avatarColor: "#e7d8bf",
-    tasks: [
-      {
-        id: "sofia-reading_chapters",
-        title: "Прочитать 1 главу",
-        done: true,
-      },
-      {
-        id: "sofia-break",
-        title: "Сделать паузу",
-        done: true,
-      },
-      {
-        id: "sofia-result",
-        title: "Отметить результат",
-        done: true,
-      },
-    ],
-  },
-];
+const friendsData = [];
 
 const uniqueTaskBase = {
   id: "special",
@@ -159,56 +49,7 @@ const TASK_EDITOR_PLACEHOLDERS = {
   reading_note: "цитату, вывод, мысль",
 };
 
-const PERSONAL_TASK_TEMPLATES = [
-  {
-    id: "reading_pages",
-    code: "reading_pages",
-    title: "Чтение страниц",
-    templateText: "Прочитать __",
-    valueType: "number",
-    unitForms: { one: "страницу", few: "страницы", many: "страниц" },
-    minValue: 1,
-    maxValue: 300,
-    step: 1,
-    choiceOptions: null,
-  },
-  {
-    id: "reading_minutes",
-    code: "reading_minutes",
-    title: "Чтение по времени",
-    templateText: "Читать __",
-    valueType: "number",
-    unitForms: { one: "минуту", few: "минуты", many: "минут" },
-    minValue: 1,
-    maxValue: 300,
-    step: 1,
-    choiceOptions: null,
-  },
-  {
-    id: "reading_chapters",
-    code: "reading_chapters",
-    title: "Чтение главами",
-    templateText: "Прочитать __",
-    valueType: "number",
-    unitForms: { one: "главу", few: "главы", many: "глав" },
-    minValue: 1,
-    maxValue: 100,
-    step: 1,
-    choiceOptions: null,
-  },
-  {
-    id: "reading_note",
-    code: "reading_note",
-    title: "Записать мысль",
-    templateText: "Записать __ из прочитанного",
-    valueType: "text",
-    unitForms: null,
-    minValue: null,
-    maxValue: null,
-    maxLength: 30,
-    choiceOptions: null,
-  },
-];
+const PERSONAL_TASK_TEMPLATES = [];
 
 const PERSONAL_CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
 
@@ -314,6 +155,176 @@ function normalizeBackendTask(task) {
     done: Boolean(task.isCompletedToday),
     desc: undefined,
   };
+}
+
+
+function normalizeChoiceOptions(choiceOptions) {
+  if (!choiceOptions) return [];
+
+  const rawOptions = Array.isArray(choiceOptions)
+    ? choiceOptions
+    : Array.isArray(choiceOptions.options)
+      ? choiceOptions.options
+      : [];
+
+  return rawOptions
+    .map((option) => {
+      if (typeof option === "string" || typeof option === "number") return String(option);
+      return String(option?.value || option?.code || option?.title || option?.label || "");
+    })
+    .filter(Boolean);
+}
+
+function normalizeTaskTemplate(template) {
+  const code = String(template?.code || template?.taskTemplateCode || template?.id || "");
+
+  return {
+    id: code,
+    backendId: template?.id,
+    habitTypeId: template?.habitTypeId,
+    code,
+    title: template?.title || "Задание",
+    templateText: template?.templateText || template?.finalText || template?.title || "Задание",
+    valueType: template?.valueType || "none",
+    unitForms: template?.unitForms || null,
+    minValue: template?.minValue ?? null,
+    maxValue: template?.maxValue ?? null,
+    choiceOptions: normalizeChoiceOptions(template?.choiceOptions),
+  };
+}
+
+function normalizeTaskEditOptions(data) {
+  return {
+    habit: data?.habit || null,
+    currentMemberId: data?.currentMemberId || "",
+    taskTemplates: Array.isArray(data?.taskTemplates) ? data.taskTemplates.map(normalizeTaskTemplate) : [],
+    currentTasks: Array.isArray(data?.currentTasks) ? data.currentTasks : [],
+    selectedTemplateTasks: Array.isArray(data?.selectedTemplateTasks) ? data.selectedTemplateTasks : [],
+    customTasks: Array.isArray(data?.customTasks) ? data.customTasks : [],
+  };
+}
+
+function createTaskEditorDraftFromOptions(editOptions) {
+  const selectedTaskIds = [];
+  const templateValues = {};
+  const templateTaskIds = {};
+
+  (editOptions?.selectedTemplateTasks || []).forEach((task) => {
+    const code = String(task.taskTemplateCode || "");
+    if (!code) return;
+
+    selectedTaskIds.push(code);
+    templateValues[code] = task.customValue ?? "";
+    if (task.taskId) templateTaskIds[code] = task.taskId;
+  });
+
+  const backendCustomTasks = editOptions?.customTasks || [];
+  const customSlots = Array.from({ length: Math.max(4, backendCustomTasks.length) }, (_, index) => {
+    const task = backendCustomTasks[index];
+    const fallbackId = PERSONAL_CUSTOM_TASK_IDS[index] || `custom-${index + 1}`;
+
+    return {
+      id: task?.taskId ? String(task.taskId) : fallbackId,
+      taskId: task?.taskId || null,
+      finalText: task?.finalText || "",
+      selected: Boolean(task?.taskId || task?.finalText),
+    };
+  });
+
+  return {
+    selectedTaskIds,
+    templateValues,
+    templateTaskIds,
+    customSlots,
+  };
+}
+
+function validateTaskEditorDraftWithTemplates(draft, templates) {
+  const errors = {
+    templates: {},
+    customTasks: {},
+    common: "",
+  };
+
+  const selectedTemplateIds = draft.selectedTaskIds || [];
+  const selectedCustomSlots = (draft.customSlots || []).filter((slot) => slot.selected);
+  const hasAnyTask = selectedTemplateIds.length > 0 || selectedCustomSlots.length > 0;
+
+  selectedTemplateIds.forEach((templateId) => {
+    const template = templates.find((item) => item.id === templateId || item.code === templateId);
+    const templateError = validateTaskEditorTemplateValue(template, draft.templateValues?.[templateId]);
+
+    if (templateError) {
+      errors.templates[templateId] = templateError;
+    }
+  });
+
+  const usedCustomTexts = new Set();
+
+  selectedCustomSlots.forEach((slot, index) => {
+    const preparedText = String(slot.finalText || "").trim();
+    const loweredText = preparedText.toLowerCase();
+
+    if (!preparedText) {
+      errors.customTasks[slot.id] = `Свое задание №${index + 1} пустое`;
+      return;
+    }
+
+    if (preparedText.length > 160) {
+      errors.customTasks[slot.id] = `Свое задание №${index + 1} должно быть не длиннее 160 символов`;
+      return;
+    }
+
+    if (usedCustomTexts.has(loweredText)) {
+      errors.customTasks[slot.id] = `Свое задание «${preparedText}» повторяется`;
+      return;
+    }
+
+    usedCustomTexts.add(loweredText);
+  });
+
+  if (!hasAnyTask) {
+    errors.common = "Нужно оставить хотя бы одно задание";
+  }
+
+  if (Object.keys(errors.templates).length > 0) {
+    errors.common = "Заполните выбранные шаблоны заданий";
+  }
+
+  if (Object.keys(errors.customTasks).length > 0) {
+    errors.common = "Заполните выбранные свои задания";
+  }
+
+  return errors;
+}
+
+function buildTaskEditorRequestBody(draft, templates) {
+  const templateTasks = (draft.selectedTaskIds || [])
+    .map((templateId) => {
+      const template = templates.find((item) => item.id === templateId || item.code === templateId);
+      if (!template) return null;
+
+      const task = {
+        ...(draft.templateTaskIds?.[templateId] ? { taskId: draft.templateTaskIds[templateId] } : {}),
+        taskTemplateCode: template.code,
+      };
+
+      if (template.valueType !== "none") {
+        task.customValue = String(draft.templateValues?.[templateId] || "").trim();
+      }
+
+      return task;
+    })
+    .filter(Boolean);
+
+  const customTasks = (draft.customSlots || [])
+    .filter((slot) => slot.selected)
+    .map((slot) => ({
+      ...(slot.taskId ? { taskId: slot.taskId } : {}),
+      finalText: String(slot.finalText || "").trim(),
+    }));
+
+  return { templateTasks, customTasks };
 }
 
 function normalizeBackendPage(pageData) {
@@ -616,19 +627,6 @@ function getTaskEditorTemplateTail(template, value = "") {
     .join(" ");
 }
 
-function buildTemplateTaskTitle(template, value) {
-  if (!template) return "";
-  if (template.valueType === "none") return template.templateText || "";
-
-  const preparedValue = String(value || "").trim();
-  const { before } = splitTemplateText(template.templateText);
-  const tail = getTaskEditorTemplateTail(template, preparedValue);
-
-  return [before, preparedValue, tail]
-    .filter((part) => String(part || "").trim().length > 0)
-    .map((part) => String(part).trim())
-    .join(" ");
-}
 
 function getTaskEditorChoices(template) {
   return Array.isArray(template?.choiceOptions) ? template.choiceOptions : [];
@@ -702,141 +700,12 @@ function getTaskEditorInputProps(template) {
   };
 }
 
-function createTaskEditorDraft(tasks) {
-  const selectedTaskIds = [];
-  const templateValues = {};
-  const customTaskIds = [];
-  const customTasks = {};
-  let customIndex = 0;
-
-  tasks.forEach((task) => {
-    if (task.type === "template" && task.templateId) {
-      selectedTaskIds.push(task.templateId);
-      templateValues[task.templateId] = task.templateValue || "";
-      return;
-    }
-
-    const customId = task.customTaskId || PERSONAL_CUSTOM_TASK_IDS[customIndex];
-    if (!customId) return;
-
-    customTaskIds.push(customId);
-    customTasks[customId] = task.title || "";
-    customIndex += 1;
-  });
-
-  return {
-    selectedTaskIds,
-    templateValues,
-    customTaskIds,
-    customTasks,
-  };
-}
-
-function validateTaskEditorDraft(draft) {
-  const errors = {
-    templates: {},
-    customTasks: {},
-    common: "",
-  };
-
-  const selectedTemplateIds = draft.selectedTaskIds || [];
-  const selectedCustomIds = draft.customTaskIds || [];
-  const hasAnyTask = selectedTemplateIds.length > 0 || selectedCustomIds.length > 0;
-
-  selectedTemplateIds.forEach((templateId) => {
-    const template = PERSONAL_TASK_TEMPLATES.find((item) => item.id === templateId);
-    const templateError = validateTaskEditorTemplateValue(template, draft.templateValues?.[templateId]);
-
-    if (templateError) {
-      errors.templates[templateId] = templateError;
-    }
-  });
-
-  const usedCustomTexts = new Set();
-
-  selectedCustomIds.forEach((taskId, index) => {
-    const preparedText = String(draft.customTasks?.[taskId] || "").trim();
-    const loweredText = preparedText.toLowerCase();
-
-    if (!preparedText) {
-      errors.customTasks[taskId] = `Свое задание №${index + 1} пустое`;
-      return;
-    }
-
-    if (preparedText.length > 160) {
-      errors.customTasks[taskId] = `Свое задание №${index + 1} должно быть не длиннее 160 символов`;
-      return;
-    }
-
-    if (usedCustomTexts.has(loweredText)) {
-      errors.customTasks[taskId] = `Свое задание «${preparedText}» повторяется`;
-      return;
-    }
-
-    usedCustomTexts.add(loweredText);
-  });
-
-  if (!hasAnyTask) {
-    errors.common = "Выберите хотя бы одно задание";
-  }
-
-  if (Object.keys(errors.templates).length > 0) {
-    errors.common = "Заполните выбранные шаблоны заданий";
-  }
-
-  if (Object.keys(errors.customTasks).length > 0) {
-    errors.common = "Заполните выбранные свои задания";
-  }
-
-  return errors;
-}
-
 function hasTaskEditorErrors(errors) {
   return Boolean(
     errors.common ||
     Object.keys(errors.templates || {}).length > 0 ||
     Object.keys(errors.customTasks || {}).length > 0
   );
-}
-
-function buildTasksFromEditorDraft(draft, previousTasks) {
-  const previousById = new Map(previousTasks.map((task) => [task.id, task]));
-  const nextTasks = [];
-
-  (draft.selectedTaskIds || []).forEach((templateId) => {
-    const template = PERSONAL_TASK_TEMPLATES.find((item) => item.id === templateId);
-    if (!template) return;
-
-    const templateValue = String(draft.templateValues?.[templateId] || "").trim();
-    const title = buildTemplateTaskTitle(template, templateValue);
-    const previousTask = previousById.get(templateId);
-
-    nextTasks.push({
-      id: templateId,
-      type: "template",
-      templateId,
-      templateValue,
-      title,
-      done: previousTask?.title === title ? Boolean(previousTask.done) : false,
-    });
-  });
-
-  (draft.customTaskIds || []).forEach((taskId) => {
-    const title = String(draft.customTasks?.[taskId] || "").trim();
-    if (!title) return;
-
-    const previousTask = previousById.get(taskId);
-
-    nextTasks.push({
-      id: taskId,
-      type: "custom",
-      customTaskId: taskId,
-      title,
-      done: previousTask?.title === title ? Boolean(previousTask.done) : false,
-    });
-  });
-
-  return nextTasks;
 }
 
 const createInitialSpecialTasks = () =>
@@ -928,70 +797,12 @@ function getActiveMonthRowIndex(rows, viewedDate) {
   return rowIndex >= 0 ? rowIndex : 0;
 }
 
-function createDemoZeroTaskDates(today) {
-  const zeroTaskDates = new Set();
-  const offsets = [-12, -7, -2, 4, 11, 18];
-
-  offsets.forEach((offset) => {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    date.setDate(date.getDate() + offset);
-    zeroTaskDates.add(getDateKey(date));
-  });
-
-  return zeroTaskDates;
-}
-
-function calculateCurrentGroupStreak(today, zeroTaskDates, groupStats) {
-  let streak = 0;
-
-  for (let offset = 0; offset < 365; offset += 1) {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    date.setDate(date.getDate() - offset);
-
-    const isBrokenDay = isSameDay(date, today)
-      ? groupStats.members.some((member) => member.completed === 0)
-      : zeroTaskDates.has(getDateKey(date));
-
-    if (isBrokenDay) break;
-    streak += 1;
-  }
-
-  return streak;
-}
-
-function getDayGroupProgress(date, today, zeroTaskDates, groupStats) {
-  if (isSameDay(date, today)) {
-    return { completed: groupStats.completed, total: groupStats.total };
-  }
-
-  const total = groupStats.total;
-  const seed = date.getDate() * 7 + (date.getMonth() + 1) * 11 + date.getFullYear();
-  const hasZeroMember = zeroTaskDates.has(getDateKey(date));
-
-  if (hasZeroMember) {
-    return {
-      completed: Math.max(1, Math.min(total - 2, seed % total)),
-      total,
-    };
-  }
-
-  return {
-    completed: Math.max(Math.ceil(total * 0.55), seed % (total + 1)),
-    total,
-  };
-}
-
-
-
 function formatAnalyticsDateLabel(date) {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   return `${day}.${month}`;
 }
 
-function getMemberTasks(member, myTasks) {
-  return member.id === "me" ? myTasks : member.tasks;
-}
 
 function buildPastDates(daysCount, currentDate) {
   return Array.from({ length: daysCount }, (_, index) => {
@@ -1004,65 +815,6 @@ function buildPastDates(daysCount, currentDate) {
     date.setDate(date.getDate() - (daysCount - 1 - index));
     return date;
   });
-}
-
-function getMemberCompletedForDate(member, date, currentDate, myTasks, zeroTaskDates, membersData = friendsData) {
-  const memberTasks = getMemberTasks(member, myTasks);
-  const totalTasks = memberTasks.length;
-
-  if (isSameDay(date, currentDate)) {
-    return memberTasks.filter((task) => task.done).length;
-  }
-
-  const dateKey = getDateKey(date);
-  const memberIndex = membersData.findIndex((friend) => friend.id === member.id);
-  const zeroMemberIndex = (date.getDate() + date.getMonth() * 2) % membersData.length;
-
-  if (zeroTaskDates.has(dateKey) && memberIndex === zeroMemberIndex) {
-    return 0;
-  }
-
-  const seed =
-    member.id.split("").reduce((sum, symbol) => sum + symbol.charCodeAt(0), 0) +
-    date.getDate() * 11 +
-    (date.getMonth() + 1) * 17 +
-    date.getFullYear();
-
-  return seed % (totalTasks + 1);
-}
-
-function buildAnalyticsSeries(daysCount, currentDate, myTasks, zeroTaskDates, membersData = friendsData, startDateKey = "") {
-  const orderedMembers = sortCurrentMemberFirst(membersData);
-  const mode = daysCount === 7 ? "week" : "month";
-  const analyticsRange = startDateKey ? getAnalyticsRange(currentDate, mode, startDateKey) : null;
-  const dates = analyticsRange
-    ? buildDateKeysBetween(analyticsRange.from, analyticsRange.to).map(parseDateKey)
-    : buildPastDates(daysCount, currentDate);
-  const maxTasks = Math.max(
-    1,
-    ...orderedMembers.map((member) => getMemberTasks(member, myTasks).length)
-  );
-
-  const datasets = orderedMembers.map((member) => ({
-    id: member.id,
-    name: member.name,
-    initials: member.initials,
-    avatar: member.avatar,
-    avatarColor: member.avatarColor || member.avatar?.color || member.color,
-    color: member.color,
-    points: dates.map((date) => ({
-      id: `${member.id}-${getDateKey(date)}`,
-      date,
-      value: getMemberCompletedForDate(member, date, currentDate, myTasks, zeroTaskDates, orderedMembers),
-      hasData: true,
-    })),
-  }));
-
-  return {
-    dates,
-    datasets,
-    maxTasks,
-  };
 }
 
 function findStatsMember(statsMember, membersData = friendsData) {
@@ -1172,12 +924,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [monthStatsResponse, setMonthStatsResponse] = useState(null);
 
   const [groupInfo, setGroupInfo] = useState(() => ({
-    name: window.history.state?.groupName || "Quiet Pages",
-    description:
-      window.history.state?.groupDescription ||
-      "Личная группа для спокойного чтения, ежедневных заданий и общей серии без пропусков.",
+    name: window.history.state?.groupName || "",
+    description: window.history.state?.groupDescription || "",
   }));
-  const [groupCode, setGroupCode] = useState(() => window.history.state?.groupCode || "HAB-READ-PAGE");
+  const [groupCode, setGroupCode] = useState(() => window.history.state?.groupCode || "");
   const [userCoins, setUserCoins] = useState(() => userProfile?.coins || USER.coins);
   const [bunnyShopState, setBunnyShopState] = useState(() => {
     const defaultState = createDefaultBunnyShopState(BUNNY_NAME);
@@ -1194,8 +944,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     }
   });
   const [isBunnyShopOpen, setIsBunnyShopOpen] = useState(false);
-  const [membersData, setMembersData] = useState(friendsData);
-  const [myTasks, setMyTasks] = useState(friendsData[0].tasks);
+  const [membersData, setMembersData] = useState([]);
+  const [myTasks, setMyTasks] = useState([]);
   const [selectedFriendId, setSelectedFriendId] = useState("me");
   const [memberColors, setMemberColors] = useState(() => {
     const defaultColors = getDefaultMemberColors();
@@ -1205,10 +955,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     try {
       const savedColors = JSON.parse(window.localStorage.getItem(MEMBER_COLOR_STORAGE_KEY) || "{}");
 
-      return friendsData.reduce((colors, friend) => {
-        colors[friend.id] = normalizeHexColor(savedColors[friend.id], friend.color);
-        return colors;
-      }, {});
+      return Object.fromEntries(
+        Object.entries(savedColors).map(([memberId, color]) => [memberId, normalizeHexColor(color)])
+      );
     } catch {
       return defaultColors;
     }
@@ -1225,7 +974,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [exitRequestError, setExitRequestError] = useState("");
   const [adminTransferMemberId, setAdminTransferMemberId] = useState("");
   const [adminMemberId, setAdminMemberId] = useState("me");
-  const [removedMemberIds, setRemovedMemberIds] = useState([]);
+  const [removedMemberIds] = useState([]);
   const [memberRemoveConfirm, setMemberRemoveConfirm] = useState(null);
   const [specialTasks, setSpecialTasks] = useState(() => createInitialSpecialTasks());
   const [isSpecialUploadOpen, setIsSpecialUploadOpen] = useState(false);
@@ -1240,6 +989,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const [noteEditor, setNoteEditor] = useState(null);
   const [isClearNotesConfirmOpen, setIsClearNotesConfirmOpen] = useState(false);
   const [groupCreatedDateKey, setGroupCreatedDateKey] = useState("");
+  const [taskEditorOptions, setTaskEditorOptions] = useState(null);
+  const [taskEditorStatus, setTaskEditorStatus] = useState("idle");
+  const [taskEditorError, setTaskEditorError] = useState("");
+  const [groupInfoEditorData, setGroupInfoEditorData] = useState(null);
+  const [groupInfoEditorStatus, setGroupInfoEditorStatus] = useState("idle");
+  const [groupInfoEditorError, setGroupInfoEditorError] = useState("");
 
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const displayUserName = userProfile?.name || USER.name;
@@ -1249,8 +1004,6 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     [displayUserName, userAvatar]
   );
   const displayUserInitials = resolvedUserAvatar.label || USER.initials;
-
-  const zeroTaskDates = useMemo(() => createDemoZeroTaskDates(currentDate), [currentDate]);
 
   useEffect(() => {
     const updateCurrentDate = () => setCurrentDate(new Date());
@@ -1291,7 +1044,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
         token: authToken,
       });
       const normalized = normalizeBackendPage(data);
-      const nextMembers = normalized.members.length > 0 ? normalized.members : friendsData;
+      const nextMembers = normalized.members;
       const nextColors = getDefaultMemberColors(nextMembers);
 
       setGroupInfo(normalized.groupInfo);
@@ -1445,11 +1198,23 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   );
 
   const selectedFriend = useMemo(
-    () => friendsWithColors.find((friend) => friend.id === selectedFriendId) || friendsWithColors[0],
+    () =>
+      friendsWithColors.find((friend) => friend.id === selectedFriendId) ||
+      friendsWithColors[0] ||
+      {
+        id: "",
+        name: "Участник",
+        email: "",
+        initials: "П",
+        color: USER.avatarColor,
+        avatarColor: USER.avatarColor,
+        avatar: { id: "empty-avatar", type: "monogram", label: "П", color: USER.avatarColor },
+        tasks: [],
+      },
     [friendsWithColors, selectedFriendId]
   );
 
-  const visibleTasks = selectedFriendId === "me" ? myTasks : selectedFriend.tasks;
+  const visibleTasks = selectedFriendId === "me" ? myTasks : selectedFriend?.tasks || [];
 
   const settingsMembers = useMemo(
     () =>
@@ -1493,13 +1258,13 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     };
   }, [friendsWithColors, myTasks]);
 
-  const streakDays = useMemo(
-    () => backendStreakDays ?? calculateCurrentGroupStreak(currentDate, zeroTaskDates, groupStats),
-    [backendStreakDays, currentDate, zeroTaskDates, groupStats]
-  );
+  const streakDays = backendStreakDays ?? 0;
 
   const selectedMemberStats = useMemo(
-    () => groupStats.members.find((member) => member.id === selectedFriendId) || groupStats.members[0],
+    () =>
+      groupStats.members.find((member) => member.id === selectedFriendId) ||
+      groupStats.members[0] ||
+      { id: "", name: "Участник", completed: 0, total: 0 },
     [groupStats.members, selectedFriendId]
   );
 
@@ -1569,19 +1334,19 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     () =>
       weekStatsResponse
         ? normalizeStatsResponse(weekStatsResponse, friendsWithColors)
-        : buildAnalyticsSeries(7, currentDate, myTasks, zeroTaskDates, friendsWithColors, groupCreatedDateKey),
-    [currentDate, friendsWithColors, groupCreatedDateKey, myTasks, weekStatsResponse, zeroTaskDates]
+        : { dates: buildPastDates(7, currentDate), datasets: [], maxTasks: 1 },
+    [currentDate, friendsWithColors, weekStatsResponse]
   );
 
   const monthAnalyticsData = useMemo(
     () =>
       monthStatsResponse
         ? normalizeStatsResponse(monthStatsResponse, friendsWithColors)
-        : buildAnalyticsSeries(30, currentDate, myTasks, zeroTaskDates, friendsWithColors, groupCreatedDateKey),
-    [currentDate, friendsWithColors, groupCreatedDateKey, monthStatsResponse, myTasks, zeroTaskDates]
+        : { dates: buildPastDates(30, currentDate), datasets: [], maxTasks: 1 },
+    [currentDate, friendsWithColors, monthStatsResponse]
   );
 
-  const selectedMemberColor = selectedFriend.color;
+  const selectedMemberColor = selectedFriend?.color || USER.avatarColor;
   const selectedMemberColorSoft = hexToRgba(selectedMemberColor, 0.22);
 
   const handleOpenBunnyShop = () => {
@@ -1683,32 +1448,30 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       return colors;
     }, {});
 
-    if (habitId && authToken) {
-      try {
-        await apiRequest(`/api/habits/${habitId}/member-colors`, {
-          method: "PATCH",
-          token: authToken,
-          body: {
-            colors: activeFriendsData.map((friend) => ({
-              targetUserId: friend.userId,
-              color: nextColors[friend.id],
-            })),
-          },
-        });
-
-        setMemberColors(nextColors);
-        setDraftMemberColors(nextColors);
-        await loadHabitPage({ silent: true });
-        await loadStats();
-        return;
-      } catch (error) {
-        setPageError(getErrorMessage(error));
-        return;
-      }
+    if (!habitId || !authToken) {
+      setPageError(!habitId ? "Не найден habitId для сохранения цвета" : "Не найден токен авторизации");
+      return;
     }
 
-    setMemberColors(nextColors);
-    setDraftMemberColors(nextColors);
+    try {
+      await apiRequest(`/api/habits/${habitId}/member-colors`, {
+        method: "PATCH",
+        token: authToken,
+        body: {
+          colors: activeFriendsData.map((friend) => ({
+            targetUserId: friend.userId,
+            color: nextColors[friend.id],
+          })),
+        },
+      });
+
+      setMemberColors(nextColors);
+      setDraftMemberColors(nextColors);
+      await loadHabitPage({ silent: true });
+      await loadStats();
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    }
   };
 
   const handleRequestRemoveMember = (member) => {
@@ -1720,64 +1483,122 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const handleConfirmRemoveMember = async () => {
     if (!memberRemoveConfirm || memberRemoveConfirm.id === "me") return;
 
-    const memberId = memberRemoveConfirm.id;
-
-    if (habitId && authToken && memberRemoveConfirm.backendMemberId) {
-      try {
-        await apiRequest(`/api/habits/${habitId}/members/${memberRemoveConfirm.backendMemberId}/remove`, {
-          method: "PATCH",
-          token: authToken,
-        });
-
-        setMemberRemoveConfirm(null);
-        setIsGroupSettingsOpen(false);
-        await loadHabitPage({ silent: true });
-        await loadCalendar();
-        await loadStats();
-        return;
-      } catch (error) {
-        setPageError(getErrorMessage(error));
-        return;
-      }
+    if (!habitId || !authToken || !memberRemoveConfirm.backendMemberId) {
+      setPageError("Не хватает данных для удаления участника через backend");
+      return;
     }
 
-    setRemovedMemberIds((prev) => (prev.includes(memberId) ? prev : [...prev, memberId]));
-    setMemberColors((prev) => {
-      const next = { ...prev };
-      delete next[memberId];
-      return next;
-    });
-    setDraftMemberColors((prev) => {
-      const next = { ...prev };
-      delete next[memberId];
-      return next;
-    });
+    try {
+      await apiRequest(`/api/habits/${habitId}/members/${memberRemoveConfirm.backendMemberId}/remove`, {
+        method: "PATCH",
+        token: authToken,
+      });
 
-    if (selectedFriendId === memberId) {
-      setSelectedFriendId("me");
+      setMemberRemoveConfirm(null);
+      setIsGroupSettingsOpen(false);
+      await loadHabitPage({ silent: true });
+      await loadCalendar();
+      await loadStats();
+    } catch (error) {
+      setPageError(getErrorMessage(error));
     }
-
-    if (adminMemberId === memberId) {
-      setAdminMemberId("me");
-    }
-
-    setMemberRemoveConfirm(null);
-    setIsGroupSettingsOpen(false);
   };
 
-  const handleOpenTaskEditor = () => {
+  const handleOpenTaskEditor = async () => {
     setIsGroupSettingsOpen(false);
     setIsTaskEditorOpen(true);
+    setTaskEditorOptions(null);
+    setTaskEditorError("");
+
+    if (!habitId || !authToken) {
+      const message = !habitId ? "Не найден habitId для изменения заданий" : "Не найден токен авторизации";
+      setTaskEditorStatus("error");
+      setTaskEditorError(message);
+      setPageError(message);
+      return;
+    }
+
+    try {
+      setTaskEditorStatus("loading");
+      const data = await apiRequest(`/api/habits/${habitId}/tasks/me/edit-options`, {
+        token: authToken,
+      });
+
+      setTaskEditorOptions(normalizeTaskEditOptions(data));
+      setTaskEditorStatus("ready");
+      setTaskEditorError("");
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setTaskEditorStatus("error");
+      setTaskEditorError(message);
+      setPageError(message);
+    }
   };
 
-  const handleSaveMyTasks = (nextTasks) => {
-    setMyTasks(nextTasks);
-    setIsTaskEditorOpen(false);
+  const handleSaveMyTasks = async (requestBody) => {
+    if (!habitId || !authToken) {
+      const message = !habitId ? "Не найден habitId для сохранения заданий" : "Не найден токен авторизации";
+      setTaskEditorStatus("error");
+      setTaskEditorError(message);
+      setPageError(message);
+      return;
+    }
+
+    try {
+      setTaskEditorStatus("saving");
+      setTaskEditorError("");
+
+      await apiRequest(`/api/habits/${habitId}/tasks/me`, {
+        method: "PUT",
+        token: authToken,
+        body: requestBody,
+      });
+
+      setIsTaskEditorOpen(false);
+      setTaskEditorOptions(null);
+      setTaskEditorStatus("idle");
+      await loadHabitPage({ silent: true });
+      await loadCalendar();
+      await loadStats();
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setTaskEditorStatus("ready");
+      setTaskEditorError(message);
+      setPageError(message);
+    }
   };
 
-  const handleOpenGroupInfoEditor = () => {
+  const handleOpenGroupInfoEditor = async () => {
+    if (!isOwner) return;
+
     setIsGroupSettingsOpen(false);
     setIsGroupInfoEditorOpen(true);
+    setGroupInfoEditorData(null);
+    setGroupInfoEditorError("");
+
+    if (!habitId || !authToken) {
+      const message = !habitId ? "Не найден habitId для изменения группы" : "Не найден токен авторизации";
+      setGroupInfoEditorStatus("error");
+      setGroupInfoEditorError(message);
+      setPageError(message);
+      return;
+    }
+
+    try {
+      setGroupInfoEditorStatus("loading");
+      const data = await apiRequest(`/api/habits/${habitId}/details/edit-options`, {
+        token: authToken,
+      });
+
+      setGroupInfoEditorData(data?.habit || null);
+      setGroupInfoEditorStatus("ready");
+      setGroupInfoEditorError("");
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setGroupInfoEditorStatus("error");
+      setGroupInfoEditorError(message);
+      setPageError(message);
+    }
   };
 
   const handleOpenSelectedMemberInfo = () => {
@@ -1786,9 +1607,38 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     setIsMemberInfoOpen(true);
   };
 
-  const handleSaveGroupInfo = (nextInfo) => {
-    setGroupInfo(nextInfo);
-    setIsGroupInfoEditorOpen(false);
+  const handleSaveGroupInfo = async (nextInfo) => {
+    if (!habitId || !authToken) {
+      const message = !habitId ? "Не найден habitId для сохранения группы" : "Не найден токен авторизации";
+      setGroupInfoEditorStatus("error");
+      setGroupInfoEditorError(message);
+      setPageError(message);
+      return;
+    }
+
+    try {
+      setGroupInfoEditorStatus("saving");
+      setGroupInfoEditorError("");
+
+      await apiRequest(`/api/habits/${habitId}/details`, {
+        method: "PUT",
+        token: authToken,
+        body: {
+          title: nextInfo.title,
+          description: nextInfo.description,
+        },
+      });
+
+      setIsGroupInfoEditorOpen(false);
+      setGroupInfoEditorData(null);
+      setGroupInfoEditorStatus("idle");
+      await loadHabitPage({ silent: true });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setGroupInfoEditorStatus("ready");
+      setGroupInfoEditorError(message);
+      setPageError(message);
+    }
   };
 
   const handleRequestExitGroup = async () => {
@@ -2019,19 +1869,20 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   };
 
   const confirmClearNotes = async () => {
-    if (habitId && authToken) {
-      try {
-        await apiRequest(`/api/habits/${habitId}/notes`, {
-          method: "DELETE",
-          token: authToken,
-        });
-        await loadNotes();
-      } catch (error) {
-        setPageError(getErrorMessage(error));
-        return;
-      }
-    } else {
-      setNotes([]);
+    if (!habitId || !authToken) {
+      setPageError(!habitId ? "Не найден habitId для очистки заметок" : "Не найден токен авторизации");
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/habits/${habitId}/notes`, {
+        method: "DELETE",
+        token: authToken,
+      });
+      await loadNotes();
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+      return;
     }
 
     setNotesMenu(null);
@@ -2052,40 +1903,27 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     const nextY = Math.min(Math.max(noteEditor.y - 24, 12), Math.max(12, boardHeight - 130));
     const content = noteEditor.text.trim().slice(0, 200);
 
-    if (habitId && authToken) {
-      try {
-        await apiRequest(`/api/habits/${habitId}/notes`, {
-          method: "POST",
-          token: authToken,
-          body: {
-            content,
-            pinXPercent: toPercent(nextX, boardWidth),
-            pinYPercent: toPercent(nextY, boardHeight),
-          },
-        });
-
-        setNoteEditor(null);
-        await loadNotes();
-        return;
-      } catch (error) {
-        setPageError(getErrorMessage(error));
-        return;
-      }
+    if (!habitId || !authToken) {
+      setPageError(!habitId ? "Не найден habitId для создания заметки" : "Не найден токен авторизации");
+      return;
     }
 
-    setNotes((prev) => [
-      ...prev,
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        x: nextX,
-        y: nextY,
-        pinXPercent: toPercent(nextX, boardWidth),
-        pinYPercent: toPercent(nextY, boardHeight),
-        text: content,
-        authorId: "me",
-      },
-    ]);
-    setNoteEditor(null);
+    try {
+      await apiRequest(`/api/habits/${habitId}/notes`, {
+        method: "POST",
+        token: authToken,
+        body: {
+          content,
+          pinXPercent: toPercent(nextX, boardWidth),
+          pinYPercent: toPercent(nextY, boardHeight),
+        },
+      });
+
+      setNoteEditor(null);
+      await loadNotes();
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    }
   };
 
   const openNoteActions = (event, noteId) => {
@@ -2111,23 +1949,21 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
     const note = notes.find((item) => item.id === activeNoteMenu.id);
 
-    if (habitId && authToken && note?.backendNoteId) {
-      try {
-        await apiRequest(`/api/habits/${habitId}/notes/${note.backendNoteId}`, {
-          method: "DELETE",
-          token: authToken,
-        });
-        setActiveNoteMenu(null);
-        await loadNotes();
-        return;
-      } catch (error) {
-        setPageError(getErrorMessage(error));
-        return;
-      }
+    if (!habitId || !authToken || !note?.backendNoteId) {
+      setPageError("Не хватает данных для удаления заметки через backend");
+      return;
     }
 
-    setNotes((prev) => prev.filter((item) => item.id !== activeNoteMenu.id));
-    setActiveNoteMenu(null);
+    try {
+      await apiRequest(`/api/habits/${habitId}/notes/${note.backendNoteId}`, {
+        method: "DELETE",
+        token: authToken,
+      });
+      setActiveNoteMenu(null);
+      await loadNotes();
+    } catch (error) {
+      setPageError(getErrorMessage(error));
+    }
   };
 
   const onDrag = useCallback((event) => {
@@ -2570,7 +2406,6 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                         viewedDate={viewedDate}
                         setViewedDate={setViewedDate}
                         currentDate={currentDate}
-                        zeroTaskDates={zeroTaskDates}
                         groupStats={groupStats}
                         calendarDays={calendarDays}
                       />
@@ -2693,7 +2528,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
         {isTaskEditorOpen && (
           <TaskEditorModal
-            tasks={myTasks}
+            key={`${taskEditorStatus}-${taskEditorOptions?.habit?.id || "empty"}-${taskEditorOptions?.currentMemberId || "member"}`}
+            editOptions={taskEditorOptions}
+            status={taskEditorStatus}
+            requestError={taskEditorError}
             onClose={() => setIsTaskEditorOpen(false)}
             onSave={handleSaveMyTasks}
           />
@@ -2718,7 +2556,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
         {isGroupInfoEditorOpen && (
           <GroupInfoEditorModal
-            groupInfo={groupInfo}
+            key={`${groupInfoEditorStatus}-${groupInfoEditorData?.id || groupInfo?.id || "empty"}-${groupInfoEditorData?.title || groupInfo?.name || "group"}`}
+            habit={groupInfoEditorData}
+            fallbackGroupInfo={groupInfo}
+            status={groupInfoEditorStatus}
+            requestError={groupInfoEditorError}
             onClose={() => setIsGroupInfoEditorOpen(false)}
             onSave={handleSaveGroupInfo}
           />
@@ -3001,18 +2843,13 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 }
 
 
-const MEMBER_ACHIEVEMENT_TITLES = {
-  me: ["Книжный старт", "Тихий читатель", "Верность группе"],
-  anna: ["Стабильный темп", "Командный вклад", "Две отметки подряд"],
-  mira: ["Первый шаг", "Возвращение к ритму"],
-  sofia: ["Идеальный день", "Серия без пауз", "Командный пример"],
-};
-
 function getMemberAchievements(member, memberStats) {
-  const preset = MEMBER_ACHIEVEMENT_TITLES[member?.id] || ["Участник группы"];
   const donePercent = memberStats?.total > 0 ? Math.round((memberStats.completed / memberStats.total) * 100) : 0;
+  const titles = donePercent === 100
+    ? ["Идеальный день", "Командный вклад"]
+    : ["Участник группы"];
 
-  return preset.map((title, index) => ({
+  return titles.map((title, index) => ({
     id: `${member?.id || "member"}-achievement-${index}`,
     title,
     desc:
@@ -3099,26 +2936,31 @@ function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakD
 }
 
 
-function GroupInfoEditorModal({ groupInfo, onClose, onSave }) {
-  const [draftName, setDraftName] = useState(groupInfo.name || "");
-  const [draftDescription, setDraftDescription] = useState(groupInfo.description || "");
+function GroupInfoEditorModal({ habit, fallbackGroupInfo, status, requestError, onClose, onSave }) {
+  const sourceTitle = habit?.title ?? fallbackGroupInfo?.name ?? "";
+  const sourceDescription = habit?.description ?? fallbackGroupInfo?.description ?? "";
+  const [draftName, setDraftName] = useState(sourceTitle);
+  const [draftDescription, setDraftDescription] = useState(sourceDescription || "");
   const [errors, setErrors] = useState({});
 
+
+  const isBusy = status === "loading" || status === "saving";
+
   const handleSave = () => {
-    const nextName = draftName.trim();
+    const nextTitle = draftName.trim();
     const nextDescription = draftDescription.trim();
     const nextErrors = {};
 
-    if (!nextName) {
-      nextErrors.name = "Введите название группы";
-    } else if (nextName.length < 2) {
-      nextErrors.name = "Название должно быть не короче 2 символов";
-    } else if (nextName.length > 80) {
-      nextErrors.name = "Название должно быть не длиннее 80 символов";
+    if (!nextTitle) {
+      nextErrors.name = "Нужно указать название группы";
+    } else if (nextTitle.length < 2) {
+      nextErrors.name = "Название группы должно быть не короче 2 символов";
+    } else if (nextTitle.length > 80) {
+      nextErrors.name = "Название группы должно быть не длиннее 80 символов";
     }
 
     if (nextDescription.length > 500) {
-      nextErrors.description = "Описание должно быть не длиннее 500 символов";
+      nextErrors.description = "Описание группы должно быть не длиннее 500 символов";
     }
 
     setErrors(nextErrors);
@@ -3126,15 +2968,21 @@ function GroupInfoEditorModal({ groupInfo, onClose, onSave }) {
     if (Object.keys(nextErrors).length > 0) return;
 
     onSave({
-      name: nextName,
-      description: nextDescription,
+      title: nextTitle,
+      description: nextDescription || null,
     });
   };
 
   return (
-    <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={onClose}>
+    <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={isBusy ? undefined : onClose}>
       <div className="task-editor-modal group-info-editor-modal" onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="task-editor-modal__close" onClick={onClose} aria-label="Закрыть окно">
+        <button
+          type="button"
+          className="task-editor-modal__close"
+          onClick={onClose}
+          disabled={isBusy}
+          aria-label="Закрыть окно"
+        >
           ×
         </button>
 
@@ -3142,19 +2990,23 @@ function GroupInfoEditorModal({ groupInfo, onClose, onSave }) {
           <div className="section-label">Настройки группы</div>
           <h2 className="task-editor-modal__title">Изменить название и описание</h2>
           <p className="task-editor-modal__text">
-            Эти данные отображаются на странице группы. Потом этот же блок можно будет связать с PATCH-запросом к бэкенду.
+            Название и описание может менять только администратор группы.
           </p>
         </div>
 
         <div className="group-info-editor__body">
+          {status === "loading" && <div className="group-form-error-card group-form-error-card--neutral">Загружаем данные группы...</div>}
+          {requestError && <div className="group-form-error-card">{requestError}</div>}
+
           <label className={`group-info-editor__field ${errors.name ? "group-info-editor__field--error" : ""}`}>
             <span>Название группы</span>
             <input
               type="text"
               value={draftName}
               maxLength={80}
+              disabled={isBusy || status === "error"}
               onChange={(event) => setDraftName(event.target.value)}
-              placeholder="Например, Quiet Pages"
+              placeholder="Например, Чистый дом"
             />
             {errors.name && <small className="group-form-error">{errors.name}</small>}
           </label>
@@ -3164,6 +3016,7 @@ function GroupInfoEditorModal({ groupInfo, onClose, onSave }) {
             <textarea
               value={draftDescription}
               maxLength={500}
+              disabled={isBusy || status === "error"}
               onChange={(event) => setDraftDescription(event.target.value)}
               placeholder="Коротко опиши цель группы"
             />
@@ -3173,8 +3026,13 @@ function GroupInfoEditorModal({ groupInfo, onClose, onSave }) {
         </div>
 
         <div className="task-editor-modal__footer">
-          <button type="button" className="modal-card__button task-editor-modal__save" onClick={handleSave}>
-            Сохранить
+          <button
+            type="button"
+            className="modal-card__button task-editor-modal__save"
+            onClick={handleSave}
+            disabled={isBusy || status === "error"}
+          >
+            {status === "saving" ? "Сохранение..." : "Сохранить"}
           </button>
         </div>
       </div>
@@ -3182,12 +3040,16 @@ function GroupInfoEditorModal({ groupInfo, onClose, onSave }) {
   );
 }
 
-function TaskEditorModal({ tasks, onClose, onSave }) {
-  const [draft, setDraft] = useState(() => createTaskEditorDraft(tasks));
+function TaskEditorModal({ editOptions, status, requestError, onClose, onSave }) {
+  const templates = editOptions?.taskTemplates?.length ? editOptions.taskTemplates : PERSONAL_TASK_TEMPLATES;
+  const [draft, setDraft] = useState(() => createTaskEditorDraftFromOptions(editOptions));
   const [errors, setErrors] = useState({ templates: {}, customTasks: {}, common: "" });
 
+
+  const isBusy = status === "loading" || status === "saving";
+
   const toggleTemplate = (templateId) => {
-    const template = PERSONAL_TASK_TEMPLATES.find((item) => item.id === templateId);
+    const template = templates.find((item) => item.id === templateId || item.code === templateId);
 
     setDraft((prev) => {
       const currentIds = prev.selectedTaskIds || [];
@@ -3207,18 +3069,13 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
     });
   };
 
-  const toggleCustomTask = (taskId) => {
-    setDraft((prev) => {
-      const currentIds = prev.customTaskIds || [];
-      const nextIds = currentIds.includes(taskId)
-        ? currentIds.filter((id) => id !== taskId)
-        : [...currentIds, taskId];
-
-      return {
-        ...prev,
-        customTaskIds: nextIds,
-      };
-    });
+  const toggleCustomSlot = (slotId) => {
+    setDraft((prev) => ({
+      ...prev,
+      customSlots: (prev.customSlots || []).map((slot) =>
+        slot.id === slotId ? { ...slot, selected: !slot.selected } : slot
+      ),
+    }));
   };
 
   const updateTemplateValue = (template, value) => {
@@ -3231,29 +3088,34 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
     }));
   };
 
-  const updateCustomTask = (taskId, value) => {
+  const updateCustomSlot = (slotId, value) => {
     setDraft((prev) => ({
       ...prev,
-      customTasks: {
-        ...prev.customTasks,
-        [taskId]: value,
-      },
+      customSlots: (prev.customSlots || []).map((slot) =>
+        slot.id === slotId ? { ...slot, finalText: value } : slot
+      ),
     }));
   };
 
   const handleSave = () => {
-    const nextErrors = validateTaskEditorDraft(draft);
+    const nextErrors = validateTaskEditorDraftWithTemplates(draft, templates);
     setErrors(nextErrors);
 
     if (hasTaskEditorErrors(nextErrors)) return;
 
-    onSave(buildTasksFromEditorDraft(draft, tasks));
+    onSave(buildTaskEditorRequestBody(draft, templates));
   };
 
   return (
-    <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={onClose}>
+    <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={isBusy ? undefined : onClose}>
       <div className="task-editor-modal" onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="task-editor-modal__close" onClick={onClose} aria-label="Закрыть окно">
+        <button
+          type="button"
+          className="task-editor-modal__close"
+          onClick={onClose}
+          disabled={isBusy}
+          aria-label="Закрыть окно"
+        >
           ×
         </button>
 
@@ -3261,124 +3123,139 @@ function TaskEditorModal({ tasks, onClose, onSave }) {
           <div className="section-label">Личные задания</div>
           <h2 className="task-editor-modal__title">Изменить мои задания</h2>
           <p className="task-editor-modal__text">
-            Эти изменения применяются только к твоему списку. Особое задание не меняется и продолжает жить отдельно.
+            Frontend получает шаблоны и текущие задания с backend. Существующие задания сохраняют taskId, новые отправляются без taskId.
           </p>
         </div>
 
         <div className="task-editor-scroll">
+          {status === "loading" && <div className="group-form-error-card group-form-error-card--neutral">Загружаем задания...</div>}
+          {requestError && <div className="group-form-error-card">{requestError}</div>}
           {errors.common && <div className="group-form-error-card">{errors.common}</div>}
 
-          <div className="task-editor-template-list">
-            {PERSONAL_TASK_TEMPLATES.map((template) => {
-              const isChecked = (draft.selectedTaskIds || []).includes(template.id);
-              const errorMessage = errors.templates?.[template.id];
-              const hasError = Boolean(errorMessage);
-              const currentValue = draft.templateValues?.[template.id] || "";
-              const inputProps = getTaskEditorInputProps(template);
-              const { before } = splitTemplateText(template.templateText);
-              const tail = getTaskEditorTemplateTail(template, currentValue);
-              const choices = getTaskEditorChoices(template);
+          {status !== "error" && (
+            <>
+              <div className="task-editor-template-list">
+                {templates.map((template) => {
+                  const isChecked = (draft.selectedTaskIds || []).includes(template.id);
+                  const errorMessage = errors.templates?.[template.id];
+                  const hasError = Boolean(errorMessage);
+                  const currentValue = draft.templateValues?.[template.id] || "";
+                  const inputProps = getTaskEditorInputProps(template);
+                  const { before } = splitTemplateText(template.templateText);
+                  const tail = getTaskEditorTemplateTail(template, currentValue);
+                  const choices = getTaskEditorChoices(template);
 
-              return (
-                <div
-                  key={template.id}
-                  className={`task-editor-template ${isChecked ? "task-editor-template--checked" : ""} ${hasError ? "task-editor-template--error" : ""}`}
-                >
-                  <label className="task-editor-template__main">
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleTemplate(template.id)}
-                    />
-                    <span className="task-editor-template__dot" />
-                    <span className="task-editor-template__text">
-                      {template.valueType === "none" ? (
-                        <span>{template.templateText}</span>
-                      ) : (
-                        <>
-                          {before && <span>{before}</span>}
-                          {template.valueType === "choice" ? (
-                            <span className="group-form-choice-list" aria-label="Выберите значение задания">
-                              {choices.map((choice) => (
-                                <button
-                                  key={choice}
-                                  type="button"
-                                  className={`group-form-choice-chip ${currentValue === choice ? "group-form-choice-chip--active" : ""}`}
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    if (!isChecked) toggleTemplate(template.id);
-                                    updateTemplateValue(template, choice);
-                                  }}
-                                >
-                                  {choice}
-                                </button>
-                              ))}
-                            </span>
+                  return (
+                    <div
+                      key={template.id}
+                      className={`task-editor-template ${isChecked ? "task-editor-template--checked" : ""} ${hasError ? "task-editor-template--error" : ""}`}
+                    >
+                      <label className="task-editor-template__main">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={isBusy}
+                          onChange={() => toggleTemplate(template.id)}
+                        />
+                        <span className="task-editor-template__dot" />
+                        <span className="task-editor-template__text">
+                          {template.valueType === "none" ? (
+                            <span>{template.templateText}</span>
                           ) : (
-                            <input
-                              {...inputProps}
-                              value={currentValue}
-                              onChange={(event) => updateTemplateValue(template, event.target.value)}
-                              aria-invalid={hasError}
-                            />
+                            <>
+                              {before && <span>{before}</span>}
+                              {template.valueType === "choice" ? (
+                                <span className="group-form-choice-list" aria-label="Выберите значение задания">
+                                  {choices.map((choice) => (
+                                    <button
+                                      key={choice}
+                                      type="button"
+                                      disabled={isBusy}
+                                      className={`group-form-choice-chip ${currentValue === choice ? "group-form-choice-chip--active" : ""}`}
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        if (!isChecked) toggleTemplate(template.id);
+                                        updateTemplateValue(template, choice);
+                                      }}
+                                    >
+                                      {choice}
+                                    </button>
+                                  ))}
+                                </span>
+                              ) : (
+                                <input
+                                  {...inputProps}
+                                  value={currentValue}
+                                  disabled={isBusy}
+                                  onChange={(event) => updateTemplateValue(template, event.target.value)}
+                                  aria-invalid={hasError}
+                                />
+                              )}
+                              {tail && <span>{tail}</span>}
+                            </>
                           )}
-                          {tail && <span>{tail}</span>}
-                        </>
-                      )}
-                    </span>
-                  </label>
+                        </span>
+                      </label>
 
-                  {hasError && <small className="group-form-error task-editor-template__error">{errorMessage}</small>}
-                </div>
-              );
-            })}
-          </div>
+                      {hasError && <small className="group-form-error task-editor-template__error">{errorMessage}</small>}
+                    </div>
+                  );
+                })}
+              </div>
 
-          <div className="task-editor-custom-head group-form-custom-head">
-            <span>Вписать своё задание</span>
-            <span className="group-form-info" tabIndex={0} aria-label="Информация о своих заданиях">
-              !
-              <span className="group-form-info__tooltip">За выполнение данных заданий нельзя получить достижение</span>
-            </span>
-          </div>
+              <div className="task-editor-custom-head group-form-custom-head">
+                <span>Вписать своё задание</span>
+                <span className="group-form-info" tabIndex={0} aria-label="Информация о своих заданиях">
+                  !
+                  <span className="group-form-info__tooltip">За выполнение данных заданий нельзя получить достижение</span>
+                </span>
+              </div>
 
-          <div className="task-editor-custom-list">
-            {PERSONAL_CUSTOM_TASK_IDS.map((id, index) => {
-              const isChecked = (draft.customTaskIds || []).includes(id);
-              const customError = errors.customTasks?.[id];
-              const hasError = Boolean(customError);
+              <div className="task-editor-custom-list">
+                {(draft.customSlots || []).map((slot, index) => {
+                  const customError = errors.customTasks?.[slot.id];
+                  const hasError = Boolean(customError);
 
-              return (
-                <label
-                  key={id}
-                  className={`task-editor-custom-task ${isChecked ? "task-editor-custom-task--checked" : ""} ${hasError ? "task-editor-custom-task--error" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => toggleCustomTask(id)}
-                  />
-                  <span className="task-editor-template__dot" />
-                  <span className="task-editor-custom-task__body">
-                    <input
-                      value={draft.customTasks?.[id] || ""}
-                      onChange={(event) => updateCustomTask(id, event.target.value)}
-                      placeholder={`Своё задание ${index + 1}`}
-                      maxLength={160}
-                      aria-invalid={hasError}
-                    />
-                    {hasError && <small className="group-form-error">{customError}</small>}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
+                  return (
+                    <label
+                      key={slot.id}
+                      className={`task-editor-custom-task ${slot.selected ? "task-editor-custom-task--checked" : ""} ${hasError ? "task-editor-custom-task--error" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={slot.selected}
+                        disabled={isBusy}
+                        onChange={() => toggleCustomSlot(slot.id)}
+                      />
+                      <span className="task-editor-template__dot" />
+                      <span className="task-editor-custom-task__body">
+                        <input
+                          value={slot.finalText || ""}
+                          disabled={isBusy}
+                          onChange={(event) => updateCustomSlot(slot.id, event.target.value)}
+                          placeholder={`Своё задание ${index + 1}`}
+                          maxLength={160}
+                          aria-invalid={hasError}
+                        />
+                        {hasError && <small className="group-form-error">{customError}</small>}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="task-editor-modal__footer">
-          <button type="button" className="modal-card__button task-editor-modal__save" onClick={handleSave}>
-            Сохранить
+          <button
+            type="button"
+            className="modal-card__button task-editor-modal__save"
+            onClick={handleSave}
+            disabled={isBusy || status === "error"}
+          >
+            {status === "saving" ? "Сохранение..." : "Сохранить"}
           </button>
         </div>
       </div>
@@ -3497,9 +3374,11 @@ function GroupSettingsPanel({
         Изменить задания
       </button>
 
-      <button type="button" className="group-settings__tasks" onClick={onEditGroupInfo}>
-        Изменить название и описание
-      </button>
+      {isOwner && (
+        <button type="button" className="group-settings__tasks" onClick={onEditGroupInfo}>
+          Изменить название и описание
+        </button>
+      )}
 
       <div className="group-settings-code-card">
         <span className="group-settings-code-card__label">Код группы</span>
@@ -3593,7 +3472,6 @@ function CalendarBlock({
   viewedDate,
   setViewedDate,
   currentDate,
-  zeroTaskDates,
   groupStats,
   calendarDays,
 }) {
@@ -3727,19 +3605,11 @@ function CalendarBlock({
                     }
                   : isFuture
                     ? { completed: 0, total: groupStats.members.length }
-                    : getDayGroupProgress(cell.date, currentDate, zeroTaskDates, {
-                        ...groupStats,
-                        completed: groupStats.members.filter(
-                          (member) => member.total > 0 && member.completed === member.total
-                        ).length,
-                        total: groupStats.members.length,
-                      });
+                    : { completed: 0, total: groupStats.members.length };
                 const dayState = apiDay?.state ?? null;
                 const hasZeroMember = apiDay
                   ? canColorDay && dayState === "bad"
-                  : canColorDay && !isFuture && (isToday
-                    ? groupStats.members.some((member) => member.completed === 0)
-                    : zeroTaskDates.has(getDateKey(cell.date)));
+                  : canColorDay && !isFuture && isToday && groupStats.members.some((member) => member.completed === 0);
                 const isComplete = apiDay
                   ? canColorDay && dayState === "good"
                   : canColorDay &&

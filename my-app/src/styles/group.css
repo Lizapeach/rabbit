@@ -4060,3 +4060,16 @@ button {
     ),
     linear-gradient(135deg, var(--color-glass-highlight), var(--color-glass-highlight-soft));
 }
+/* === Backend edit modals: neutral loading state === */
+.group-form-error-card--neutral {
+  border-color: var(--color-border-soft);
+  background: var(--color-modal-inner-solid, var(--surface-inner-gradient));
+  color: var(--color-text-soft);
+}
+
+.task-editor-modal__close:disabled {
+  cursor: default;
+  opacity: 0.58;
+  transform: none;
+  filter: grayscale(0.18);
+}
