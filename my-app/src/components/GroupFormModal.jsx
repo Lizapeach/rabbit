@@ -32,22 +32,6 @@ const CATEGORY_TITLE_BY_CODE = {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://habbit-backend-k33d.onrender.com";
 
-const TEMPLATE_INPUT_PLACEHOLDERS = {
-  reading_pages: "например, 10",
-  reading_minutes: "например, 20",
-  reading_chapters: "например, 2",
-  reading_chapter: "например, 2",
-  reading_note: "цитату, вывод, мысль",
-  sport_minutes: "например, 30",
-  sport_sets: "1–10",
-  sport_steps: "например, 8000",
-  sport_stretch: "например, 10",
-  nutrition_water: "1–20",
-  nutrition_no_sweets: "1–24",
-  nutrition_calories: "например, 1800",
-  nutrition_meals: "3–5",
-  cleaning_minutes: "например, 15",
-};
 
 const LOCAL_TASK_TEMPLATES = {
   reading: [
@@ -259,7 +243,7 @@ const JOIN_PREVIEW_MODES = {
 
 const JOIN_PREVIEW_MODE_TEXT = {
   [JOIN_PREVIEW_MODES.NEW_MEMBER]: "Вы новый участник. Нужно заполнить личные задания.",
-  [JOIN_PREVIEW_MODES.RETURN_EXISTING]: "Можно вернуться в группу без выбора заданий: прежние задания и прогресс сохраняются.",
+  [JOIN_PREVIEW_MODES.RETURN_EXISTING]: "Можно вернуться в привычку без выбора заданий: прежние задания и прогресс сохраняются.",
   [JOIN_PREVIEW_MODES.REJOIN_NEW_DATA]: "Нужно выбрать задания заново: прошлые данные уже не восстанавливаются.",
 };
 
@@ -411,7 +395,7 @@ function normalizeTaskTemplate(rawTemplate) {
     step: rawTemplate?.step,
     maxLength: rawTemplate?.maxLength || (valueType === "text" ? 30 : undefined),
     choiceOptions,
-    placeholder: rawTemplate?.placeholder || TEMPLATE_INPUT_PLACEHOLDERS[code] || "Введите значение",
+    placeholder: rawTemplate?.placeholder,
   };
 }
 
@@ -622,7 +606,7 @@ function getTemplateInputProps(template) {
 
   return {
     type: template.valueType === "number" ? "number" : "text",
-    placeholder: template.placeholder || TEMPLATE_INPUT_PLACEHOLDERS[template.code] || "Введите значение",
+    placeholder: template.placeholder,
     min: template.minValue,
     max: template.maxValue,
     step: template.step || (template.valueType === "number" ? 1 : undefined),
@@ -639,19 +623,19 @@ function validateGroupFormStep(step, flow, form, templates = [], options = {}) {
     const groupDescription = String(form.groupDescription || "").trim();
 
     if (isBlank(form.categoryId)) errors.categoryId = "Выберите категорию";
-    if (!groupName) errors.groupName = "Нужно указать название группы";
-    else if (groupName.length < 2) errors.groupName = "Название группы должно быть не короче 2 символов";
-    else if (groupName.length > 80) errors.groupName = "Название группы должно быть не длиннее 80 символов";
+    if (!groupName) errors.groupName = "Нужно указать название привычки";
+    else if (groupName.length < 2) errors.groupName = "Название привычки должно быть не короче 2 символов";
+    else if (groupName.length > 80) errors.groupName = "Название привычки должно быть не длиннее 80 символов";
 
     if (groupDescription.length > 500) {
-      errors.groupDescription = "Описание группы должно быть не длиннее 500 символов";
+      errors.groupDescription = "Описание привычки должно быть не длиннее 500 символов";
     }
   }
 
   if (flow === "join" && step === 2) {
     const inviteCode = String(form.inviteCode || "").trim().toUpperCase();
 
-    if (isBlank(inviteCode)) errors.inviteCode = "Впишите код группы";
+    if (isBlank(inviteCode)) errors.inviteCode = "Впишите код привычки";
     else if (!/^HAB-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(inviteCode)) {
       errors.inviteCode = "Код должен быть в формате HAB-XXXX-XXXX";
     }
@@ -675,22 +659,22 @@ function validateGroupFormStep(step, flow, form, templates = [], options = {}) {
 
     const usedCustomTexts = new Set();
 
-    selectedCustomIds.forEach((taskId, index) => {
+    selectedCustomIds.forEach((taskId) => {
       const preparedText = String(form.customTasks?.[taskId] || "").trim();
       const loweredText = preparedText.toLowerCase();
 
       if (!preparedText) {
-        customTaskErrors[taskId] = `Свое задание №${index + 1} пустое`;
+        customTaskErrors[taskId] = `Заполните поле`;
         return;
       }
 
       if (preparedText.length > 160) {
-        customTaskErrors[taskId] = `Свое задание №${index + 1} должно быть не длиннее 160 символов`;
+        customTaskErrors[taskId] = `Данное задание должно быть не длиннее 160 символов`;
         return;
       }
 
       if (usedCustomTexts.has(loweredText)) {
-        customTaskErrors[taskId] = `Свое задание «${preparedText}» повторяется`;
+        customTaskErrors[taskId] = `Данное задание повторяется`;
         return;
       }
 
@@ -952,7 +936,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
       return data;
     } catch (error) {
       setJoinPreview(null);
-      setActionError(error?.message || "Не удалось найти группу по коду");
+      setActionError(error?.message || "Не удалось найти привычку по коду");
       return false;
     } finally {
       setIsActionPending(false);
@@ -993,7 +977,7 @@ function GroupFormModalContent({ onClose, onSubmit }) {
       });
       onClose?.();
     } catch (error) {
-      setActionError(error?.message || "Не удалось присоединиться к группе");
+      setActionError(error?.message || "Не удалось присоединиться к привычке");
     } finally {
       setIsActionPending(false);
     }
@@ -1082,9 +1066,8 @@ function GroupFormModalContent({ onClose, onSubmit }) {
         </button>
 
         <div className="group-form-modal__header">
-          <div className="section-label">Новая группа</div>
           <h2 id="group-form-title" className="group-form-modal__title">
-            Создание или вход в группу
+            Создание или вход в привычку
           </h2>
         </div>
 
@@ -1163,18 +1146,16 @@ function Stepper({ children, currentStep, direction, onStepClick }) {
 
 function ChoiceStep({ flow, onFlowChange }) {
   return (
-    <StepShell title="Что нужно сделать?">
+    <StepShell title="Выбери подходящий для себя вариант">
       <div className="group-form-options">
         <RadioCard
           checked={flow === "create"}
-          title="Создать новую группу"
-          text="Ты выбираешь категорию, описание, задания и получаешь код для друзей."
+          title="Создать новую привычку"
           onChange={() => onFlowChange("create")}
         />
         <RadioCard
           checked={flow === "join"}
-          title="Присоединиться к существующей группе"
-          text="Ты вводишь код группы и выбираешь личные задания внутри её категории."
+          title="Присоединиться к существующей привычке"
           onChange={() => onFlowChange("join")}
         />
       </div>
@@ -1196,15 +1177,15 @@ function CreateGroupDetailsStep({ form, setForm, categories, errors = {} }) {
   };
 
   return (
-    <StepShell title="Данные группы" className="group-form-step--details">
+    <StepShell title="Данные Привычки" className="group-form-step--details">
       <CategoryDropdown categories={categories} value={form.categoryId} onChange={handleCategoryChange} error={errors.categoryId} />
 
       <label className={`group-form-field ${errors.groupName ? "group-form-field--error" : ""}`.trim()}>
-        <span>Впишите название группы</span>
+        <span>Впишите название привычки</span>
         <input
           value={form.groupName}
           onChange={(event) => setForm((prev) => ({ ...prev, groupName: event.target.value }))}
-          placeholder="Например: Daily Chapter"
+          placeholder="Например: Чистый дом"
           maxLength={80}
           aria-invalid={Boolean(errors.groupName)}
         />
@@ -1212,11 +1193,11 @@ function CreateGroupDetailsStep({ form, setForm, categories, errors = {} }) {
       </label>
 
       <label className={`group-form-field group-form-field--description ${errors.groupDescription ? "group-form-field--error" : ""}`.trim()}>
-        <span>Впишите описание группы</span>
+        <span>Впишите описание привычки</span>
         <textarea
           value={form.groupDescription}
           onChange={(event) => setForm((prev) => ({ ...prev, groupDescription: event.target.value }))}
-          placeholder="Коротко опиши цель группы"
+          placeholder="Коротко опиши цель привычки"
           rows={2}
           maxLength={500}
           aria-invalid={Boolean(errors.groupDescription)}
@@ -1315,9 +1296,9 @@ function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionErro
   };
 
   return (
-    <StepShell title="Код группы" text="Введи код приглашения. После нажатия «Далее» форма проверит, можно ли войти в группу и нужно ли выбирать задания.">
+    <StepShell title="Код привычки" text="Введи код приглашения. После нажатия «Далее» форма проверит, можно ли войти в привычку и нужно ли выбирать задания.">
       <label className={`group-form-field ${errors.inviteCode ? "group-form-field--error" : ""}`.trim()}>
-        <span>Впишите код группы</span>
+        <span>Впишите код привычки</span>
         <input
           value={form.inviteCode}
           onChange={handleInviteCodeChange}
@@ -1329,17 +1310,13 @@ function JoinGroupCodeStep({ form, setForm, joinPreview, errors = {}, actionErro
       </label>
 
       {actionError && <div className="group-form-error-card">{actionError}</div>}
-      {isLoading && <div className="group-form-hint-card">Проверяю код и загружаю данные группы...</div>}
+      {isLoading && <div className="group-form-hint-card">Проверяю код и загружаю данные привычки...</div>}
 
-      {previewHabit ? (
+      {previewHabit && (
         <div className="group-form-hint-card">
-          Найдена группа: <strong>{previewHabit.title}</strong> · {CATEGORY_TITLE_BY_CODE[previewHabit.habitTypeCode] || previewHabit.habitTypeCode}.
+          Найдена привычка: <strong>{previewHabit.title}</strong> · {CATEGORY_TITLE_BY_CODE[previewHabit.habitTypeCode] || previewHabit.habitTypeCode}.
           Свободных мест: {joinPreview?.availablePlacesCount ?? "—"}.
           {previewModeText && <div className="group-form-hint-card__status">{previewModeText}</div>}
-        </div>
-      ) : (
-        <div className="group-form-hint-card">
-          Формат кода: HAB-XXXX-XXXX. Категория и условия входа подтянутся с бэка после проверки кода.
         </div>
       )}
     </StepShell>
@@ -1474,7 +1451,7 @@ function TasksStep({ templates, form, setForm, errors = {}, isLoading = false, l
         </div>
 
         <div className="group-form-custom-list">
-          {CUSTOM_TASK_IDS.map((id, index) => {
+          {CUSTOM_TASK_IDS.map((id) => {
             const isChecked = (form.customTaskIds || []).includes(id);
             const customError = errors.customTasks?.[id];
             const hasError = Boolean(customError);
@@ -1496,7 +1473,7 @@ function TasksStep({ templates, form, setForm, errors = {}, isLoading = false, l
                         customTasks: { ...(prev.customTasks || {}), [id]: event.target.value },
                       }))
                     }
-                    placeholder={`Своё задание ${index + 1}`}
+                    placeholder={`Впиши сюда свое задание`}
                     maxLength={160}
                     aria-invalid={hasError}
                   />
@@ -1524,14 +1501,14 @@ function ReviewStep({ flow, form, templates, categoryId, joinedGroup, categories
       className="group-form-step--review"
     >
       <div className="group-form-review">
-        <ReviewItem label="Действие" value={isCreateFlow ? "Создать новую группу" : "Присоединиться к группе"} />
+        <ReviewItem label="Действие" value={isCreateFlow ? "Создать новую привычку" : "Присоединиться к кривычке"} />
         <ReviewItem label="Категория" value={getCategoryTitle(categoryId, categories)} />
-        <ReviewItem label={isCreateFlow ? "Название группы" : "Группа"} value={isCreateFlow ? form.groupName : joinedGroup?.title || joinedGroup?.name} />
+        <ReviewItem label={isCreateFlow ? "Название привычки" : "привычка"} value={isCreateFlow ? form.groupName : joinedGroup?.title || joinedGroup?.name} />
 
         {isCreateFlow ? (
           <ReviewItem label="Описание" value={form.groupDescription} />
         ) : (
-          <ReviewItem label="Код группы" value={form.inviteCode} />
+          <ReviewItem label="Код привычки" value={form.inviteCode} />
         )}
 
         {actionError && <div className="group-form-error-card">{actionError}</div>}
@@ -1581,9 +1558,9 @@ function RadioCard({ checked, title, text = "", onChange }) {
     <label className={`group-form-radio-card ${checked ? "group-form-radio-card--checked" : ""}`}>
       <input type="radio" checked={checked} onChange={onChange} />
       <span className="group-form-radio-card__dot" />
-      <span>
+      <span className="group-form-radio-card__text">
         <strong>{title}</strong>
-        <small>{text}</small>
+        {text && <small>{text}</small>}
       </span>
     </label>
   );

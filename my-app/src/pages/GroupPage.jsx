@@ -42,13 +42,6 @@ const API_URL = import.meta.env.VITE_API_URL || "https://habbit-backend-k33d.onr
 const NOTES_POLL_INTERVAL_MS = 5000;
 const AUTH_TOKEN_STORAGE_KEYS = ["token", "authToken", "habbitToken", "habbit-auth-token"];
 
-const TASK_EDITOR_PLACEHOLDERS = {
-  reading_pages: "например, 10",
-  reading_minutes: "например, 20",
-  reading_chapters: "например, 2",
-  reading_note: "цитату, вывод, мысль",
-};
-
 const PERSONAL_TASK_TEMPLATES = [];
 
 const PERSONAL_CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
@@ -261,22 +254,22 @@ function validateTaskEditorDraftWithTemplates(draft, templates) {
 
   const usedCustomTexts = new Set();
 
-  selectedCustomSlots.forEach((slot, index) => {
+  selectedCustomSlots.forEach((slot) => {
     const preparedText = String(slot.finalText || "").trim();
     const loweredText = preparedText.toLowerCase();
 
     if (!preparedText) {
-      errors.customTasks[slot.id] = `Свое задание №${index + 1} пустое`;
+      errors.customTasks[slot.id] = `Заполните поле`;
       return;
     }
 
     if (preparedText.length > 160) {
-      errors.customTasks[slot.id] = `Свое задание №${index + 1} должно быть не длиннее 160 символов`;
+      errors.customTasks[slot.id] = `Данное задание должно быть не длиннее 160 символов`;
       return;
     }
 
     if (usedCustomTexts.has(loweredText)) {
-      errors.customTasks[slot.id] = `Свое задание «${preparedText}» повторяется`;
+      errors.customTasks[slot.id] = `Данное задание повторяется`;
       return;
     }
 
@@ -292,7 +285,7 @@ function validateTaskEditorDraftWithTemplates(draft, templates) {
   }
 
   if (Object.keys(errors.customTasks).length > 0) {
-    errors.common = "Заполните выбранные свои задания";
+    errors.common = "Заполните выбранные задания";
   }
 
   return errors;
@@ -691,7 +684,7 @@ function getTaskEditorInputProps(template) {
 
   return {
     type: template.valueType === "number" ? "number" : "text",
-    placeholder: template.placeholder || TASK_EDITOR_PLACEHOLDERS[template.code] || "Введите значение",
+    placeholder: template.placeholder,
     min: template.minValue,
     max: template.maxValue,
     step: template.step || (template.valueType === "number" ? 1 : undefined),
@@ -1349,6 +1342,24 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const selectedMemberColor = selectedFriend?.color || USER.avatarColor;
   const selectedMemberColorSoft = hexToRgba(selectedMemberColor, 0.22);
 
+  const isSoloGroup = friendsWithColors.length <= 1;
+
+  const overviewTitle = isSoloGroup ? "Личный прогресс" : "Прогресс группы";
+
+  const overviewDescription = isSoloGroup
+    ? "Отмечай задания, заполняй шкалу и следи за настроением питомца. Нажми на зайчика, чтобы приодеть его, сменить имя или фон."
+    : "Отмечайте задания вместе, следите за прогрессом друзей и их достижениями, нажав на икноку профиля. Общий прогресс влияет на настроение питомца. Нажми на зайчика, чтобы приодеть его, сменить имя или фон.";
+  
+  const rhythmTitle = isSoloGroup ? "Личный ритм" : "Ритм группы";
+
+  const rhythmDescription = isSoloGroup
+    ? "Здесь хранится история твоего прогресса. Зелёный день означает, что все задания выполнены, красный означает, что задания не были выполнены и серия потеряна. В статистике можно посмотреть, сколько заданий было сделано по дням."
+    : "Здесь хранится история совместного прогресса. Зелёный день означает, что группа хорошо справилась со всеми заданиями, красный означает, что кто-то не выполнил ни одного задания и серия была потеряна. В статистике можно посмотреть, сколько заданий сделали участники по дням.";
+   
+  const notesDescription = isSoloGroup
+  ? "Щёлкни правой кнопкой по панели, чтобы оставить заметку для себя. Заметку можно перетаскивать по полю, удерживая её левой кнопкой мыши. Когда пригласишь друзей, они тоже смогут её видеть :)."
+  : "Щёлкни правой кнопкой по панели, чтобы оставить заметку для себя или друга. Участники группы её увидят, а саму заметку можно перетаскивать по полю левой кнопкой мыши.";
+  
   const handleOpenBunnyShop = () => {
     setIsBunnyShopOpen(true);
   };
@@ -2230,6 +2241,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
               <section className="group-overview-section">
                 <BorderGlow>
                   <div className="group-panel group-panel--overview">
+                  <div className="group-panel__heading group-panel__heading--overview"> 
+                    <h2 className="section-title">{overviewTitle}</h2>
+                    <p className="section-description">{overviewDescription}</p>
+                    </div> 
                     <div className="group-overview-grid">
                       <aside
                         className="group-character-space group-character-space--clickable"
@@ -2294,7 +2309,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                           </div>
 
                           <div className="group-task-board__counter">
-                            {groupStats.completed}/{groupStats.total} заданий группы
+                            {groupStats.completed}/{groupStats.total} всех заданий 
                           </div>
                         </div>
 
@@ -2390,13 +2405,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                 <BorderGlow>
                   <div className="group-panel group-panel--calendar">
                     <div className="group-panel__heading">
-                      <div className="section-label">Календарь и аналитика</div>
-                      <h2 className="section-title">Ритм группы</h2>
-                      <p className="section-description">
-                        Календарь рассчитывается по состоянию дня с backend: зелёный — good,
-                        красный — bad, нейтральный — ok или null. Особое задание
-                        в календарь и общий прогресс не входит.
-                      </p>
+                      <h2 className="section-title">{rhythmTitle}</h2>
+                      <p className="section-description">{rhythmDescription}</p>
                     </div>
 
                     <div className="rhythm-grid">
@@ -2412,7 +2422,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
                       <div className="analytics-list">
                         <AnalyticsAccordion
-                          title="Аналитика недели"
+                          title="Сатистика недели"
                           isOpen={analyticsOpen.week}
                           onToggle={() =>
                             setAnalyticsOpen((prev) => ({ ...prev, week: !prev.week }))
@@ -2421,7 +2431,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                           />
 
                         <AnalyticsAccordion
-                          title="Аналитика месяца"
+                          title="Статистика месяца"
                           isOpen={analyticsOpen.month}
                           onToggle={() =>
                             setAnalyticsOpen((prev) => ({ ...prev, month: !prev.month }))
@@ -2445,12 +2455,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                     onContextMenu={handleNotesBoardContextMenu}
                     aria-label="Поле заметок группы"
                   >
-                    <div className="section-label">Записки</div>
-                    <h2 className="section-title">Общее поле заметок</h2>
-                    <p className="section-description">
-                      Щёлкни правой кнопкой мыши по этой панели, чтобы открыть меню записки. После
-                      создания записку можно перетаскивать только внутри этого блока.
-                    </p>
+                    <h2 className="section-title">Поле для заметок</h2>
+                    <p className="section-description">{notesDescription}</p>
 
                     <div className="group-notes-layer">
                       {notes.map((note) => {
@@ -2635,11 +2641,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                   <div className="modal-card__title">
                     {exitPreview?.mode === "delete_habit_on_leave" ? "Удалить группу при выходе?" : "Выйти из группы?"}
                   </div>
-                  <div
-                    className={`modal-card__text ${
-                      exitPreview?.mode === "delete_habit_on_leave" ? "modal-card__text--warning" : ""
-                    }`}
-                  >
+                  <div className="modal-card__text">
                     {exitPreview?.mode === "delete_habit_on_leave"
                       ? "Если Вы покинете привычку, она будет удалена вместе с прогрессом. Восстановлению группа не подлежит."
                       : "Вы уверены, что хотите выйти из группы? Вы сможете вернуться в течение 48 часов без потери прогресса."}
@@ -2873,8 +2875,8 @@ function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakD
 
         <div className="member-info-modal__header">
           <div className="member-info-modal__identity">
-            <div className="section-label">Информация участника</div>
-            <h2 className="member-info-modal__name">{member.name}</h2>
+            <h2 className="task-editor-modal__title">Информация участника</h2>
+            <h2 className="member-info-modal__name"> {member.name}</h2>
             {isAdmin && <div className="member-info-modal__role">Администратор группы</div>}
           </div>
         </div>
@@ -2987,10 +2989,9 @@ function GroupInfoEditorModal({ habit, fallbackGroupInfo, status, requestError, 
         </button>
 
         <div className="task-editor-modal__header">
-          <div className="section-label">Настройки группы</div>
           <h2 className="task-editor-modal__title">Изменить название и описание</h2>
           <p className="task-editor-modal__text">
-            Название и описание может менять только администратор группы.
+            Здесь можно изменить название и описание привычки. Эти данные будут видны всем участникам.
           </p>
         </div>
 
@@ -3006,7 +3007,7 @@ function GroupInfoEditorModal({ habit, fallbackGroupInfo, status, requestError, 
               maxLength={80}
               disabled={isBusy || status === "error"}
               onChange={(event) => setDraftName(event.target.value)}
-              placeholder="Например, Чистый дом"
+              placeholder="Например: Чистый дом"
             />
             {errors.name && <small className="group-form-error">{errors.name}</small>}
           </label>
@@ -3120,10 +3121,9 @@ function TaskEditorModal({ editOptions, status, requestError, onClose, onSave })
         </button>
 
         <div className="task-editor-modal__header">
-          <div className="section-label">Личные задания</div>
-          <h2 className="task-editor-modal__title">Изменить мои задания</h2>
+          <h2 className="task-editor-modal__title">Изменить задания</h2>
           <p className="task-editor-modal__text">
-            Frontend получает шаблоны и текущие задания с backend. Существующие задания сохраняют taskId, новые отправляются без taskId.
+            Здесь можно отредактировать свои задания.
           </p>
         </div>
 
@@ -3213,7 +3213,7 @@ function TaskEditorModal({ editOptions, status, requestError, onClose, onSave })
               </div>
 
               <div className="task-editor-custom-list">
-                {(draft.customSlots || []).map((slot, index) => {
+                {(draft.customSlots || []).map((slot) => {
                   const customError = errors.customTasks?.[slot.id];
                   const hasError = Boolean(customError);
 
@@ -3234,7 +3234,7 @@ function TaskEditorModal({ editOptions, status, requestError, onClose, onSave })
                           value={slot.finalText || ""}
                           disabled={isBusy}
                           onChange={(event) => updateCustomSlot(slot.id, event.target.value)}
-                          placeholder={`Своё задание ${index + 1}`}
+                          placeholder={`Впиши сюда свое задание`}
                           maxLength={160}
                           aria-invalid={hasError}
                         />
@@ -3305,10 +3305,10 @@ function GroupSettingsPanel({
         </button>
       )}
 
-      <div className="group-settings__title">Настройки группы</div>
+      <div className="group-settings__title">Настройки</div>
 
       <div className="group-settings__scroll">
-        <div className="group-settings__subtitle">Изменить цвет участника. Цвет применится после сохранения.</div>
+        <div className="group-settings__subtitle">Меняй цвета на любимые, редактируй задания, название или описание привычки.</div>
 
         <div className="group-color-list">
           {members.map((member) => {

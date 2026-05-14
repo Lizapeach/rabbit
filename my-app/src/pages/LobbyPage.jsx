@@ -68,7 +68,7 @@ const ACHIEVEMENTS = [
   },
   {
     title: "Командный темп",
-    desc: "Внутри одной группы неделя прошла без общего провала.",
+    desc: "Внутри одной привычки неделя прошла без общего провала.",
   },
   {
     title: "Нежная настойчивость",
@@ -149,7 +149,7 @@ async function createHabitOnServer(payload) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data?.message || "Не удалось создать группу");
+    throw new Error(data?.message || "Не удалось создать привычку");
   }
 
   return data;
@@ -165,10 +165,10 @@ function getGroupWord(count) {
   const lastTwoDigits = number % 100;
   const lastDigit = number % 10;
 
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return "групп";
-  if (lastDigit === 1) return "группа";
-  if (lastDigit >= 2 && lastDigit <= 4) return "группы";
-  return "групп";
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return "привычек";
+  if (lastDigit === 1) return "привычка";
+  if (lastDigit >= 2 && lastDigit <= 4) return "привычки";
+  return "привычек";
 }
 
 function getStreakText(value) {
@@ -202,7 +202,7 @@ function normalizeHabitToGroup(habit) {
   return {
     id: habit?.id,
     name: title,
-    note: description || `${roleText}, группа ${statusText}`,
+    note: description || `${roleText}, привычка ${statusText}`,
     progress: `Серия: ${getStreakText(currentStreak)}`,
     groupCode: habit?.inviteCode || "",
     habitTypeCode: habit?.habitTypeCode,
@@ -265,6 +265,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
   const habitsLoadError = habitsLoadState.error;
 
   const categories = useMemo(() => buildCategoriesFromHabits(habits), [habits]);
+  const hasGroups = categories.some((category) => category.groups?.length > 0);
 
   const loadHabits = useCallback(async ({ silent = false } = {}) => {
     if (!getStoredAuthToken()) {
@@ -287,7 +288,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
       setHabits([]);
       setHabitsLoadState({
         status: "error",
-        error: error?.message || "Не удалось загрузить группы",
+        error: error?.message || "Не удалось загрузить привычку",
       });
       return [];
     }
@@ -358,7 +359,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
         categoryTitle: CATEGORY_TITLE_BY_ID[habitTypeCode] || habitTypeCode,
         groupId: habit.id,
         habitMemberId: member?.id || habit?.habitMemberId,
-        groupName: habit.title || "Группа",
+        groupName: habit.title || "Привычка",
         groupCode: habit.inviteCode || "",
         role: member?.role || habit?.role,
         status: member?.status || habit?.status || "active",
@@ -406,7 +407,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
           setIsInviteCodeCopied(false);
           setInviteCodeModal({
             code: inviteCode,
-            groupName: habit?.title || payload.groupName || "Новая группа",
+            groupName: habit?.title || payload.groupName || "Новая привычка",
             habit,
             member,
           });
@@ -416,7 +417,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
         openServerHabitPage(habit, member);
       } catch (error) {
         console.error("Habit creation failed:", error);
-        alert(error?.message || "Не удалось создать группу на сервере");
+        alert(error?.message || "Не удалось создать привычку на сервере");
       }
     },
     [loadHabits, openServerHabitPage]
@@ -465,14 +466,14 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                 <BorderGlow>
                   <div className="hero-card__inner">
                     <h1 className="hero-card__title">
-                      Добро пожаловать,
+                      Рады вас видеть,
                       <span>{userName}</span>
                     </h1>
 
                     <div className="hero-card__divider" />
 
                     <p className="hero-card__text">
-                      Даже одно маленькое выполненное действие уже создаёт движение вперёд.
+                      Даже одно маленькое выполненное действие движет вперёд.
                     </p>
                   </div>
                 </BorderGlow>
@@ -485,25 +486,20 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                   <BorderGlow>
                     <div className="panel-card panel-card--categories">
                       <div>
-                        <div className="section-label">Категории</div>
-                        <h2 className="section-title">Твои категории и группы</h2>
+                        <h2 className="section-title">Категории привычек</h2>
                         <p className="section-description">
-                          Здесь отображаются привычки, которые пришли из базы данных для текущего пользователя.
+                          {hasGroups
+                            ? "Здесь собраны твои привычки по категориям. Открывай карточки, чтобы смотреть созданные привычки, участников и ежедневный прогресс."
+                            : "Здесь будут отображаться все твои привычки собранные по категориям. Пока тут пусто, поэтому предлагаю нажать на плюс, создать первую привычку или присоединиться по коду"}
                         </p>
                       </div>
 
                       {isHabitsLoading && (
-                        <p className="section-description">Загружаю группы из базы данных...</p>
+                        <p className="section-description">Загружаю Привычки...</p>
                       )}
 
                       {habitsLoadError && (
                         <p className="section-description">{habitsLoadError}</p>
-                      )}
-
-                      {!isHabitsLoading && !habitsLoadError && habits.length === 0 && (
-                        <p className="section-description">
-                          У тебя пока нет привычек. Нажми на плюс, чтобы создать первую группу.
-                        </p>
                       )}
 
                       <AnimatedScrollList className="category-list">
@@ -571,7 +567,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                                           onKeyDown={(event) =>
                                             handleGroupKeyDown(event, category, group)
                                           }
-                                          aria-label={`Открыть группу ${group.name}`}
+                                          aria-label={`Открыть привычку ${group.name}`}
                                         >
                                           <div className="group-card__top">
                                             <div>
@@ -598,7 +594,6 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                           type="button"
                           onClick={() => setIsGroupFormOpen(true)}
                           className="add-category__button"
-                          aria-label="Добавить группу"
                         >
                           <span className="add-category__plus" />
                         </button>
@@ -613,9 +608,8 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                   <AnimatedContent distance={80} duration={0.8} delay={0.22}>
                     <BorderGlow>
                       <div className="panel-card panel-card--record">
-                        <div className="section-label">Результат</div>
-                        <h2 className="section-title section-title--record">Рекордная серия</h2>
-
+                        <h2 className="section-title">Рекордная серия</h2>
+                        <p className="section-description">Самое большое количество дней подряд без пропусков.</p>
                         <div className="record-streak">
                           <div className="record-streak__inner">
                             <div className="record-streak__days">
@@ -630,7 +624,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                               </div>
 
                               <div className="record-streak__meta-card">
-                                <div className="record-streak__card-label">Группа</div>
+                                <div className="record-streak__card-label">Название</div>
                                 <div className="record-streak__meta-value">{RECORD_STREAK.group}</div>
                               </div>
                             </div>
@@ -645,9 +639,7 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                   <AnimatedContent distance={80} duration={0.8} delay={0.3}>
                     <BorderGlow>
                       <div className="panel-card panel-card--achievements">
-                        <div className="section-label">Достижения</div>
                         <h2 className="section-title">Личные достижения</h2>
-
                         <AnimatedScrollList className="achievement-list">
                           {ACHIEVEMENTS.map((item, index) => (
                             <div key={`${item.title}-${index}`} className="achievement-card">
@@ -703,7 +695,6 @@ function InviteCodeModal({ code, groupName, copied, onCopy, onClose }) {
         type="button"
         className="group-form-invite-modal__backdrop"
         onClick={onClose}
-        aria-label="Закрыть окно с кодом"
       />
 
       <section
@@ -712,13 +703,12 @@ function InviteCodeModal({ code, groupName, copied, onCopy, onClose }) {
         aria-modal="true"
         aria-labelledby="invite-code-title"
       >
-        <div className="section-label">Код для друзей</div>
         <h2 id="invite-code-title" className="group-form-invite-modal__title">
-          Группа «{groupName}» создана
+          Привычка с названием «{groupName}» создана
         </h2>
 
         <p className="group-form-invite-modal__text">
-          Отправь этот код друзьям, чтобы они могли присоединиться к группе.
+          Отправь этот код друзьям, чтобы они могли присоединиться к данной привычке.
         </p>
 
         <button type="button" className="group-form-invite-modal__code" onClick={onCopy}>
@@ -730,7 +720,7 @@ function InviteCodeModal({ code, groupName, copied, onCopy, onClose }) {
         </div>
 
         <p className="group-form-invite-modal__hint">
-          Этот код можно также найти позже в настройках группы.
+          Данный код можно также найти позже в настройках.
         </p>
 
         <button type="button" className="group-form-invite-modal__ok" onClick={onClose}>

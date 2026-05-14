@@ -226,7 +226,6 @@ body {
     radial-gradient(circle at 30% 92%, var(--color-page-orb-mint), var(--color-transparent) 34%),
     linear-gradient(135deg, var(--color-paper) 0%, var(--color-cream-02) 100%);
   --surface-panel-gradient:
-    linear-gradient(135deg, var(--color-glass-highlight), var(--color-glass-highlight-soft)),
     var(--color-panel-bg);
   --surface-hero-gradient:
     radial-gradient(circle at 18% 12%, var(--color-glass-highlight), var(--color-transparent) 36%),

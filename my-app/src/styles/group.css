@@ -1575,7 +1575,7 @@ button {
 }
 
 .section-description {
-  max-width: 42rem;
+  max-width: none;
   margin: 12px 0 0;
   color: var(--color-text-soft);
   font-size: 14px;
@@ -2414,7 +2414,8 @@ button {
   padding: 10px 12px;
   border: 1px solid var(--color-card-border);
   border-radius: 16px;
-  background: var(--surface-modal-gradient);
+  background: var(--color-achievement-card-bg);
+  border-color: var(--color-border-soft);
   color: var(--color-text-soft);
   box-shadow: 0 12px 30px var(--color-shadow-notifications);
   font-size: 12px;
@@ -2901,7 +2902,7 @@ button {
 .member-info-modal__name {
   margin: 8px 0 0;
   color: var(--color-text-main);
-  font-size: 2rem;
+  font-size: 3rem;
   line-height: 1.08;
   letter-spacing: -0.04em;
 }
@@ -3288,8 +3289,8 @@ button {
 /* === Fixed group block + correct inner task scroll === */
 @media (min-width: 1280px) {
   .group-panel--overview {
-    height: 720px;
-    min-height: 720px;
+    height: 820px;
+    min-height: 820px;
     overflow: hidden;
   }
 
@@ -3865,7 +3866,6 @@ button {
 .note-editor,
 .task-editor-modal,
 .member-info-modal,
-.group-form-info__tooltip,
 .modal-backdrop:has(.modal-card__button--danger) .modal-card {
   background: var(--color-modal-category-solid);
   backdrop-filter: none;
@@ -4072,4 +4072,38 @@ button {
   opacity: 0.58;
   transform: none;
   filter: grayscale(0.18);
+}
+
+.member-info-record__days,
+.member-info-record__meta-card {
+  background: var(--color-achievement-card-bg);
+  border-color: var(--color-border-soft);
+}
+
+/* === First group block heading === */
+.group-panel--overview {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.group-panel__heading--overview {
+  margin-bottom: 0;
+}
+
+.group-panel--overview .section-description {
+  max-width: none;
+}
+
+.group-overview-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (min-width: 1280px) {
+  .group-overview-grid {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
 }

@@ -10,18 +10,48 @@ import "../styles/global.css";
 import "../styles/profile.css";
 
 const USER = {
-  name: "Елизавета",
-  email: "elizareads@mail.com",
-  coins: 240,
-  registeredAt: "14 марта 2026",
+  name: "",
+  email: "",
+  coins: 0,
+  registeredAt: "",
 };
 
 const BASE_EMOJI_SLIDES = [
-  { id: "emoji-1", type: "emoji", label: "📚", defaultColor: "#d8cde3" },
-  { id: "emoji-2", type: "emoji", label: "🌷", defaultColor: "#f0d9d0" },
-  { id: "emoji-3", type: "emoji", label: "🐰", defaultColor: "#d7e2cf" },
-  { id: "emoji-4", type: "emoji", label: "✨", defaultColor: "#f4e4bc" },
-  { id: "emoji-5", type: "emoji", label: "🌙", defaultColor: "#d9d6ee" },
+  {
+    id: "emoji-1",
+    type: "emoji",
+    label: "🐰",
+    defaultColor: "#d8cde3",
+    hoverMessage: "ЭТО КРОЛЬ-ПАТРУЛЬ, ОН СЛЕДИТ ЗА ПРИВЫЧКАМИ",
+  },
+  {
+    id: "emoji-2",
+    type: "emoji",
+    label: "💪",
+    defaultColor: "#f0d9d0",
+    hoverMessage: "ЭТО БИЦУХА МОТИВАЦИИ, ОНА НЕ ПРИНИМАЕТ ОТМАЗКИ",
+  },
+  {
+    id: "emoji-3",
+    type: "emoji",
+    label: "🧽",
+    defaultColor: "#d7e2cf",
+    hoverMessage: "ЭТО ГУБКА БОБ, ОН ЛЮБИТ ЧИСТОТУ",
+  },
+  {
+    id: "emoji-4",
+    type: "emoji",
+    label: "🥕",
+    defaultColor: "#f4e4bc",
+    hoverMessage: "ЭТО МОРКОВНЫЙ БОСС, ОН ЗА ПОЛЕЗНЫЙ ПЕРЕКУС",
+  },
+  {
+    id: "emoji-5",
+    type: "emoji",
+    label: "👓",
+    defaultColor: "#d9d6ee",
+    hoverMessage: "ЭТО УМНИК В ОЧКАХ, ОН ЧИТАЕТ ДАЖЕ СОСТАВ ШАМПУНЯ",
+  },
 ];
 
 
@@ -122,11 +152,11 @@ function saveStoredUploadedPhotos(photos) {
 
 function readStoredProfileData() {
   const fallbackData = {
-    name: USER.name,
-    email: USER.email,
-    password: "••••••••••",
-    coins: USER.coins,
-    registeredAt: USER.registeredAt,
+    name: "",
+    email: "",
+    password: "••••••••",
+    coins: 0,
+    registeredAt: "",
   };
 
   if (typeof window === "undefined") return fallbackData;
@@ -139,13 +169,13 @@ function readStoredProfileData() {
       return fallbackData;
     }
 
-    return {
-      name: normalizeEditableValue(parsedData.name, fallbackData.name),
-      email: normalizeEditableValue(parsedData.email, fallbackData.email),
-      password: "••••••••••",
-      coins: parsedData.coins ?? fallbackData.coins,
-      registeredAt: parsedData.registeredAt || fallbackData.registeredAt,
-    };
+  return {
+    name: normalizeEditableValue(parsedData.name, fallbackData.name),
+    email: normalizeEditableValue(parsedData.email, fallbackData.email),
+    password: "••••••••",
+    coins: parsedData.coins ?? fallbackData.coins,
+    registeredAt: parsedData.registeredAt || fallbackData.registeredAt,
+  };
   } catch {
     return fallbackData;
   }
@@ -160,7 +190,7 @@ function saveStoredProfileData(profileData) {
       JSON.stringify({
         name: normalizeEditableValue(profileData.name, USER.name),
         email: normalizeEditableValue(profileData.email, USER.email),
-        password: "••••••••••",
+        password: "••••••••",
         coins: profileData.coins ?? USER.coins,
         registeredAt: profileData.registeredAt || USER.registeredAt,
       })
@@ -197,7 +227,7 @@ export default function ProfilePage({
     return {
       name: normalizeEditableValue(userProfile?.name, storedProfileData.name),
       email: userProfile?.email || storedProfileData.email,
-      password: "••••••••••",
+      password: "••••••••",
       coins: userProfile?.coins ?? storedProfileData.coins,
       registeredAt: userProfile?.registeredAt || storedProfileData.registeredAt,
     };
@@ -538,7 +568,7 @@ export default function ProfilePage({
           <Header
             userName={profileData.name}
             userEmail={profileData.email}
-            coins={profileData.coins ?? USER.coins}
+            coins={profileData.coins ?? 0}
             initials={userAvatar?.label || currentInitial}
             avatar={userAvatar}
             onLogoClick={goToLobby}
@@ -551,13 +581,16 @@ export default function ProfilePage({
                 <BorderGlow>
                   <div className={`profile-hero__inner ${isProfileEditing ? "profile-hero__inner--editing" : "profile-hero__inner--view"}`}>
                     <div className="profile-hero__heading-corner">
-                      <div className="section-label">Профиль</div>
+                      <h1 className="section-title">Личные данные</h1>
+                      <p className="section-description">
+                        Здесь собраны основные данные аккаунта и настройки аватарки.
+                      </p>
                     </div>
 
                     <div className="profile-top-controls">
                       <div className="profile-registration-note">
                         <span>Дата регистрации</span>
-                        <strong>{profileData.registeredAt || USER.registeredAt}</strong>
+                        <strong>{profileData.registeredAt}</strong>
                       </div>
 
                       <button
@@ -599,7 +632,7 @@ export default function ProfilePage({
                                 <button
                                   key={slide.id}
                                   type="button"
-                                  className={`profile-avatar-item ${isCurrent ? "profile-avatar-item--current" : ""} ${!isVisible ? "profile-avatar-item--hidden" : ""}`}
+                                  className={`profile-avatar-item profile-avatar-item--${slide.type} ${isCurrent ? "profile-avatar-item--current" : ""} ${!isVisible ? "profile-avatar-item--hidden" : ""}`}
                                   style={{
                                     "--avatar-x": `${desktopX}px`,
                                     "--avatar-x-mobile": `${mobileX}px`,
@@ -615,6 +648,7 @@ export default function ProfilePage({
                                       : selectAvatar(index)
                                   }
                                   aria-label={slide.type === "upload" ? "Загрузить фото" : `Выбрать аватарку ${slide.label}`}
+                                  title={slide.type === "emoji" ? slide.hoverMessage : undefined}
                                   tabIndex={isVisible ? 0 : -1}
                                 >
                                   <AvatarContent slide={slide} size={isCurrent ? "large" : distance === 1 ? "medium" : "small"} />
@@ -694,37 +728,32 @@ export default function ProfilePage({
                           <AvatarContent slide={selectedDisplaySlide} size="hero" />
                         </div>
                       )}
-
-                      <div className="profile-avatar-block__text">
-                        <h1 className="section-title">Личные данные</h1>
-                        <p className="section-description">
-                          Здесь собраны основные данные аккаунта и настройки аватарки.
-                        </p>
-                      </div>
                     </div>
 
-                    {isProfileEditing ? (
-                      <div className="profile-info-grid profile-info-grid--edit">
-                        <ProfileInfoCard
-                          label="Имя"
-                          value={profileData.name}
-                          onSave={(value) => updateProfileField("name", value)}
-                        />
-                        <ProfileInfoCard label="Почта" value={profileData.email} editable={false} />
-                        <ProfileInfoCard
-                          label="Пароль"
-                          value={profileData.password}
-                          isPassword
-                          onSave={() => updateProfileField("password", "••••••••••")}
-                        />
-                      </div>
-                    ) : (
-                      <div className="profile-info-grid profile-info-grid--view">
-                        <ProfileInfoDisplayCard label="Имя" value={profileData.name} />
-                        <ProfileInfoDisplayCard label="Почта" value={profileData.email} />
-                        <ProfileInfoDisplayCard label="Пароль" value={profileData.password} />
-                      </div>
-                    )}
+                    <div className={`profile-info-grid ${isProfileEditing ? "profile-info-grid--edit" : "profile-info-grid--view"}`}>
+                      {isProfileEditing ? (
+                        <>
+                          <ProfileInfoCard
+                            label="Имя"
+                            value={profileData.name}
+                            onSave={(value) => updateProfileField("name", value)}
+                          />
+                          <ProfileInfoCard label="Почта" value={profileData.email} editable={false} />
+                          <ProfileInfoCard
+                            label="Пароль"
+                            value={profileData.password}
+                            isPassword
+                            onSave={() => updateProfileField("password", "••••••••")}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <ProfileInfoDisplayCard label="Имя" value={profileData.name} />
+                          <ProfileInfoDisplayCard label="Почта" value={profileData.email} />
+                          <ProfileInfoDisplayCard label="Пароль" value={profileData.password} />
+                        </>
+                      )}
+                    </div>
                   </div>
                 </BorderGlow>
               </section>
@@ -822,12 +851,14 @@ function AvatarContent({ slide, size }) {
 }
 
 function ProfileInfoDisplayCard({ label, value }) {
+  const displayValue = value || "";
+
   return (
     <div className="profile-info-card profile-info-card--display">
       <div className="profile-info-card__content">
         <div className="profile-info-card__text">
           <div className="profile-info-card__label">{label}</div>
-          <div className="profile-info-card__value">{value}</div>
+          <div className="profile-info-card__value">{displayValue}</div>
         </div>
       </div>
     </div>
@@ -855,7 +886,7 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
         return;
       }
 
-      onSave?.("••••••••••");
+      onSave?.("••••••••");
       setDraft("");
       setConfirmDraft("");
       setError("");

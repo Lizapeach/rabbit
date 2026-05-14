@@ -124,9 +124,8 @@ export default function BunnyShopModal({
 
         <div className="bunny-shop-modal__topbar">
           <div className="bunny-shop-modal__heading">
-            <div className="section-label">Магазин зайца</div>
             <div className="bunny-shop-modal__title-row">
-              <h2 className="bunny-shop-modal__title">Настройки Bunny</h2>
+              <h2 className="bunny-shop-modal__title">Магазин питомца</h2>
 
               <div className="bunny-shop-wallet" aria-label={`У тебя ${normalizedCoins} монет`}>
                 <span>{normalizedCoins}</span>
@@ -141,7 +140,7 @@ export default function BunnyShopModal({
             <section className="bunny-shop-action-card">
               <div className="bunny-shop-action-card__head">
                 <div>
-                  <h3>Имя зайца</h3>
+                  <h3>Имя зайчика</h3>
                 </div>
                 <PriceLabel price={DEFAULT_BUNNY_SHOP_COSTS.name} />
               </div>
@@ -162,7 +161,7 @@ export default function BunnyShopModal({
             <section className="bunny-shop-action-card">
               <div className="bunny-shop-action-card__head">
                 <div>
-                  <h3>Фон зайца</h3>
+                  <h3>Фон зайчика</h3>
                 </div>
                 <PriceLabel price={DEFAULT_BUNNY_SHOP_COSTS.background} />
               </div>

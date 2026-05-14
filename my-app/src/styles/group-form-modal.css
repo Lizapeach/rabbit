@@ -378,6 +378,15 @@
   background: var(--color-category-nutrition);
 }
 
+
+.group-form-radio-card__text {
+  min-height: 20px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .group-form-radio-card strong {
   display: block;
   font-size: 16px;
@@ -989,7 +998,6 @@
   cursor: pointer;
   backdrop-filter: blur(14px);
 }
-
 .group-form-invite-modal__dialog {
   position: relative;
   width: min(100%, 460px);
@@ -1057,9 +1065,10 @@
 .group-form-invite-modal__hint {
   margin: 18px 0 0;
   padding: 12px 14px;
-  border: 1px dashed var(--color-border-control);
+  border: 1px solid var(--color-border-soft);
   border-radius: 18px;
-  background: var(--surface-inner-gradient);
+  border-color: var(--color-action-primary);
+  background: linear-gradient(135deg, var(--color-action-primary-soft), var(--color-action-primary-softer));
 }
 
 .group-form-invite-modal__ok {
@@ -1466,7 +1475,6 @@
 .group-form-template,
 .group-form-custom-task,
 .group-form-review__card,
-.group-form-invite-modal__hint,
 .group-form-code-card,
 .group-form-field input,
 .group-form-field textarea,

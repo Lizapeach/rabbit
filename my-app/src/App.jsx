@@ -8,25 +8,16 @@ import AuthPage from "./pages/AuthPage";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 const TOKEN_STORAGE_KEY = "habbit-auth-token";
 
-const USER = {
-  name: "Елизавета",
-  email: "elizareads@mail.com",
-  coins: 240,
-  registeredAt: "14 марта 2026",
+const EMPTY_PROFILE = {
+  id: null,
+  name: "",
+  email: "",
+  password: "••••••••••",
+  coins: 0,
+  registeredAt: "",
+  activeUserAvatarId: null,
+  avatarBgColor: "",
 };
-
-const BASE_EMOJI_SLIDES = [
-  { id: "emoji-1", type: "emoji", label: "📚", defaultColor: "#d8cde3" },
-  { id: "emoji-2", type: "emoji", label: "🌷", defaultColor: "#f0d9d0" },
-  { id: "emoji-3", type: "emoji", label: "🐰", defaultColor: "#d7e2cf" },
-  { id: "emoji-4", type: "emoji", label: "✨", defaultColor: "#f4e4bc" },
-  { id: "emoji-5", type: "emoji", label: "🌙", defaultColor: "#d9d6ee" },
-];
-
-const AVATAR_COLORS_STORAGE_KEY = "habbit-profile-avatar-colors";
-const AVATAR_SELECTED_STORAGE_KEY = "habbit-profile-selected-avatar-id";
-const AVATAR_PHOTOS_STORAGE_KEY = "habbit-profile-uploaded-photos";
-const PROFILE_DATA_STORAGE_KEY = "habbit-profile-data";
 
 function getRoute(pathname) {
   const path = pathname.replace(/\/+$/, "") || "/";
@@ -44,7 +35,7 @@ function getInitial(name) {
   return (trimmedName[0] || "П").toUpperCase();
 }
 
-function normalizeEditableValue(value, fallback) {
+function normalizeEditableValue(value, fallback = "") {
   const nextValue = String(value || "").trim();
   return nextValue || fallback;
 }
@@ -58,7 +49,7 @@ function formatRegisteredAt(date = new Date()) {
 }
 
 function formatBackendDate(value) {
-  if (!value) return formatRegisteredAt();
+  if (!value) return "";
 
   const date = new Date(value);
 
@@ -81,172 +72,46 @@ function getFiniteNumber(...values) {
   return null;
 }
 
-function readJsonStorage(key, fallback) {
-  if (typeof window === "undefined") return fallback;
-
-  try {
-    const storedValue = window.localStorage.getItem(key);
-    return storedValue ? JSON.parse(storedValue) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveProfileData(profileData) {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.setItem(PROFILE_DATA_STORAGE_KEY, JSON.stringify(profileData));
-  } catch {
-    // Данные останутся в состоянии приложения, если браузер запретил localStorage.
-  }
-}
-
-function readStoredProfileData() {
-  const fallbackData = {
-    name: USER.name,
-    email: USER.email,
-    password: "••••••••••",
-    coins: USER.coins,
-    registeredAt: USER.registeredAt,
-    activeUserAvatarId: null,
-    avatarBgColor: "",
-  };
-
-  const parsedData = readJsonStorage(PROFILE_DATA_STORAGE_KEY, {});
-
-  if (!parsedData || typeof parsedData !== "object" || Array.isArray(parsedData)) {
-    return fallbackData;
-  }
-
-  const coins = getFiniteNumber(parsedData.coins, fallbackData.coins);
+function normalizeProfileData(profileData = {}, fallback = EMPTY_PROFILE) {
+  const coins = getFiniteNumber(
+    profileData.coins,
+    profileData.coinsBalance,
+    profileData.coins_balance,
+    fallback.coins
+  );
 
   return {
-    id: parsedData.id ?? fallbackData.id,
-    name: normalizeEditableValue(parsedData.name, fallbackData.name),
-    email: normalizeEditableValue(parsedData.email, fallbackData.email),
-    password: "••••••••••",
-    coins: coins ?? fallbackData.coins,
-    registeredAt: parsedData.registeredAt || fallbackData.registeredAt,
-    activeUserAvatarId: parsedData.activeUserAvatarId ?? fallbackData.activeUserAvatarId,
-    avatarBgColor: parsedData.avatarBgColor || fallbackData.avatarBgColor,
-  };
-}
-
-function buildProfileFromBackendUser(user, fallback = readStoredProfileData()) {
-  if (!user || typeof user !== "object") {
-    return fallback;
-  }
-
-  const coins = getFiniteNumber(user.coinsBalance, user.coins, user.coins_balance, fallback.coins);
-
-  return {
-    id: user.id ?? fallback.id,
-    name: normalizeEditableValue(user.name, fallback.name),
-    email: normalizeEditableValue(user.email, fallback.email),
+    id: profileData.id ?? fallback.id,
+    name: normalizeEditableValue(profileData.name, fallback.name),
+    email: normalizeEditableValue(profileData.email, fallback.email),
     password: "••••••••••",
     coins: coins ?? fallback.coins ?? 0,
-    registeredAt: user.registeredAt
-      ? formatBackendDate(user.registeredAt)
-      : user.registered_at
-        ? formatBackendDate(user.registered_at)
-        : fallback.registeredAt || formatRegisteredAt(),
-    activeUserAvatarId: user.activeUserAvatarId ?? fallback.activeUserAvatarId,
-    avatarBgColor: user.avatarBgColor || fallback.avatarBgColor,
+    registeredAt: profileData.registeredAt
+      ? formatBackendDate(profileData.registeredAt)
+      : profileData.registered_at
+        ? formatBackendDate(profileData.registered_at)
+        : fallback.registeredAt || "",
+    activeUserAvatarId:
+      profileData.activeUserAvatarId ??
+      profileData.active_user_avatar_id ??
+      fallback.activeUserAvatarId,
+    avatarBgColor:
+      profileData.avatarBgColor || profileData.avatar_bg_color || fallback.avatarBgColor || "",
   };
 }
 
-async function requestCurrentUser() {
-  if (typeof window === "undefined") return null;
-
-  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (!token) return null;
-
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Не удалось получить данные пользователя");
-  }
-
-  return buildProfileFromBackendUser(data?.user);
-}
-
-function readStoredAvatarColors() {
-  const parsedColors = readJsonStorage(AVATAR_COLORS_STORAGE_KEY, {});
-
-  if (!parsedColors || typeof parsedColors !== "object" || Array.isArray(parsedColors)) {
-    return {};
-  }
-
-  return parsedColors;
-}
-
-function readStoredUploadedPhotos() {
-  const parsedPhotos = readJsonStorage(AVATAR_PHOTOS_STORAGE_KEY, []);
-
-  if (!Array.isArray(parsedPhotos)) return [];
-
-  return parsedPhotos.filter(
-    (photo) =>
-      photo &&
-      typeof photo === "object" &&
-      typeof photo.id === "string" &&
-      typeof photo.src === "string" &&
-      photo.src.startsWith("data:image/")
-  );
-}
-
-function readStoredSelectedAvatarId() {
-  if (typeof window === "undefined") return "monogram";
-
-  try {
-    return window.localStorage.getItem(AVATAR_SELECTED_STORAGE_KEY) || "monogram";
-  } catch {
-    return "monogram";
-  }
-}
-
-function buildAvatarFromStorage(profileData) {
-  const avatarColors = readStoredAvatarColors();
-  const uploadedPhotos = readStoredUploadedPhotos();
-  const selectedAvatarId = readStoredSelectedAvatarId();
-  const monogramAvatar = {
+function buildDefaultAvatar(profileData = EMPTY_PROFILE) {
+  return {
     id: "monogram",
     type: "monogram",
     label: getInitial(profileData.name),
-    color: avatarColors.monogram || profileData.avatarBgColor || "#ede2da",
+    color: profileData.avatarBgColor || "#ede2da",
   };
-
-  const photoAvatars = uploadedPhotos.map((photo, index) => ({
-    id: photo.id,
-    type: "photo",
-    src: photo.src,
-    label: `Фото ${index + 1}`,
-    color: "#f3e3db",
-  }));
-
-  const emojiAvatars = BASE_EMOJI_SLIDES.map((slide) => ({
-    id: slide.id,
-    type: slide.type,
-    label: slide.label,
-    color: avatarColors[slide.id] || slide.defaultColor,
-  }));
-
-  return [monogramAvatar, ...photoAvatars, ...emojiAvatars].find(
-    (avatar) => avatar.id === selectedAvatarId
-  ) || monogramAvatar;
 }
 
-function normalizeAvatar(avatar, profileData) {
+function normalizeAvatar(avatar, profileData = EMPTY_PROFILE) {
   if (!avatar || typeof avatar !== "object") {
-    return buildAvatarFromStorage(profileData);
+    return buildDefaultAvatar(profileData);
   }
 
   if (avatar.type === "photo" && typeof avatar.src === "string") {
@@ -267,13 +132,31 @@ function normalizeAvatar(avatar, profileData) {
   };
 }
 
+async function requestCurrentUser() {
+  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return null;
+
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Не удалось получить данные пользователя");
+  }
+
+  return normalizeProfileData(data?.user || data);
+}
+
 function App() {
   const [route, setRoute] = useState(() => getRoute(window.location.pathname));
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [userProfile, setUserProfile] = useState(readStoredProfileData);
-  const [userAvatar, setUserAvatar] = useState(() =>
-    buildAvatarFromStorage(readStoredProfileData())
-  );
+  const [userProfile, setUserProfile] = useState(EMPTY_PROFILE);
+  const [userAvatar, setUserAvatar] = useState(() => buildDefaultAvatar(EMPTY_PROFILE));
 
   const navigate = useCallback((to, state = {}) => {
     const nextRoute = getRoute(to);
@@ -284,49 +167,24 @@ function App() {
   }, []);
 
   const updateProfileData = useCallback((nextProfileData = {}) => {
-    setUserProfile((prev) => {
-      const nextProfile = {
-        ...prev,
-        name: normalizeEditableValue(nextProfileData.name, prev.name),
-        email: prev.email,
-        password: "••••••••••",
-        coins: prev.coins,
-        registeredAt: prev.registeredAt,
-      };
-
-      saveProfileData(nextProfile);
-      return nextProfile;
-    });
-  }, []);
-
-  const handleAuthSuccess = useCallback((nextProfileData = {}) => {
-    setUserProfile((prev) => {
-      const nextProfile = {
-        ...prev,
-        ...nextProfileData,
-        name: normalizeEditableValue(nextProfileData.name, prev.name),
-        email: normalizeEditableValue(nextProfileData.email, prev.email),
-        password: "••••••••••",
-        coins: nextProfileData.coins ?? prev.coins,
-        registeredAt: nextProfileData.registeredAt || prev.registeredAt,
-      };
-
-      saveProfileData(nextProfile);
-      setUserAvatar(buildAvatarFromStorage(nextProfile));
-      return nextProfile;
-    });
+    setUserProfile((prev) => normalizeProfileData(nextProfileData, prev));
   }, []);
 
   const updateProfileAvatar = useCallback((nextAvatar) => {
-    setUserAvatar((prev) => normalizeAvatar(nextAvatar || prev, userProfile));
+    setUserAvatar((prevAvatar) => normalizeAvatar(nextAvatar || prevAvatar, userProfile));
   }, [userProfile]);
+
+  const handleAuthSuccess = useCallback((nextProfileData = {}) => {
+    const nextProfile = normalizeProfileData(nextProfileData);
+
+    setUserProfile(nextProfile);
+    setUserAvatar(normalizeAvatar(nextProfileData.avatar || nextProfileData.userAvatar, nextProfile));
+  }, []);
 
   useEffect(() => {
     let isActive = true;
 
     async function checkAuth() {
-      if (typeof window === "undefined") return;
-
       const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
 
       if (!token) {
@@ -346,17 +204,14 @@ function App() {
 
         if (!isActive || !profile) return;
 
-        saveProfileData(profile);
         setUserProfile(profile);
-        setUserAvatar(buildAvatarFromStorage(profile));
+        setUserAvatar((prevAvatar) => normalizeAvatar(prevAvatar, profile));
 
         if (getRoute(window.location.pathname) === "/auth") {
           navigate("/lobby");
         }
       } catch {
-        if (typeof window !== "undefined") {
-          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-        }
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
 
         if (getRoute(window.location.pathname) !== "/auth") {
           navigate("/auth");
@@ -388,13 +243,18 @@ function App() {
   }, []);
 
   const displayedUserAvatar = useMemo(() => {
-    if (userAvatar.type !== "monogram") return userAvatar;
+    const normalizedAvatar = normalizeAvatar(userAvatar, userProfile);
+
+    if (normalizedAvatar.type !== "monogram") {
+      return normalizedAvatar;
+    }
 
     return {
-      ...userAvatar,
+      ...normalizedAvatar,
       label: getInitial(userProfile.name),
+      color: normalizedAvatar.color || userProfile.avatarBgColor || "#ede2da",
     };
-  }, [userAvatar, userProfile.name]);
+  }, [userAvatar, userProfile]);
 
   const CurrentPage = useMemo(() => {
     if (route === "/auth") return AuthPage;

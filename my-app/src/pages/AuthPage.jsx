@@ -12,7 +12,7 @@ const TOKEN_STORAGE_KEY = "habbit-auth-token";
 const AUTH_TABS = {
   login: {
     label: "Вход",
-    title: "С возвращением",
+    title: "Войди в аккаунт",
     text: "Войди по почте и паролю, чтобы перейти в лобби привычек.",
   },
   register: {
@@ -60,7 +60,7 @@ function getFiniteNumber(...values) {
 
 function getBackendMessage(error) {
   if (error?.message) return error.message;
-  return "Не удалось выполнить запрос. Проверь подключение к backend.";
+  return "Не удалось выполнить запрос.";
 }
 
 function validateEmail(email) {
@@ -394,7 +394,7 @@ export default function AuthPage({ navigate, onAuthSuccess, userProfile }) {
                           />
 
                           <button className="auth-submit" type="submit" disabled={isSubmitting}>
-                            {isSubmitting && activeTab === "login" ? "Входим..." : "Войти в лобби"}
+                            {isSubmitting && activeTab === "login" ? "Входим..." : "Войти"}
                           </button>
                         </form>
 
@@ -444,9 +444,9 @@ export default function AuthPage({ navigate, onAuthSuccess, userProfile }) {
                           <AuthField
                             label="Имя"
                             type="text"
-                            placeholder="Например, Елизавета"
+                            placeholder="Например: Елизавета"
                             autoComplete="given-name"
-                            helper="Минимум 2 символа. Это имя будет видно в профиле и лобби."
+                            helper="Минимум 2 символа."
                             value={registerData.name}
                             error={registerErrors.name}
                             onChange={(event) => updateRegisterField("name", event.target.value)}
