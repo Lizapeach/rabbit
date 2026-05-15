@@ -1150,6 +1150,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const notesRevealRef = useRef(null);
   const settingsRef = useRef(null);
   const dragRef = useRef(null);
+  const noteElementsRef = useRef(new Map());
   const notePressRef = useRef(null);
   const notesBoardTapRef = useRef(null);
 
@@ -2460,10 +2461,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   }, []);
 
   const onDrag = useCallback((event) => {
-    if (!dragRef.current) return;
+    const activeDrag = dragRef.current;
+    if (!activeDrag) return;
     if (event.cancelable) event.preventDefault();
 
-    const { id, rect, offsetX, offsetY, lastClientX, lastClientY } = dragRef.current;
+    const { rect, offsetX, offsetY, originX, originY, lastClientX, lastClientY } = activeDrag;
     const noteWidth = window.innerWidth <= 760 ? 150 : 200;
     const noteMinHeight = 26;
     const nextX = Math.max(10, Math.min(rect.width - noteWidth + 160, event.clientX - rect.left - offsetX));
@@ -2471,16 +2473,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     const pinXPercent = toPercent(nextX, rect.width);
     const pinYPercent = toPercent(nextY, rect.height);
 
-    dragRef.current.pinXPercent = pinXPercent;
-    dragRef.current.pinYPercent = pinYPercent;
+    activeDrag.nextX = nextX;
+    activeDrag.nextY = nextY;
+    activeDrag.pinXPercent = pinXPercent;
+    activeDrag.pinYPercent = pinYPercent;
 
     const movementX = event.clientX - lastClientX;
     const movementY = event.clientY - lastClientY;
     const movementPower = Math.min(1, Math.hypot(movementX, movementY) / 10);
 
-    const currentTilt = dragRef.current.currentTilt || 0;
-    const currentPeelX = dragRef.current.currentPeelX || 0;
-    const currentPeelY = dragRef.current.currentPeelY || 0;
+    const currentTilt = activeDrag.currentTilt || 0;
+    const currentPeelX = activeDrag.currentPeelX || 0;
+    const currentPeelY = activeDrag.currentPeelY || 0;
 
     const targetTilt =
       Math.abs(movementX) < 0.15
@@ -2494,33 +2498,72 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     const peelX = currentPeelX + (targetPeelX - currentPeelX) * 0.2;
     const peelY = currentPeelY + (targetPeelY - currentPeelY) * 0.2;
 
-    dragRef.current.currentTilt = tilt;
-    dragRef.current.currentPeelX = peelX;
-    dragRef.current.currentPeelY = peelY;
-    dragRef.current.lastClientX = event.clientX;
-    dragRef.current.lastClientY = event.clientY;
+    activeDrag.currentTilt = tilt;
+    activeDrag.currentPeelX = peelX;
+    activeDrag.currentPeelY = peelY;
+    activeDrag.lastClientX = event.clientX;
+    activeDrag.lastClientY = event.clientY;
+    activeDrag.visualTranslateX = nextX - originX + peelX;
+    activeDrag.visualTranslateY = nextY - originY + peelY;
 
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === id
-          ? { ...note, x: nextX, y: nextY, pinXPercent, pinYPercent, dragging: true, tilt, peelX, peelY }
-          : note
-      )
-    );
+    if (activeDrag.animationFrameId) return;
+
+    activeDrag.animationFrameId = window.requestAnimationFrame(() => {
+      const currentDrag = dragRef.current;
+      if (!currentDrag) return;
+
+      currentDrag.animationFrameId = null;
+
+      const noteElement = noteElementsRef.current.get(currentDrag.id);
+      if (!noteElement) return;
+
+      noteElement.style.transform = `translate(${currentDrag.visualTranslateX}px, ${currentDrag.visualTranslateY}px) rotate(${currentDrag.currentTilt}deg) scale(var(--note-scale, 1))`;
+    });
   }, []);
 
   const stopDrag = useCallback(async () => {
-    if (!dragRef.current) return;
+    const activeDrag = dragRef.current;
+    if (!activeDrag) return;
 
-    const { id, backendNoteId, pinXPercent, pinYPercent } = dragRef.current;
+    const {
+      id,
+      backendNoteId,
+      nextX,
+      nextY,
+      pinXPercent,
+      pinYPercent,
+      animationFrameId,
+    } = activeDrag;
+
+    if (animationFrameId) {
+      window.cancelAnimationFrame(animationFrameId);
+    }
+
+    const noteElement = noteElementsRef.current.get(id);
+    if (noteElement && typeof nextX === "number" && typeof nextY === "number") {
+      noteElement.style.transition = "none";
+      noteElement.style.left = `${nextX}px`;
+      noteElement.style.top = `${nextY}px`;
+      noteElement.style.transform = "translate(0px, 0px) rotate(0deg) scale(var(--note-scale, 1))";
+      noteElement.style.zIndex = "";
+    }
 
     setNotes((prev) =>
       prev.map((note) =>
         note.id === id
-          ? { ...note, dragging: false, tilt: 0, peelX: 0, peelY: 0 }
+          ? { ...note, x: nextX, y: nextY, pinXPercent, pinYPercent, dragging: false, tilt: 0, peelX: 0, peelY: 0 }
           : note
       )
     );
+
+    if (noteElement) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          noteElement.style.transition = "";
+          noteElement.style.transform = "";
+        });
+      });
+    }
 
     dragRef.current = null;
     clearNotePress();
@@ -2534,12 +2577,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
           token: authToken,
           body: { pinXPercent, pinYPercent, bringToFront: true },
         });
-        await loadNotes();
       } catch (error) {
         setPageError(getErrorMessage(error));
       }
     }
-  }, [authToken, clearNotePress, habitId, loadNotes, onDrag]);
+  }, [authToken, clearNotePress, habitId, onDrag]);
 
   const startDrag = (event, noteId, { usePointerEvents = false } = {}) => {
     if (event.button !== undefined && event.button !== 0) return;
@@ -2560,6 +2602,13 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       rect,
       offsetX: event.clientX - rect.left - noteX,
       offsetY: event.clientY - rect.top - noteY,
+      originX: noteX,
+      originY: noteY,
+      nextX: noteX,
+      nextY: noteY,
+      visualTranslateX: 0,
+      visualTranslateY: -2,
+      animationFrameId: null,
       lastClientX: event.clientX,
       lastClientY: event.clientY,
       pinXPercent: Number(note.pinXPercent || 0),
@@ -2568,6 +2617,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       currentPeelX: 0,
       currentPeelY: -2,
     };
+
+    const noteElement = noteElementsRef.current.get(noteId);
+    if (noteElement) {
+      noteElement.style.zIndex = "200";
+      noteElement.style.transform = "translate(0px, -2px) rotate(-2deg) scale(var(--note-scale, 1))";
+    }
 
     setActiveNoteMenu(null);
     setNotes((prev) =>
@@ -3036,6 +3091,13 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
                         return (
                           <button
                             key={note.id}
+                            ref={(node) => {
+                              if (node) {
+                                noteElementsRef.current.set(note.id, node);
+                              } else {
+                                noteElementsRef.current.delete(note.id);
+                              }
+                            }}
                             type="button"
                             data-note-item="true"
                             className={`sticky-note ${note.dragging ? "sticky-note--dragging" : ""}`}
