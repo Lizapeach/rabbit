@@ -1,20 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useState } from "react";
 
 import LobbyPage from "./pages/LobbyPage";
 import GroupPage from "./pages/GroupPage";
 import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "";
-const TOKEN_STORAGE_KEY = "habbit-auth-token";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://habbit-backend-k33d.onrender.com";
+
+const TOKEN_STORAGE_KEYS = [
+  "habbit-auth-token",
+  "habbitToken",
+  "authToken",
+  "token",
+];
 
 const EMPTY_PROFILE = {
   id: null,
   name: "",
   email: "",
   password: "••••••••••",
+  passwordMasked: "••••••••",
   coins: 0,
+  coinsBalance: 0,
   registeredAt: "",
+  registeredAtFormatted: "",
   activeUserAvatarId: null,
   avatarBgColor: "",
 };
@@ -30,9 +42,44 @@ function getRoute(pathname) {
   return "/auth";
 }
 
+function getLocationKey() {
+  return `${window.location.pathname}${window.location.search}`;
+}
+
+function getNavigationLocationKey(to) {
+  const url = new URL(to, window.location.origin);
+  return `${url.pathname}${url.search}`;
+}
+
+function getNavigationRoute(to) {
+  const url = new URL(to, window.location.origin);
+  return getRoute(url.pathname);
+}
+
 function getInitial(name) {
   const trimmedName = String(name || "").trim();
   return (trimmedName[0] || "П").toUpperCase();
+}
+
+function getStoredAuthToken() {
+  try {
+    for (const key of TOKEN_STORAGE_KEYS) {
+      const token = window.localStorage.getItem(key);
+      if (token) return token;
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function clearStoredAuthTokens() {
+  try {
+    TOKEN_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // localStorage can be unavailable in private mode. Logout should still continue visually.
+  }
 }
 
 function normalizeEditableValue(value, fallback = "") {
@@ -72,40 +119,59 @@ function getFiniteNumber(...values) {
   return null;
 }
 
+function getProfileUserFromResponse(profileData = {}) {
+  if (profileData?.user && typeof profileData.user === "object") {
+    return profileData.user;
+  }
+
+  return profileData;
+}
+
 function normalizeProfileData(profileData = {}, fallback = EMPTY_PROFILE) {
+  const source = getProfileUserFromResponse(profileData);
   const coins = getFiniteNumber(
-    profileData.coins,
-    profileData.coinsBalance,
-    profileData.coins_balance,
-    fallback.coins
+    source.coins,
+    source.coinsBalance,
+    source.coins_balance,
+    fallback.coins,
+    fallback.coinsBalance
   );
+  const registeredAtFormatted =
+    source.registeredAtFormatted ||
+    source.registered_at_formatted ||
+    (source.registeredAt
+      ? formatBackendDate(source.registeredAt)
+      : source.registered_at
+        ? formatBackendDate(source.registered_at)
+        : fallback.registeredAtFormatted || fallback.registeredAt || "");
 
   return {
-    id: profileData.id ?? fallback.id,
-    name: normalizeEditableValue(profileData.name, fallback.name),
-    email: normalizeEditableValue(profileData.email, fallback.email),
-    password: "••••••••••",
+    id: source.id ?? fallback.id,
+    name: normalizeEditableValue(source.name, fallback.name),
+    email: normalizeEditableValue(source.email, fallback.email),
+    password: source.passwordMasked || source.password || fallback.password || "••••••••••",
+    passwordMasked: source.passwordMasked || fallback.passwordMasked || "••••••••",
     coins: coins ?? fallback.coins ?? 0,
-    registeredAt: profileData.registeredAt
-      ? formatBackendDate(profileData.registeredAt)
-      : profileData.registered_at
-        ? formatBackendDate(profileData.registered_at)
-        : fallback.registeredAt || "",
+    coinsBalance: coins ?? fallback.coinsBalance ?? 0,
+    registeredAt: registeredAtFormatted,
+    registeredAtFormatted,
     activeUserAvatarId:
-      profileData.activeUserAvatarId ??
-      profileData.active_user_avatar_id ??
+      source.activeUserAvatarId ??
+      source.active_user_avatar_id ??
       fallback.activeUserAvatarId,
     avatarBgColor:
-      profileData.avatarBgColor || profileData.avatar_bg_color || fallback.avatarBgColor || "",
+      source.avatarBgColor || source.avatar_bg_color || fallback.avatarBgColor || "",
   };
 }
 
 function buildDefaultAvatar(profileData = EMPTY_PROFILE) {
   return {
-    id: "monogram",
+    id: profileData.activeUserAvatarId || "monogram",
     type: "monogram",
     label: getInitial(profileData.name),
     color: profileData.avatarBgColor || "#ede2da",
+    src: "",
+    raw: null,
   };
 }
 
@@ -114,29 +180,58 @@ function normalizeAvatar(avatar, profileData = EMPTY_PROFILE) {
     return buildDefaultAvatar(profileData);
   }
 
-  if (avatar.type === "photo" && typeof avatar.src === "string") {
+  if ((avatar.type === "picture" || avatar.type === "photo") && (avatar.file?.url || avatar.src)) {
     return {
-      id: avatar.id || "uploaded-avatar",
+      id: avatar.id || profileData.activeUserAvatarId || "uploaded-avatar",
       type: "photo",
       label: avatar.label || "Фото профиля",
-      color: avatar.color || "#f3e3db",
-      src: avatar.src,
+      color: avatar.bgColor || avatar.color || profileData.avatarBgColor || "#f3e3db",
+      src: avatar.file?.url || avatar.src,
+      raw: avatar,
+    };
+  }
+
+  if (avatar.type === "letter" || avatar.type === "emoji") {
+    return {
+      id: avatar.id || profileData.activeUserAvatarId || avatar.type,
+      type: avatar.type,
+      label: avatar.value || avatar.label || getInitial(profileData.name),
+      color: avatar.bgColor || avatar.color || profileData.avatarBgColor || "#ede2da",
+      src: "",
+      raw: avatar,
+    };
+  }
+
+  if (avatar.type === "monogram" || avatar.type === "avatar") {
+    return {
+      id: avatar.id || profileData.activeUserAvatarId || "monogram",
+      type: "monogram",
+      label: avatar.label || avatar.value || getInitial(profileData.name),
+      color: avatar.color || avatar.bgColor || profileData.avatarBgColor || "#ede2da",
+      src: avatar.src || "",
+      raw: avatar,
     };
   }
 
   return {
-    id: avatar.id || "monogram",
+    id: avatar.id || profileData.activeUserAvatarId || "monogram",
     type: avatar.type || "monogram",
-    label: avatar.label || getInitial(profileData.name),
-    color: avatar.color || profileData.avatarBgColor || "#ede2da",
+    label: avatar.label || avatar.value || getInitial(profileData.name),
+    color: avatar.color || avatar.bgColor || profileData.avatarBgColor || "#ede2da",
+    src: avatar.src || avatar.file?.url || "",
+    raw: avatar,
   };
 }
 
-async function requestCurrentUser() {
-  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+function getActiveAvatarFromProfileResponse(data = {}) {
+  return data.activeAvatar || data.avatar || data.userAvatar || null;
+}
+
+async function requestCurrentProfile() {
+  const token = getStoredAuthToken();
   if (!token) return null;
 
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+  const response = await fetch(`${API_BASE_URL}/api/profile`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -149,20 +244,147 @@ async function requestCurrentUser() {
     throw new Error(data?.message || "Не удалось получить данные пользователя");
   }
 
-  return normalizeProfileData(data?.user || data);
+  return data;
+}
+
+function AppLoader() {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        background: "var(--surface-page-gradient, #f8efe9)",
+        color: "var(--text-primary, #3a2f2a)",
+        fontFamily: "var(--font-main, inherit)",
+        fontSize: "18px",
+        fontWeight: 700,
+      }}
+    >
+      Загрузка...
+    </div>
+  );
+}
+
+class PageErrorBoundary extends Component {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Page render failed:", error, errorInfo);
+    this.props.onError?.(error);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
+  render() {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          padding: "24px",
+          background: "var(--surface-page-gradient, #f8efe9)",
+          color: "var(--text-primary, #3a2f2a)",
+          fontFamily: "var(--font-main, inherit)",
+        }}
+      >
+        <div
+          style={{
+            width: "min(520px, 100%)",
+            padding: "24px",
+            borderRadius: "28px",
+            background: "rgba(255, 250, 246, 0.92)",
+            boxShadow: "0 24px 60px rgba(74, 55, 46, 0.14)",
+            textAlign: "center",
+          }}
+        >
+          <h1 style={{ margin: "0 0 12px", fontSize: "24px" }}>Страница временно не отобразилась</h1>
+          <p style={{ margin: "0 0 20px", lineHeight: 1.5 }}>
+            Данные не успели корректно собраться после загрузки. Можно вернуться в лобби или обновить страницу.
+          </p>
+          <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => this.props.onNavigate?.("/lobby")}
+              style={{
+                border: 0,
+                borderRadius: "999px",
+                padding: "12px 18px",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: "var(--accent-primary, #d7b8a8)",
+                color: "var(--text-primary, #3a2f2a)",
+              }}
+            >
+              В лобби
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                border: "1px solid rgba(72, 55, 45, 0.16)",
+                borderRadius: "999px",
+                padding: "12px 18px",
+                fontWeight: 700,
+                cursor: "pointer",
+                background: "rgba(255, 255, 255, 0.8)",
+                color: "var(--text-primary, #3a2f2a)",
+              }}
+            >
+              Обновить
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }
 
 function App() {
   const [route, setRoute] = useState(() => getRoute(window.location.pathname));
+  const [locationKey, setLocationKey] = useState(() => getLocationKey());
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(() => {
+    const initialRoute = getRoute(window.location.pathname);
+    return initialRoute !== "/auth" && Boolean(getStoredAuthToken());
+  });
   const [userProfile, setUserProfile] = useState(EMPTY_PROFILE);
   const [userAvatar, setUserAvatar] = useState(() => buildDefaultAvatar(EMPTY_PROFILE));
 
   const navigate = useCallback((to, state = {}) => {
-    const nextRoute = getRoute(to);
+    const nextRoute = getNavigationRoute(to);
+    const nextLocationKey = getNavigationLocationKey(to);
+    const currentLocationKey = getLocationKey();
+
+    if (nextLocationKey === currentLocationKey) {
+      window.history.replaceState({ ...window.history.state, ...state }, "", to);
+      setRoute(nextRoute);
+      setLocationKey(nextLocationKey);
+      setIsPageLoading(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
 
     window.history.pushState(state, "", to);
     setRoute(nextRoute);
+    setLocationKey(nextLocationKey);
+    setIsPageLoading(nextRoute !== "/auth");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -174,18 +396,53 @@ function App() {
     setUserAvatar((prevAvatar) => normalizeAvatar(nextAvatar || prevAvatar, userProfile));
   }, [userProfile]);
 
-  const handleAuthSuccess = useCallback((nextProfileData = {}) => {
-    const nextProfile = normalizeProfileData(nextProfileData);
+  const resetAuthState = useCallback(() => {
+    clearStoredAuthTokens();
+    setUserProfile(EMPTY_PROFILE);
+    setUserAvatar(buildDefaultAvatar(EMPTY_PROFILE));
+    setIsPageLoading(false);
+  }, []);
+
+  const handlePageLoadingChange = useCallback((isLoading, sourceRoute) => {
+    const currentRoute = getRoute(window.location.pathname);
+
+    if (sourceRoute && sourceRoute !== currentRoute) {
+      return;
+    }
+
+    setIsPageLoading(Boolean(isLoading));
+  }, []);
+
+  const handlePageRenderError = useCallback(() => {
+    setIsPageLoading(false);
+  }, []);
+
+  const handleProfileResponse = useCallback((profileResponse = {}) => {
+    const nextProfile = normalizeProfileData(profileResponse);
+    const nextAvatar = normalizeAvatar(getActiveAvatarFromProfileResponse(profileResponse), nextProfile);
 
     setUserProfile(nextProfile);
-    setUserAvatar(normalizeAvatar(nextProfileData.avatar || nextProfileData.userAvatar, nextProfile));
+    setUserAvatar(nextAvatar);
+
+    return { profile: nextProfile, avatar: nextAvatar };
   }, []);
+
+  const handleAuthSuccess = useCallback((nextProfileData = {}) => {
+    const responseData = nextProfileData?.user
+      ? nextProfileData
+      : {
+          user: nextProfileData,
+          activeAvatar: nextProfileData.avatar || nextProfileData.userAvatar,
+        };
+
+    handleProfileResponse(responseData);
+  }, [handleProfileResponse]);
 
   useEffect(() => {
     let isActive = true;
 
     async function checkAuth() {
-      const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+      const token = getStoredAuthToken();
 
       if (!token) {
         if (getRoute(window.location.pathname) !== "/auth") {
@@ -193,6 +450,7 @@ function App() {
         }
 
         if (isActive) {
+          setIsPageLoading(false);
           setIsCheckingAuth(false);
         }
 
@@ -200,18 +458,17 @@ function App() {
       }
 
       try {
-        const profile = await requestCurrentUser();
+        const profileResponse = await requestCurrentProfile();
 
-        if (!isActive || !profile) return;
+        if (!isActive || !profileResponse) return;
 
-        setUserProfile(profile);
-        setUserAvatar((prevAvatar) => normalizeAvatar(prevAvatar, profile));
+        handleProfileResponse(profileResponse);
 
         if (getRoute(window.location.pathname) === "/auth") {
           navigate("/lobby");
         }
       } catch {
-        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+        resetAuthState();
 
         if (getRoute(window.location.pathname) !== "/auth") {
           navigate("/auth");
@@ -228,11 +485,14 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [navigate]);
+  }, [handleProfileResponse, navigate, resetAuthState]);
 
   useEffect(() => {
     const handlePopState = () => {
-      setRoute(getRoute(window.location.pathname));
+      const nextRoute = getRoute(window.location.pathname);
+      setRoute(nextRoute);
+      setLocationKey(getLocationKey());
+      setIsPageLoading(nextRoute !== "/auth");
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -245,13 +505,13 @@ function App() {
   const displayedUserAvatar = useMemo(() => {
     const normalizedAvatar = normalizeAvatar(userAvatar, userProfile);
 
-    if (normalizedAvatar.type !== "monogram") {
+    if (normalizedAvatar.type !== "monogram" && normalizedAvatar.type !== "letter") {
       return normalizedAvatar;
     }
 
     return {
       ...normalizedAvatar,
-      label: getInitial(userProfile.name),
+      label: normalizedAvatar.type === "letter" ? getInitial(userProfile.name) : normalizedAvatar.label,
       color: normalizedAvatar.color || userProfile.avatarBgColor || "#ede2da",
     };
   }, [userAvatar, userProfile]);
@@ -265,22 +525,42 @@ function App() {
   }, [route]);
 
   if (isCheckingAuth) {
-    return (
-      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        Загрузка профиля...
-      </div>
-    );
+    return <AppLoader />;
   }
 
   return (
-    <CurrentPage
-      navigate={navigate}
-      userProfile={userProfile}
-      userAvatar={displayedUserAvatar}
-      onProfileDataChange={updateProfileData}
-      onProfileAvatarChange={updateProfileAvatar}
-      onAuthSuccess={handleAuthSuccess}
-    />
+    <>
+      <div
+        style={
+          isPageLoading
+            ? { minHeight: "100vh", visibility: "hidden", pointerEvents: "none" }
+            : undefined
+        }
+        aria-hidden={isPageLoading ? "true" : undefined}
+      >
+        <PageErrorBoundary
+          resetKey={locationKey}
+          onError={handlePageRenderError}
+          onNavigate={navigate}
+        >
+          <CurrentPage
+            key={locationKey}
+            navigate={navigate}
+            userProfile={userProfile}
+            userAvatar={displayedUserAvatar}
+            onProfileDataChange={updateProfileData}
+            onProfileAvatarChange={updateProfileAvatar}
+            onProfileResponse={handleProfileResponse}
+            onPageLoadingChange={handlePageLoadingChange}
+            pageLoadingRoute={route}
+            onLogout={resetAuthState}
+            onAuthSuccess={handleAuthSuccess}
+          />
+        </PageErrorBoundary>
+      </div>
+
+      {isPageLoading && <AppLoader />}
+    </>
   );
 }
 

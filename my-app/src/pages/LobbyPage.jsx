@@ -250,7 +250,7 @@ function buildCategoriesFromHabits(habits) {
   );
 }
 
-export default function LobbyPage({ navigate, userProfile, userAvatar }) {
+export default function LobbyPage({ navigate, userProfile, userAvatar, onPageLoadingChange, pageLoadingRoute }) {
   const userName = userProfile?.name || "Елизавета";
   const userEmail = userProfile?.email || "ela@gmail.com";
   const coins = userProfile?.coinsBalance ?? userProfile?.coins ?? 0;
@@ -261,7 +261,6 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
   const [inviteCodeModal, setInviteCodeModal] = useState(null);
   const [isInviteCodeCopied, setIsInviteCodeCopied] = useState(false);
 
-  const isHabitsLoading = habitsLoadState.status === "loading";
   const habitsLoadError = habitsLoadState.error;
 
   const categories = useMemo(() => buildCategoriesFromHabits(habits), [habits]);
@@ -271,10 +270,12 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
     if (!getStoredAuthToken()) {
       setHabits([]);
       setHabitsLoadState({ status: "no-token", error: "" });
+      onPageLoadingChange?.(false, pageLoadingRoute);
       return [];
     }
 
     if (!silent) {
+      onPageLoadingChange?.(true, pageLoadingRoute);
       setHabitsLoadState({ status: "loading", error: "" });
     }
 
@@ -291,8 +292,12 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
         error: error?.message || "Не удалось загрузить привычку",
       });
       return [];
+    } finally {
+      if (!silent) {
+        onPageLoadingChange?.(false, pageLoadingRoute);
+      }
     }
-  }, []);
+  }, [onPageLoadingChange, pageLoadingRoute]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -303,6 +308,10 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
       window.clearTimeout(timeoutId);
     };
   }, [loadHabits, userProfile?.id]);
+
+  useEffect(() => () => {
+    onPageLoadingChange?.(false, pageLoadingRoute);
+  }, [onPageLoadingChange, pageLoadingRoute]);
 
   useEffect(() => {
     const handleHabitsChanged = () => {
@@ -493,10 +502,6 @@ export default function LobbyPage({ navigate, userProfile, userAvatar }) {
                             : "Здесь будут отображаться все твои привычки собранные по категориям. Пока тут пусто, поэтому предлагаю нажать на плюс, создать первую привычку или присоединиться по коду"}
                         </p>
                       </div>
-
-                      {isHabitsLoading && (
-                        <p className="section-description">Загружаю Привычки...</p>
-                      )}
 
                       {habitsLoadError && (
                         <p className="section-description">{habitsLoadError}</p>

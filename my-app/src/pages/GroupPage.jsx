@@ -116,24 +116,31 @@ async function apiRequest(path, { method = "GET", token, body } = {}) {
 }
 
 function normalizeBackendAvatar(avatar, member) {
-  const fallbackColor = member?.displayColor || member?.avatar?.bgColor || USER.avatarColor;
+  const fallbackColor =
+    member?.displayColor ||
+    member?.display_color ||
+    member?.avatar?.bgColor ||
+    member?.avatar?.bg_color ||
+    USER.avatarColor;
   const fallbackLabel = getInitial(member?.name || member?.login || USER.name);
+  const avatarSrc = avatar?.src || avatar?.file?.url || avatar?.url || "";
+  const avatarColor = avatar?.bgColor || avatar?.bg_color || avatar?.color || fallbackColor;
 
-  if ((avatar?.type === "picture" || avatar?.type === "photo") && avatar.src) {
+  if ((avatar?.type === "picture" || avatar?.type === "photo") && avatarSrc) {
     return {
       id: avatar.id || `${member?.id || "member"}-photo`,
       type: "photo",
       label: avatar.label || fallbackLabel,
-      color: avatar.bgColor || fallbackColor,
-      src: avatar.src,
+      color: avatarColor,
+      src: avatarSrc,
     };
   }
 
   return {
     id: avatar?.id || `${member?.id || "member"}-avatar`,
     type: avatar?.type === "emoji" ? "emoji" : "monogram",
-    label: avatar?.value || fallbackLabel,
-    color: avatar?.bgColor || fallbackColor,
+    label: avatar?.value || avatar?.label || fallbackLabel,
+    color: avatarColor,
   };
 }
 
@@ -896,7 +903,7 @@ function normalizeStatsResponse(statsData, membersData = friendsData) {
   };
 }
 
-export default function GroupPage({ navigate, userProfile, userAvatar }) {
+export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoadingChange, pageLoadingRoute }) {
   const pageRef = useRef(null);
   const notesPanelRef = useRef(null);
   const notesRevealRef = useRef(null);
@@ -908,7 +915,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     () => userProfile?.token || userProfile?.jwt || userProfile?.accessToken || getStoredAuthToken(),
     [userProfile?.accessToken, userProfile?.jwt, userProfile?.token]
   );
-  const [pageStatus, setPageStatus] = useState("idle");
+  const [, setPageStatus] = useState("idle");
   const [pageError, setPageError] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [backendStreakDays, setBackendStreakDays] = useState(null);
@@ -1024,10 +1031,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
   const loadHabitPage = useCallback(async ({ silent = false } = {}) => {
     if (!habitId || !authToken) {
       setPageError(!habitId ? "Не найден habitId для загрузки группы" : "Не найден токен авторизации");
+      onPageLoadingChange?.(false, pageLoadingRoute);
       return null;
     }
 
     if (!silent) {
+      onPageLoadingChange?.(true, pageLoadingRoute);
       setPageStatus("loading");
       setPageError("");
     }
@@ -1062,8 +1071,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       setPageStatus("error");
       setPageError(message);
       return null;
+    } finally {
+      if (!silent) {
+        onPageLoadingChange?.(false, pageLoadingRoute);
+      }
     }
-  }, [authToken, currentDate, habitId]);
+  }, [authToken, currentDate, habitId, onPageLoadingChange, pageLoadingRoute]);
 
   const loadCalendar = useCallback(async () => {
     if (!habitId || !authToken) return;
@@ -1124,6 +1137,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
     return () => window.clearTimeout(timeoutId);
   }, [loadHabitPage]);
+
+  useEffect(() => () => {
+    onPageLoadingChange?.(false, pageLoadingRoute);
+  }, [onPageLoadingChange, pageLoadingRoute]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -1517,7 +1534,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
   const handleOpenTaskEditor = async () => {
     setIsGroupSettingsOpen(false);
-    setIsTaskEditorOpen(true);
+    setIsTaskEditorOpen(false);
     setTaskEditorOptions(null);
     setTaskEditorError("");
 
@@ -1526,10 +1543,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       setTaskEditorStatus("error");
       setTaskEditorError(message);
       setPageError(message);
+      setIsTaskEditorOpen(true);
       return;
     }
 
     try {
+      onPageLoadingChange?.(true, pageLoadingRoute);
       setTaskEditorStatus("loading");
       const data = await apiRequest(`/api/habits/${habitId}/tasks/me/edit-options`, {
         token: authToken,
@@ -1538,11 +1557,15 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       setTaskEditorOptions(normalizeTaskEditOptions(data));
       setTaskEditorStatus("ready");
       setTaskEditorError("");
+      setIsTaskEditorOpen(true);
     } catch (error) {
       const message = getErrorMessage(error);
       setTaskEditorStatus("error");
       setTaskEditorError(message);
       setPageError(message);
+      setIsTaskEditorOpen(true);
+    } finally {
+      onPageLoadingChange?.(false, pageLoadingRoute);
     }
   };
 
@@ -1583,7 +1606,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
     if (!isOwner) return;
 
     setIsGroupSettingsOpen(false);
-    setIsGroupInfoEditorOpen(true);
+    setIsGroupInfoEditorOpen(false);
     setGroupInfoEditorData(null);
     setGroupInfoEditorError("");
 
@@ -1592,10 +1615,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       setGroupInfoEditorStatus("error");
       setGroupInfoEditorError(message);
       setPageError(message);
+      setIsGroupInfoEditorOpen(true);
       return;
     }
 
     try {
+      onPageLoadingChange?.(true, pageLoadingRoute);
       setGroupInfoEditorStatus("loading");
       const data = await apiRequest(`/api/habits/${habitId}/details/edit-options`, {
         token: authToken,
@@ -1604,11 +1629,15 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       setGroupInfoEditorData(data?.habit || null);
       setGroupInfoEditorStatus("ready");
       setGroupInfoEditorError("");
+      setIsGroupInfoEditorOpen(true);
     } catch (error) {
       const message = getErrorMessage(error);
       setGroupInfoEditorStatus("error");
       setGroupInfoEditorError(message);
       setPageError(message);
+      setIsGroupInfoEditorOpen(true);
+    } finally {
+      onPageLoadingChange?.(false, pageLoadingRoute);
     }
   };
 
@@ -1654,7 +1683,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
   const handleRequestExitGroup = async () => {
     setIsGroupSettingsOpen(false);
-    setIsExitConfirmOpen(true);
+    setIsExitConfirmOpen(false);
     setExitModalStep("confirm");
     setExitPreview(null);
     setExitRequestError("");
@@ -1667,6 +1696,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
 
       setExitRequestError(message);
       setExitRequestStatus("error");
+      setIsExitConfirmOpen(true);
       setPageError(message);
       return;
     }
@@ -1684,11 +1714,13 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
       setAdminTransferMemberId(candidates[0]?.id || "");
       setExitRequestStatus("ready");
       setExitRequestError("");
+      setIsExitConfirmOpen(true);
     } catch (error) {
       const message = getErrorMessage(error);
 
       setExitRequestError(message);
       setExitRequestStatus("error");
+      setIsExitConfirmOpen(true);
       setPageError(message);
     }
   };
@@ -2220,9 +2252,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
               onProfileClick={goToProfile}
             />
 
-          {(pageError || pageStatus === "loading") && (
+          {pageError && (
             <div className="group-form-error-card" style={{ marginTop: 14 }}>
-              {pageError || "Загружаю данные группы..."}
+              {pageError}
             </div>
           )}
 
@@ -2463,7 +2495,14 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                         const noteAuthor =
                           friendsWithColors.find((friend) => String(friend.backendMemberId) === String(note.authorMemberId)) ||
                           friendsWithColors.find((friend) => friend.id === note.authorId) ||
-                          friendsWithColors[0];
+                          friendsWithColors[0] ||
+                          {
+                            id: "unknown-note-author",
+                            name: note.authorName || note.authorLogin || "Участник",
+                            color: USER.avatarColor,
+                          };
+                        const noteAuthorColor = normalizeHexColor(noteAuthor?.color, USER.avatarColor);
+                        const noteAuthorName = noteAuthor?.name || "Участник";
 
                         return (
                           <button
@@ -2476,16 +2515,16 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
                               top: typeof note.y === "number" ? note.y : `${note.pinYPercent || 0}%`,
                               zIndex: note.dragging ? 200 : note.zIndex,
                               minHeight: Math.max(96, 96 + Math.floor(note.text.length / 42) * 22),
-                              "--note-accent": noteAuthor.color,
-                              "--note-accent-soft": hexToRgba(noteAuthor.color, 0.22),
+                              "--note-accent": noteAuthorColor,
+                              "--note-accent-soft": hexToRgba(noteAuthorColor, 0.22),
                               "--note-tilt": `${note.tilt || 0}deg`,
                               "--note-peel-x": `${note.peelX || 0}px`,
                               "--note-peel-y": `${note.peelY || 0}px`,
                             }}
                             onMouseDown={(event) => startDrag(event, note.id)}
                             onContextMenu={(event) => openNoteActions(event, note.id)}
-                            aria-label={`Записка от ${noteAuthor.name}: ${note.text}`}
-                            title={`Автор: ${noteAuthor.name}`}
+                            aria-label={`Записка от ${noteAuthorName}: ${note.text}`}
+                            title={`Автор: ${noteAuthorName}`}
                           >
                             {!note.dragging && <span className="sticky-note__pin" aria-hidden="true" />}
                             <span className="sticky-note__text">{note.text}</span>
@@ -2612,14 +2651,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar }) {
             onClick={closeExitConfirm}
           >
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              {exitRequestStatus === "loading" ? (
-                <>
-                  <div className="modal-card__title">Проверка выхода</div>
-                  <div className="modal-card__text">
-                    Проверяем, можно ли выйти из группы без передачи прав или удаления привычки.
-                  </div>
-                </>
-              ) : exitRequestStatus === "error" ? (
+              {exitRequestStatus === "error" ? (
                 <>
                   <div className="modal-card__title">Не удалось выйти из группы</div>
                   <div className="modal-card__text modal-card__text--warning">
@@ -2996,7 +3028,6 @@ function GroupInfoEditorModal({ habit, fallbackGroupInfo, status, requestError, 
         </div>
 
         <div className="group-info-editor__body">
-          {status === "loading" && <div className="group-form-error-card group-form-error-card--neutral">Загружаем данные группы...</div>}
           {requestError && <div className="group-form-error-card">{requestError}</div>}
 
           <label className={`group-info-editor__field ${errors.name ? "group-info-editor__field--error" : ""}`}>
@@ -3128,7 +3159,6 @@ function TaskEditorModal({ editOptions, status, requestError, onClose, onSave })
         </div>
 
         <div className="task-editor-scroll">
-          {status === "loading" && <div className="group-form-error-card group-form-error-card--neutral">Загружаем задания...</div>}
           {requestError && <div className="group-form-error-card">{requestError}</div>}
           {errors.common && <div className="group-form-error-card">{errors.common}</div>}
 

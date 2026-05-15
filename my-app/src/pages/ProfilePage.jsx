@@ -9,6 +9,11 @@ import gearIcon from "../assets/icons/gear.png";
 import "../styles/global.css";
 import "../styles/profile.css";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://habbit-backend-k33d.onrender.com";
+
 const USER = {
   name: "",
   email: "",
@@ -16,52 +21,70 @@ const USER = {
   registeredAt: "",
 };
 
-const BASE_EMOJI_SLIDES = [
-  {
-    id: "emoji-1",
-    type: "emoji",
-    label: "🐰",
-    defaultColor: "#d8cde3",
-    hoverMessage: "ЭТО КРОЛЬ-ПАТРУЛЬ, ОН СЛЕДИТ ЗА ПРИВЫЧКАМИ",
-  },
-  {
-    id: "emoji-2",
-    type: "emoji",
-    label: "💪",
-    defaultColor: "#f0d9d0",
-    hoverMessage: "ЭТО БИЦУХА МОТИВАЦИИ, ОНА НЕ ПРИНИМАЕТ ОТМАЗКИ",
-  },
-  {
-    id: "emoji-3",
-    type: "emoji",
-    label: "🧽",
-    defaultColor: "#d7e2cf",
-    hoverMessage: "ЭТО ГУБКА БОБ, ОН ЛЮБИТ ЧИСТОТУ",
-  },
-  {
-    id: "emoji-4",
-    type: "emoji",
-    label: "🥕",
-    defaultColor: "#f4e4bc",
-    hoverMessage: "ЭТО МОРКОВНЫЙ БОСС, ОН ЗА ПОЛЕЗНЫЙ ПЕРЕКУС",
-  },
-  {
-    id: "emoji-5",
-    type: "emoji",
-    label: "👓",
-    defaultColor: "#d9d6ee",
-    hoverMessage: "ЭТО УМНИК В ОЧКАХ, ОН ЧИТАЕТ ДАЖЕ СОСТАВ ШАМПУНЯ",
-  },
-];
-
-
-
 const AVATAR_COLORS_STORAGE_KEY = "habbit-profile-avatar-colors";
 const AVATAR_SELECTED_STORAGE_KEY = "habbit-profile-selected-avatar-id";
 const AVATAR_PHOTOS_STORAGE_KEY = "habbit-profile-uploaded-photos";
 const PROFILE_DATA_STORAGE_KEY = "habbit-profile-data";
-const TOKEN_STORAGE_KEY = "habbit-auth-token";
+const TOKEN_STORAGE_KEYS = ["habbit-auth-token", "habbitToken", "authToken", "token"];
 const MAX_UPLOADED_PHOTOS = 3;
+const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+function getStoredAuthToken() {
+  if (typeof window === "undefined") return "";
+
+  try {
+    for (const key of TOKEN_STORAGE_KEYS) {
+      const token = window.localStorage.getItem(key);
+      if (token) return token;
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function clearStoredAuthTokens() {
+  if (typeof window === "undefined") return;
+
+  try {
+    TOKEN_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Даже если localStorage недоступен, визуально пользователь всё равно выйдет.
+  }
+}
+
+async function requestProfileApi(path, options = {}) {
+  const token = getStoredAuthToken();
+
+  if (!token) {
+    throw new Error("Нет токена авторизации");
+  }
+
+  const { method = "GET", body, isFormData = false } = options;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
+
+  if (!isFormData && body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Запрос к профилю не выполнен");
+  }
+
+  return data;
+}
 
 function readStoredAvatarColors() {
   if (typeof window === "undefined") return {};
@@ -169,13 +192,13 @@ function readStoredProfileData() {
       return fallbackData;
     }
 
-  return {
-    name: normalizeEditableValue(parsedData.name, fallbackData.name),
-    email: normalizeEditableValue(parsedData.email, fallbackData.email),
-    password: "••••••••",
-    coins: parsedData.coins ?? fallbackData.coins,
-    registeredAt: parsedData.registeredAt || fallbackData.registeredAt,
-  };
+    return {
+      name: normalizeEditableValue(parsedData.name, fallbackData.name),
+      email: normalizeEditableValue(parsedData.email, fallbackData.email),
+      password: "••••••••",
+      coins: parsedData.coins ?? fallbackData.coins,
+      registeredAt: parsedData.registeredAt || fallbackData.registeredAt,
+    };
   } catch {
     return fallbackData;
   }
@@ -214,22 +237,217 @@ function normalizeEditableValue(value, fallback) {
   return nextValue || fallback;
 }
 
+function formatBackendDate(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function getFiniteNumber(...values) {
+  for (const value of values) {
+    const number = Number(value);
+
+    if (Number.isFinite(number)) {
+      return number;
+    }
+  }
+
+  return null;
+}
+
+function getBackendUser(profileResponse) {
+  return profileResponse?.user && typeof profileResponse.user === "object"
+    ? profileResponse.user
+    : profileResponse || {};
+}
+
+function normalizeProfileFromBackend(profileResponse, fallbackProfile = {}) {
+  const user = getBackendUser(profileResponse);
+  const coins = getFiniteNumber(
+    user.coinsBalance,
+    user.coins,
+    user.coins_balance,
+    fallbackProfile.coins,
+    fallbackProfile.coinsBalance
+  );
+
+  const registeredAt =
+    user.registeredAtFormatted ||
+    user.registered_at_formatted ||
+    (user.registeredAt ? formatBackendDate(user.registeredAt) : "") ||
+    (user.registered_at ? formatBackendDate(user.registered_at) : "") ||
+    fallbackProfile.registeredAt ||
+    fallbackProfile.registeredAtFormatted ||
+    "";
+
+  return {
+    id: user.id ?? fallbackProfile.id ?? null,
+    name: normalizeEditableValue(user.name, fallbackProfile.name || ""),
+    email: normalizeEditableValue(user.email, fallbackProfile.email || ""),
+    password: user.passwordMasked || fallbackProfile.passwordMasked || fallbackProfile.password || "••••••••",
+    coins: coins ?? 0,
+    registeredAt,
+    activeUserAvatarId:
+      user.activeUserAvatarId ??
+      user.active_user_avatar_id ??
+      fallbackProfile.activeUserAvatarId ??
+      null,
+    avatarBgColor: user.avatarBgColor || user.avatar_bg_color || fallbackProfile.avatarBgColor || "#F3E3DB",
+  };
+}
+
+function getBackendAvatars(profileResponse) {
+  return Array.isArray(profileResponse?.avatars) ? profileResponse.avatars : [];
+}
+
+function getBackendActiveAvatar(profileResponse) {
+  return profileResponse?.activeAvatar || profileResponse?.avatar || null;
+}
+
+function getSlideIdForBackendActiveAvatar(profileResponse) {
+  const backendAvatars = getBackendAvatars(profileResponse);
+  const activeAvatar = getBackendActiveAvatar(profileResponse);
+  const user = getBackendUser(profileResponse);
+  const activeAvatarId = activeAvatar?.id ?? user.activeUserAvatarId ?? user.active_user_avatar_id;
+
+  if (!activeAvatarId) return null;
+
+  const avatar =
+    activeAvatar && String(activeAvatar.id) === String(activeAvatarId)
+      ? activeAvatar
+      : backendAvatars.find((item) => String(item?.id) === String(activeAvatarId));
+
+  if (!avatar) return null;
+
+  if (isBackendPictureAvatar(avatar)) {
+    return `photo-${avatar.id}`;
+  }
+
+  if (avatar.type === "letter") {
+    return "monogram";
+  }
+
+  if (avatar.type === "emoji") {
+    return `emoji-${avatar.id}`;
+  }
+
+  return null;
+}
+
+function getBackendAvatarUrl(avatar) {
+  return avatar?.file?.url || avatar?.src || "";
+}
+
+function isBackendPictureAvatar(avatar) {
+  return avatar?.type === "picture" || avatar?.type === "photo";
+}
+
+function isColorEditableSlide(slide) {
+  return slide?.type === "monogram" || slide?.type === "emoji";
+}
+
+function normalizeSharedAvatar(slide, fallbackName = "") {
+  if (!slide) return null;
+
+  if (slide.type === "photo") {
+    return {
+      id: slide.backendId || slide.id,
+      type: "photo",
+      label: slide.label,
+      color: slide.color,
+      src: slide.src,
+      raw: slide.raw || null,
+    };
+  }
+
+  return {
+    id: slide.backendId || slide.id,
+    type: slide.type === "emoji" ? "emoji" : "letter",
+    label: slide.label || getInitial(fallbackName),
+    color: slide.color,
+    raw: slide.raw || null,
+  };
+}
+
+function normalizePreviewSlideFromSharedAvatar(avatar, fallbackName = "") {
+  if (!avatar || typeof avatar !== "object") return null;
+
+  const avatarType = avatar.type === "picture" ? "photo" : avatar.type;
+  const color = avatar.color || avatar.bgColor || avatar.bg_color || "#ede2da";
+
+  if (avatarType === "photo") {
+    const src = avatar.src || avatar.file?.url || "";
+
+    if (!src) return null;
+
+    return {
+      id: avatar.id ? `preview-photo-${avatar.id}` : "preview-photo",
+      type: "photo",
+      backendId: avatar.backendId || avatar.id || null,
+      label: avatar.label || avatar.file?.originalName || "Фото профиля",
+      color,
+      src,
+      raw: avatar.raw || avatar,
+    };
+  }
+
+  if (avatarType === "emoji") {
+    return {
+      id: avatar.id ? `preview-emoji-${avatar.id}` : "preview-emoji",
+      type: "emoji",
+      backendId: avatar.backendId || avatar.id || null,
+      label: avatar.label || avatar.value || "🙂",
+      color,
+      raw: avatar.raw || avatar,
+    };
+  }
+
+  return {
+    id: avatar.id ? `preview-letter-${avatar.id}` : "preview-letter",
+    type: "monogram",
+    backendId: avatar.backendId || avatar.id || null,
+    label: avatar.label || avatar.value || getInitial(fallbackName),
+    color,
+    raw: avatar.raw || avatar,
+  };
+}
+
 export default function ProfilePage({
   navigate,
   userProfile,
   userAvatar,
   onProfileDataChange,
   onProfileAvatarChange,
+  onProfileResponse,
+  onPageLoadingChange,
+  pageLoadingRoute,
+  onLogout,
 }) {
+  const [profileResponse, setProfileResponse] = useState(null);
   const [profileData, setProfileData] = useState(() => {
     const storedProfileData = readStoredProfileData();
 
     return {
       name: normalizeEditableValue(userProfile?.name, storedProfileData.name),
       email: userProfile?.email || storedProfileData.email,
-      password: "••••••••",
-      coins: userProfile?.coins ?? storedProfileData.coins,
-      registeredAt: userProfile?.registeredAt || storedProfileData.registeredAt,
+      password: userProfile?.passwordMasked || userProfile?.password || "••••••••",
+      coins: userProfile?.coins ?? userProfile?.coinsBalance ?? storedProfileData.coins,
+      registeredAt:
+        userProfile?.registeredAtFormatted ||
+        userProfile?.registeredAt ||
+        storedProfileData.registeredAt,
+      activeUserAvatarId: userProfile?.activeUserAvatarId ?? null,
+      avatarBgColor: userProfile?.avatarBgColor || "#F3E3DB",
     };
   });
   const [uploadedPhotos, setUploadedPhotos] = useState(readStoredUploadedPhotos);
@@ -237,8 +455,12 @@ export default function ProfilePage({
   const [avatarHoverShift, setAvatarHoverShift] = useState(0);
   const [avatarColors, setAvatarColors] = useState(readStoredAvatarColors);
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+  const [deleteModalState, setDeleteModalState] = useState("confirm");
+  const [deletePreview, setDeletePreview] = useState(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [loadState, setLoadState] = useState({ status: "idle", message: "" });
+  const [actionState, setActionState] = useState({ status: "idle", message: "" });
 
   const previousAvatarIdRef = useRef("monogram");
   const uploadInputRef = useRef(null);
@@ -246,10 +468,87 @@ export default function ProfilePage({
   const uploadOpenTimerRef = useRef(null);
   const uploadCancelTimerRef = useRef(null);
   const uploadDialogRef = useRef({ isOpen: false, fallbackId: "monogram" });
+  const hasLoadedProfileRef = useRef(false);
+
+  const backendAvatars = useMemo(() => getBackendAvatars(profileResponse), [profileResponse]);
+  const backendActiveAvatar = useMemo(() => getBackendActiveAvatar(profileResponse), [profileResponse]);
+  const backendLetterAvatar = useMemo(
+    () =>
+      backendAvatars.find((avatar) => avatar?.type === "letter") ||
+      (backendActiveAvatar?.type === "letter" ? backendActiveAvatar : null),
+    [backendActiveAvatar, backendAvatars]
+  );
+  const backendEmojiAvatars = useMemo(
+    () => backendAvatars.filter((avatar) => avatar?.type === "emoji"),
+    [backendAvatars]
+  );
+  const backendPictureAvatars = useMemo(
+    () => backendAvatars.filter((avatar) => isBackendPictureAvatar(avatar)),
+    [backendAvatars]
+  );
 
   const currentInitial = getInitial(profileData.name);
+  const backendMode = Boolean(profileResponse);
+  const photoCount = backendMode ? backendPictureAvatars.length : uploadedPhotos.length;
+  const canAddMorePhotos = photoCount < MAX_UPLOADED_PHOTOS;
+  const isBusy = actionState.status === "loading" || loadState.status === "loading";
 
-  const canAddMorePhotos = uploadedPhotos.length < MAX_UPLOADED_PHOTOS;
+  const applyProfileResponse = useCallback((nextProfileResponse) => {
+    const nextProfileData = normalizeProfileFromBackend(nextProfileResponse, userProfile || profileData);
+    const nextActiveAvatar = getBackendActiveAvatar(nextProfileResponse);
+    const nextActiveSlideId = getSlideIdForBackendActiveAvatar(nextProfileResponse);
+
+    setProfileResponse(nextProfileResponse);
+    setProfileData(nextProfileData);
+
+    if (nextActiveSlideId) {
+      setCurrentAvatarId(nextActiveSlideId);
+      saveStoredSelectedAvatarId(nextActiveSlideId);
+    }
+
+    saveStoredProfileData(nextProfileData);
+
+    onProfileResponse?.(nextProfileResponse);
+    onProfileDataChange?.(nextProfileResponse?.user || nextProfileData);
+    onProfileAvatarChange?.(nextActiveAvatar || normalizeSharedAvatar(null, nextProfileData.name));
+
+    return nextProfileResponse;
+  }, [onProfileAvatarChange, onProfileDataChange, onProfileResponse, profileData, userProfile]);
+
+  const loadProfile = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      onPageLoadingChange?.(true, pageLoadingRoute);
+      setLoadState({ status: "loading", message: "" });
+    }
+
+    try {
+      const data = await requestProfileApi("/api/profile");
+      applyProfileResponse(data);
+      setLoadState({ status: "success", message: "" });
+      return data;
+    } catch (error) {
+      setLoadState({
+        status: "error",
+        message: error?.message || "Не удалось загрузить профиль",
+      });
+      return null;
+    } finally {
+      if (!silent) {
+        onPageLoadingChange?.(false, pageLoadingRoute);
+      }
+    }
+  }, [applyProfileResponse, onPageLoadingChange, pageLoadingRoute]);
+
+  useEffect(() => {
+    if (hasLoadedProfileRef.current) return;
+
+    hasLoadedProfileRef.current = true;
+    void loadProfile();
+  }, [loadProfile]);
+
+  useEffect(() => () => {
+    onPageLoadingChange?.(false, pageLoadingRoute);
+  }, [onPageLoadingChange, pageLoadingRoute]);
 
   const carousel = useMemo(() => {
     const uploadSlide = {
@@ -262,22 +561,40 @@ export default function ProfilePage({
     const monogramSlide = {
       id: "monogram",
       type: "monogram",
+      backendId: backendLetterAvatar?.id || null,
       label: currentInitial,
-      color: avatarColors.monogram || "#ede2da",
+      color: avatarColors.monogram || backendLetterAvatar?.bgColor || profileData.avatarBgColor || "#ede2da",
+      raw: backendLetterAvatar || null,
     };
 
-    const photoSlides = uploadedPhotos.slice(0, MAX_UPLOADED_PHOTOS).map((photo, index) => ({
-      id: photo.id,
-      type: "photo",
-      src: photo.src,
-      label: `Фото ${index + 1}`,
-      color: "#f3e3db",
-      photoId: photo.id,
-    }));
+    const photoSlides = backendMode
+      ? backendPictureAvatars.slice(0, MAX_UPLOADED_PHOTOS).map((avatar, index) => ({
+          id: `photo-${avatar.id}`,
+          type: "photo",
+          backendId: avatar.id,
+          src: getBackendAvatarUrl(avatar),
+          label: avatar.file?.originalName || `Фото ${index + 1}`,
+          color: avatar.bgColor || "#f3e3db",
+          photoId: avatar.id,
+          raw: avatar,
+        }))
+      : uploadedPhotos.slice(0, MAX_UPLOADED_PHOTOS).map((photo, index) => ({
+          id: photo.id,
+          type: "photo",
+          src: photo.src,
+          label: `Фото ${index + 1}`,
+          color: "#f3e3db",
+          photoId: photo.id,
+          raw: null,
+        }));
 
-    const emojiSlides = BASE_EMOJI_SLIDES.map((slide) => ({
-      ...slide,
-      color: avatarColors[slide.id] || slide.defaultColor,
+    const emojiSlides = backendEmojiAvatars.map((avatar) => ({
+      id: `emoji-${avatar.id}`,
+      type: "emoji",
+      backendId: avatar.id,
+      label: avatar.value || "🙂",
+      color: avatar.bgColor || avatar.bg_color || "#f3e3db",
+      raw: avatar,
     }));
 
     return [
@@ -286,7 +603,17 @@ export default function ProfilePage({
       ...photoSlides,
       ...emojiSlides,
     ];
-  }, [avatarColors, canAddMorePhotos, currentInitial, uploadedPhotos]);
+  }, [
+    avatarColors,
+    backendEmojiAvatars,
+    backendLetterAvatar,
+    backendMode,
+    backendPictureAvatars,
+    canAddMorePhotos,
+    currentInitial,
+    profileData.avatarBgColor,
+    uploadedPhotos,
+  ]);
 
   const storedAvatarIndex = carousel.findIndex((slide) => slide.id === currentAvatarId);
   const monogramIndex = carousel.findIndex((slide) => slide.id === "monogram");
@@ -297,33 +624,58 @@ export default function ProfilePage({
     currentSlide?.type === "upload" ? carousel.find((slide) => slide.id === "monogram") : currentSlide;
   const canMoveLeft = safeIndex > 0;
   const canMoveRight = safeIndex < carousel.length - 1;
-  const canEditCurrentAvatarColor =
-    currentSlide?.type === "monogram" || currentSlide?.type === "emoji";
-  const sharedAvatar = useMemo(() => {
-    if (!selectedDisplaySlide) return userAvatar || null;
+  const canEditCurrentAvatarColor = isColorEditableSlide(currentSlide);
+  const stablePreviewSlide = useMemo(() => {
+    const sharedSlide = normalizePreviewSlideFromSharedAvatar(userAvatar, profileData.name);
 
-    if (selectedDisplaySlide.type === "photo") {
-      return {
-        id: selectedDisplaySlide.id,
-        type: "photo",
-        label: selectedDisplaySlide.label,
-        color: selectedDisplaySlide.color,
-        src: selectedDisplaySlide.src,
-      };
+    if (!profileResponse && sharedSlide) {
+      return sharedSlide;
     }
 
-    return {
-      id: selectedDisplaySlide.id,
-      type: selectedDisplaySlide.type,
-      label: selectedDisplaySlide.label,
-      color: selectedDisplaySlide.color,
-    };
-  }, [selectedDisplaySlide, userAvatar]);
+    return selectedDisplaySlide;
+  }, [profileData.name, profileResponse, selectedDisplaySlide, userAvatar]);
 
+  const sharedAvatar = useMemo(
+    () => normalizeSharedAvatar(stablePreviewSlide, profileData.name) || userAvatar || null,
+    [profileData.name, stablePreviewSlide, userAvatar]
+  );
+
+
+  const setActionMessage = useCallback((status, message) => {
+    setActionState({ status, message });
+  }, []);
+
+  const refreshProfileAfterShortResponse = useCallback(async (responseData) => {
+    if (responseData?.user && (responseData?.activeAvatar || responseData?.avatars)) {
+      applyProfileResponse(responseData);
+      return responseData;
+    }
+
+    return loadProfile({ silent: true });
+  }, [applyProfileResponse, loadProfile]);
 
   const selectAvatarId = useCallback((avatarId) => {
     setCurrentAvatarId(avatarId);
+    saveStoredSelectedAvatarId(avatarId);
   }, []);
+
+  const saveActiveAvatar = useCallback(async (slide) => {
+    if (!slide?.backendId || slide.type === "upload") return true;
+
+    try {
+      setActionMessage("loading", "Обновляю активную аватарку...");
+      const data = await requestProfileApi("/api/profile/avatars/active", {
+        method: "PATCH",
+        body: { avatarId: String(slide.backendId) },
+      });
+      await refreshProfileAfterShortResponse(data);
+      setActionMessage("success", "Активная аватарка обновлена.");
+      return true;
+    } catch (error) {
+      setActionMessage("error", error?.message || "Не удалось выбрать аватарку.");
+      return false;
+    }
+  }, [refreshProfileAfterShortResponse, setActionMessage]);
 
   const closeUploadDialogAsCanceled = useCallback(() => {
     if (!uploadDialogRef.current.isOpen) return;
@@ -359,6 +711,7 @@ export default function ProfilePage({
   const openUpload = ({ fallbackId = currentSlide?.id || "monogram", delay = false } = {}) => {
     if (!canAddMorePhotos) {
       selectAvatarId("monogram");
+      setActionMessage("error", "Можно загрузить максимум 3 фото-аватарки.");
       return;
     }
 
@@ -410,6 +763,7 @@ export default function ProfilePage({
     }
 
     selectAvatarId(nextSlide.id);
+    void saveActiveAvatar(nextSlide);
   };
 
   const moveAvatar = (direction) => {
@@ -422,14 +776,17 @@ export default function ProfilePage({
       return;
     }
 
-    if (slide.type === "photo") return;
+    if (slide.type === "photo") {
+      void saveActiveAvatar(slide);
+      return;
+    }
 
     if (canEditCurrentAvatarColor) {
       avatarColorInputRef.current?.click();
     }
   };
 
-  const handleUpload = (event) => {
+  const handleUpload = async (event) => {
     const file = event.target.files?.[0];
 
     if (uploadCancelTimerRef.current) {
@@ -445,8 +802,51 @@ export default function ProfilePage({
       return;
     }
 
-    if (uploadedPhotos.length >= MAX_UPLOADED_PHOTOS) {
+    if (!ALLOWED_AVATAR_MIME_TYPES.includes(file.type)) {
+      setActionMessage("error", "Поддерживаются только JPEG, PNG и WEBP.");
+      selectAvatarId(previousAvatarIdRef.current);
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      setActionMessage("error", "Фото должно быть не больше 5 МБ.");
+      selectAvatarId(previousAvatarIdRef.current);
+      event.target.value = "";
+      return;
+    }
+
+    if (photoCount >= MAX_UPLOADED_PHOTOS) {
+      setActionMessage("error", "Можно загрузить максимум 3 фото-аватарки.");
       selectAvatarId("monogram");
+      event.target.value = "";
+      return;
+    }
+
+    if (backendMode) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        setActionMessage("loading", "Загружаю фото...");
+        const data = await requestProfileApi("/api/profile/avatars/picture", {
+          method: "POST",
+          body: formData,
+          isFormData: true,
+        });
+        const uploadedAvatarId = data?.avatar?.id;
+        await loadProfile({ silent: true });
+
+        if (uploadedAvatarId) {
+          selectAvatarId(`photo-${uploadedAvatarId}`);
+        }
+
+        setActionMessage("success", "Фото-аватарка загружена.");
+      } catch (error) {
+        setActionMessage("error", error?.message || "Не удалось загрузить фото.");
+        selectAvatarId(previousAvatarIdRef.current);
+      }
+
       event.target.value = "";
       return;
     }
@@ -470,8 +870,23 @@ export default function ProfilePage({
     event.target.value = "";
   };
 
-  const removeCurrentPhoto = () => {
+  const removeCurrentPhoto = async () => {
     if (currentSlide?.type !== "photo") return;
+
+    if (backendMode && currentSlide.backendId) {
+      try {
+        setActionMessage("loading", "Удаляю фото-аватарку...");
+        await requestProfileApi(`/api/profile/avatars/${currentSlide.backendId}`, {
+          method: "DELETE",
+        });
+        await loadProfile({ silent: true });
+        selectAvatarId("monogram");
+        setActionMessage("success", "Фото-аватарка удалена.");
+      } catch (error) {
+        setActionMessage("error", error?.message || "Не удалось удалить фото-аватарку.");
+      }
+      return;
+    }
 
     setUploadedPhotos((prev) => prev.filter((photo) => photo.id !== currentSlide.photoId));
     selectAvatarId("monogram");
@@ -486,17 +901,61 @@ export default function ProfilePage({
     }));
   };
 
-  const updateProfileField = (field, value) => {
-    setProfileData((prev) => {
-      const nextData = {
-        ...prev,
-        [field]: normalizeEditableValue(value, prev[field]),
-      };
+  const saveAvatarColor = async (color) => {
+    if (!currentSlide || !canEditCurrentAvatarColor || !currentSlide.backendId) return;
 
-      saveStoredProfileData(nextData);
-      onProfileDataChange?.(nextData);
-      return nextData;
-    });
+    try {
+      setActionMessage("loading", "Меняю цвет аватарки...");
+      const data = await requestProfileApi(`/api/profile/avatars/${currentSlide.backendId}/color`, {
+        method: "PATCH",
+        body: { bgColor: color },
+      });
+      await refreshProfileAfterShortResponse(data);
+      setActionMessage("success", "Цвет аватарки обновлён.");
+    } catch (error) {
+      setActionMessage("error", error?.message || "Не удалось изменить цвет аватарки.");
+    }
+  };
+
+  const updateProfileField = async (field, value, repeatedValue) => {
+    if (field === "name") {
+      const nextName = normalizeEditableValue(value, profileData.name);
+
+      try {
+        setActionMessage("loading", "Сохраняю имя...");
+        const data = await requestProfileApi("/api/profile/name", {
+          method: "PATCH",
+          body: { name: nextName },
+        });
+        await refreshProfileAfterShortResponse(data);
+        setActionMessage("success", "Имя обновлено.");
+        return true;
+      } catch (error) {
+        setActionMessage("error", error?.message || "Не удалось изменить имя.");
+        return false;
+      }
+    }
+
+    if (field === "password") {
+      try {
+        setActionMessage("loading", "Сохраняю пароль...");
+        await requestProfileApi("/api/profile/password", {
+          method: "PATCH",
+          body: {
+            newPassword: value,
+            repeatPassword: repeatedValue,
+          },
+        });
+        setProfileData((prev) => ({ ...prev, password: "••••••••" }));
+        setActionMessage("success", "Пароль обновлён.");
+        return true;
+      } catch (error) {
+        setActionMessage("error", error?.message || "Не удалось изменить пароль.");
+        return false;
+      }
+    }
+
+    return false;
   };
 
   const handleProfileModeButtonClick = () => {
@@ -506,46 +965,73 @@ export default function ProfilePage({
       saveStoredSelectedAvatarId(currentAvatarId);
       saveStoredUploadedPhotos(uploadedPhotos);
       onProfileDataChange?.(profileData);
-      onProfileAvatarChange?.(sharedAvatar);
+      onProfileAvatarChange?.(sharedAvatar?.raw || sharedAvatar);
       setIsProfileEditing(false);
       return;
     }
 
     setIsProfileEditing(true);
+    setActionMessage("idle", "");
   };
-
-  const clearAuthSession = useCallback(({ clearProfile = false } = {}) => {
-    if (typeof window === "undefined") return;
-
-    try {
-      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-
-      if (clearProfile) {
-        window.localStorage.removeItem(PROFILE_DATA_STORAGE_KEY);
-        window.localStorage.removeItem(AVATAR_COLORS_STORAGE_KEY);
-        window.localStorage.removeItem(AVATAR_SELECTED_STORAGE_KEY);
-        window.localStorage.removeItem(AVATAR_PHOTOS_STORAGE_KEY);
-      }
-    } catch {
-      // Даже если localStorage недоступен, пользователь всё равно вернётся на экран входа.
-    }
-  }, []);
 
   const goToAuth = useCallback(() => {
     navigate?.("/auth");
   }, [navigate]);
 
+  const clearAuthSession = useCallback(({ clearProfile = false } = {}) => {
+    clearStoredAuthTokens();
+
+    if (clearProfile && typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(PROFILE_DATA_STORAGE_KEY);
+        window.localStorage.removeItem(AVATAR_COLORS_STORAGE_KEY);
+        window.localStorage.removeItem(AVATAR_SELECTED_STORAGE_KEY);
+        window.localStorage.removeItem(AVATAR_PHOTOS_STORAGE_KEY);
+      } catch {
+        // Даже если localStorage недоступен, пользователь всё равно вернётся на экран входа.
+      }
+    }
+  }, []);
+
   const confirmLogout = useCallback(() => {
     clearAuthSession();
+    onLogout?.();
     setIsLogoutModalOpen(false);
     goToAuth();
-  }, [clearAuthSession, goToAuth]);
+  }, [clearAuthSession, goToAuth, onLogout]);
 
-  const confirmDeactivate = useCallback(() => {
-    clearAuthSession({ clearProfile: true });
-    setIsDeactivateModalOpen(false);
-    goToAuth();
-  }, [clearAuthSession, goToAuth]);
+  const openDeactivateModal = useCallback(async () => {
+    setDeleteModalState("loading");
+    setDeletePreview(null);
+    setActionState({ status: "loading", message: "" });
+
+    try {
+      const preview = await requestProfileApi("/api/profile/delete-preview");
+      setDeletePreview(preview);
+      setDeleteModalState(preview?.canDelete ? "confirm" : "blocked");
+      setIsDeactivateModalOpen(true);
+    } catch (error) {
+      setDeletePreview({ message: error?.message || "Не удалось проверить удаление аккаунта." });
+      setDeleteModalState("error");
+      setIsDeactivateModalOpen(true);
+    } finally {
+      setActionState({ status: "idle", message: "" });
+    }
+  }, []);
+
+  const confirmDeactivate = useCallback(async () => {
+    try {
+      setDeleteModalState("deleting");
+      await requestProfileApi("/api/profile", { method: "DELETE" });
+      clearAuthSession({ clearProfile: true });
+      onLogout?.();
+      setIsDeactivateModalOpen(false);
+      goToAuth();
+    } catch (error) {
+      setDeletePreview({ message: error?.message || "Не удалось удалить аккаунт." });
+      setDeleteModalState("error");
+    }
+  }, [clearAuthSession, goToAuth, onLogout]);
 
   const goToLobby = useCallback(() => {
     navigate?.("/lobby");
@@ -569,8 +1055,8 @@ export default function ProfilePage({
             userName={profileData.name}
             userEmail={profileData.email}
             coins={profileData.coins ?? 0}
-            initials={userAvatar?.label || currentInitial}
-            avatar={userAvatar}
+            initials={sharedAvatar?.label || currentInitial}
+            avatar={sharedAvatar || userAvatar}
             onLogoClick={goToLobby}
             onProfileClick={goToProfile}
           />
@@ -590,13 +1076,14 @@ export default function ProfilePage({
                     <div className="profile-top-controls">
                       <div className="profile-registration-note">
                         <span>Дата регистрации</span>
-                        <strong>{profileData.registeredAt}</strong>
+                        <strong>{profileData.registeredAt || "—"}</strong>
                       </div>
 
                       <button
                         type="button"
                         className={`profile-edit-mode-button ${isProfileEditing ? "profile-edit-mode-button--save" : ""}`}
                         onClick={handleProfileModeButtonClick}
+                        disabled={isBusy}
                         aria-label={isProfileEditing ? "Сохранить изменения профиля" : "Открыть настройки профиля"}
                       >
                         {isProfileEditing ? (
@@ -611,6 +1098,12 @@ export default function ProfilePage({
                         )}
                       </button>
                     </div>
+
+                    {loadState.status === "error" && (
+                      <p className="profile-action-message profile-action-message--error">
+                        {loadState.message}
+                      </p>
+                    )}
 
                     <div className={`profile-avatar-block ${isProfileEditing ? "profile-avatar-block--edit" : "profile-avatar-block--view"}`}>
                       {isProfileEditing ? (
@@ -648,8 +1141,8 @@ export default function ProfilePage({
                                       : selectAvatar(index)
                                   }
                                   aria-label={slide.type === "upload" ? "Загрузить фото" : `Выбрать аватарку ${slide.label}`}
-                                  title={slide.type === "emoji" ? slide.hoverMessage : undefined}
                                   tabIndex={isVisible ? 0 : -1}
+                                  disabled={isBusy && slide.type !== "upload"}
                                 >
                                   <AvatarContent slide={slide} size={isCurrent ? "large" : distance === 1 ? "medium" : "small"} />
 
@@ -658,7 +1151,7 @@ export default function ProfilePage({
                                       className="profile-avatar-item__remove"
                                       onClick={(event) => {
                                         event.stopPropagation();
-                                        removeCurrentPhoto();
+                                        void removeCurrentPhoto();
                                       }}
                                       role="button"
                                       tabIndex={0}
@@ -680,6 +1173,7 @@ export default function ProfilePage({
                               onMouseLeave={() => setAvatarHoverShift(0)}
                               onClick={() => moveAvatar("left")}
                               aria-label="Предыдущая аватарка"
+                              disabled={isBusy}
                             >
                               <span className="profile-avatar-carousel__arrow-shape" />
                             </button>
@@ -693,6 +1187,7 @@ export default function ProfilePage({
                               onMouseLeave={() => setAvatarHoverShift(0)}
                               onClick={() => moveAvatar("right")}
                               aria-label="Следующая аватарка"
+                              disabled={isBusy}
                             >
                               <span className="profile-avatar-carousel__arrow-shape" />
                             </button>
@@ -705,7 +1200,10 @@ export default function ProfilePage({
                               className="profile-avatar-color-input"
                               value={currentSlide.color}
                               onInput={(event) => updateAvatarColor(event.currentTarget.value)}
-                              onChange={(event) => updateAvatarColor(event.currentTarget.value)}
+                              onChange={(event) => {
+                                updateAvatarColor(event.currentTarget.value);
+                                void saveAvatarColor(event.currentTarget.value);
+                              }}
                               aria-label="Выбрать цвет фона иконки"
                               tabIndex={-1}
                             />
@@ -714,7 +1212,7 @@ export default function ProfilePage({
                           <input
                             ref={uploadInputRef}
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp"
                             className="profile-avatar-carousel__input"
                             onChange={handleUpload}
                           />
@@ -722,10 +1220,10 @@ export default function ProfilePage({
                       ) : (
                         <div
                           className="profile-avatar-preview"
-                          style={{ "--avatar-bg": selectedDisplaySlide?.color || "#ede2da" }}
+                          style={{ "--avatar-bg": stablePreviewSlide?.color || "#ede2da" }}
                           aria-label="Текущая аватарка профиля"
                         >
-                          <AvatarContent slide={selectedDisplaySlide} size="hero" />
+                          <AvatarContent slide={stablePreviewSlide} size="hero" />
                         </div>
                       )}
                     </div>
@@ -743,7 +1241,7 @@ export default function ProfilePage({
                             label="Пароль"
                             value={profileData.password}
                             isPassword
-                            onSave={() => updateProfileField("password", "••••••••")}
+                            onSave={(newPassword, repeatPassword) => updateProfileField("password", newPassword, repeatPassword)}
                           />
                         </>
                       ) : (
@@ -754,6 +1252,12 @@ export default function ProfilePage({
                         </>
                       )}
                     </div>
+
+                    {actionState.message && actionState.status !== "idle" && (
+                      <p className={`profile-action-message profile-action-message--${actionState.status}`}>
+                        {actionState.message}
+                      </p>
+                    )}
                   </div>
                 </BorderGlow>
               </section>
@@ -763,9 +1267,10 @@ export default function ProfilePage({
               <button
                 type="button"
                 className="profile-action-button profile-action-button--danger"
-                onClick={() => setIsDeactivateModalOpen(true)}
+                onClick={openDeactivateModal}
+                disabled={isBusy}
               >
-                Деактивировать аккаунт
+                Удалить аккаунт
               </button>
               <button
                 type="button"
@@ -810,27 +1315,73 @@ export default function ProfilePage({
         {isDeactivateModalOpen && (
           <div className="modal-backdrop" role="presentation" onClick={() => setIsDeactivateModalOpen(false)}>
             <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="deactivate-title" onClick={(event) => event.stopPropagation()}>
-              <div id="deactivate-title" className="modal-card__title">
-                Деактивировать аккаунт?
-              </div>
-              <div className="modal-card__text">
-                После деактивации профиль, прогресс и личные данные будут недоступны. Точно хотите продолжить?
-              </div>
+              {deleteModalState === "blocked" && (
+                <>
+                  <div id="deactivate-title" className="modal-card__title">
+                    Аккаунт нельзя удалить
+                  </div>
+                  <div className="modal-card__text">
+                    Нельзя удалить аккаунт, пока вы являетесь владельцем группы с другими участниками. Сначала передайте права владельца или выйдите из группы.
+                  </div>
+                  {deletePreview?.blockingOwnedHabits?.length > 0 && (
+                    <div className="modal-card__text">
+                      Блокирующие группы: {deletePreview.blockingOwnedHabits.map((habit) => habit.title).join(", ")}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {deleteModalState === "confirm" && (
+                <>
+                  <div id="deactivate-title" className="modal-card__title">
+                    Удалить аккаунт?
+                  </div>
+                  <div className="modal-card__text">
+                    После удаления профиль, прогресс и личные данные будут недоступны. Точно хотите продолжить?
+                  </div>
+                </>
+              )}
+
+              {deleteModalState === "deleting" && (
+                <>
+                  <div id="deactivate-title" className="modal-card__title">
+                    Удаляю аккаунт
+                  </div>
+                  <div className="modal-card__text">
+                    Запрос отправлен на сервер.
+                  </div>
+                </>
+              )}
+
+              {deleteModalState === "error" && (
+                <>
+                  <div id="deactivate-title" className="modal-card__title">
+                    Ошибка
+                  </div>
+                  <div className="modal-card__text">
+                    {deletePreview?.message || "Не удалось выполнить действие."}
+                  </div>
+                </>
+              )}
+
               <div className="modal-card__actions">
                 <button
                   type="button"
                   className="modal-card__button modal-card__button--ghost"
                   onClick={() => setIsDeactivateModalOpen(false)}
                 >
-                  Отмена
+                  {deleteModalState === "confirm" ? "Отмена" : "Закрыть"}
                 </button>
-                <button
-                  type="button"
-                  className="modal-card__button modal-card__button--danger"
-                  onClick={confirmDeactivate}
-                >
-                  Деактивировать
-                </button>
+
+                {deleteModalState === "confirm" && (
+                  <button
+                    type="button"
+                    className="modal-card__button modal-card__button--danger"
+                    onClick={confirmDeactivate}
+                  >
+                    Удалить 
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -871,7 +1422,7 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
   const [confirmDraft, setConfirmDraft] = useState("");
   const [error, setError] = useState("");
 
-  const saveValue = () => {
+  const saveValue = async () => {
     const trimmedDraft = draft.trim();
     const trimmedConfirmDraft = confirmDraft.trim();
 
@@ -886,7 +1437,9 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
         return;
       }
 
-      onSave?.("••••••••");
+      const isSaved = await onSave?.(trimmedDraft, trimmedConfirmDraft);
+      if (isSaved === false) return;
+
       setDraft("");
       setConfirmDraft("");
       setError("");
@@ -895,7 +1448,9 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
     }
 
     const nextValue = normalizeEditableValue(draft, value);
-    onSave?.(nextValue);
+    const isSaved = await onSave?.(nextValue);
+    if (isSaved === false) return;
+
     setDraft("");
     setConfirmDraft("");
     setError("");
@@ -913,7 +1468,7 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
     if (!editable) return;
 
     if (isEditing) {
-      saveValue();
+      void saveValue();
       return;
     }
 
@@ -925,7 +1480,7 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
 
   const handleEditKeyDown = (event) => {
     if (event.key === "Enter") {
-      saveValue();
+      void saveValue();
     }
 
     if (event.key === "Escape") {
@@ -985,4 +1540,3 @@ function ProfileInfoCard({ label, value, editable = true, isPassword = false, on
     </div>
   );
 }
-
