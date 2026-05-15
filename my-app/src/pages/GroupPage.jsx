@@ -72,6 +72,34 @@ function getStoredAuthToken() {
   return "";
 }
 
+function getIsMobileViewport(query = "(max-width: 760px)") {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(query).matches;
+}
+
+function useIsMobileViewport(query = "(max-width: 760px)") {
+  const [isMobileViewport, setIsMobileViewport] = useState(() => getIsMobileViewport(query));
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
+
+    const mediaQueryList = window.matchMedia(query);
+    const handleChange = () => setIsMobileViewport(mediaQueryList.matches);
+
+    handleChange();
+
+    if (typeof mediaQueryList.addEventListener === "function") {
+      mediaQueryList.addEventListener("change", handleChange);
+      return () => mediaQueryList.removeEventListener("change", handleChange);
+    }
+
+    mediaQueryList.addListener(handleChange);
+    return () => mediaQueryList.removeListener(handleChange);
+  }, [query]);
+
+  return isMobileViewport;
+}
+
 function getHabitIdFromLocation() {
   if (typeof window === "undefined") return "";
 
@@ -2793,7 +2821,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
 
                       <div className="analytics-list">
                         <AnalyticsAccordion
-                          title="Сатистика недели"
+                          title="Статистика недели"
                           isOpen={analyticsOpen.week}
                           onToggle={() =>
                             setAnalyticsOpen((prev) => ({ ...prev, week: !prev.week }))
@@ -3890,6 +3918,8 @@ function CalendarBlock({
   calendarDays,
 }) {
   const daysGridRef = useRef(null);
+  const isMobileViewport = useIsMobileViewport();
+  const [isMobileCalendarOpen, setIsMobileCalendarOpen] = useState(false);
   const [calendarMeasurements, setCalendarMeasurements] = useState({
     fullHeight: null,
     weekHeight: null,
@@ -3902,6 +3932,8 @@ function CalendarBlock({
     [calendarDays]
   );
   const groupStatsMembers = groupStats?.members;
+  const groupStatsCompleted = groupStats?.completed;
+  const groupStatsTotal = groupStats?.total;
   const liveTodayState = useMemo(() => {
     const members = Array.isArray(groupStatsMembers) ? groupStatsMembers : [];
     const membersWithTasks = members.filter((member) => Number(member.total || 0) > 0);
@@ -3933,7 +3965,7 @@ function CalendarBlock({
   const gridTranslateY = calendarMode === "week" ? -calendarMeasurements.weekOffset : 0;
 
   useLayoutEffect(() => {
-    if (!daysGridRef.current) return;
+    if (!daysGridRef.current) return undefined;
 
     const grid = daysGridRef.current;
     const updateMeasurements = () => {
@@ -3955,13 +3987,14 @@ function CalendarBlock({
     resizeObserver.observe(grid);
 
     return () => resizeObserver.disconnect();
-  }, [activeRowIndex, monthRows.length, groupStats.completed, groupStats.total]);
+  }, [activeRowIndex, monthRows.length, groupStatsCompleted, groupStatsTotal]);
 
-  const shiftDate = (direction) => {
+
+  const shiftDate = (direction, mode = calendarMode) => {
     setViewedDate((prev) => {
       const next = new Date(prev);
 
-      if (calendarMode === "week") {
+      if (mode === "week") {
         next.setDate(prev.getDate() + direction * 7);
       } else {
         next.setMonth(prev.getMonth() + direction);
@@ -3971,8 +4004,63 @@ function CalendarBlock({
     });
   };
 
-  return (
-    <div className="calendar-card">
+  const getCalendarDayClassName = (cell) => {
+    const isToday = isSameDay(cell.date, currentDate);
+    const isFuture = isFutureDay(cell.date, currentDate);
+    const canColorDay = !cell.outOfMonth;
+    const apiDay = calendarDayByDate.get(cell.id);
+    const dayState =
+      isToday && canColorDay && !isFuture ? liveTodayState ?? apiDay?.state ?? null : apiDay?.state ?? null;
+    const hasZeroMember = canColorDay && dayState === "bad";
+    const isComplete = canColorDay && dayState === "good";
+
+    return `calendar-day ${cell.outOfMonth ? "calendar-day--muted" : ""} ${
+      isComplete ? "calendar-day--complete" : ""
+    } ${hasZeroMember ? "calendar-day--broken" : ""} ${isToday ? "calendar-day--today" : ""}`;
+  };
+
+  const renderCalendarLabels = () => (
+    <div className="calendar-grid calendar-grid--labels">
+      {weekDayLabels.map((day) => (
+        <div key={day} className="calendar-grid__label">
+          {day}
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderCalendarRows = ({ fullscreen = false } = {}) => (
+    <div
+      className={`calendar-days-viewport ${
+        fullscreen ? "calendar-days-viewport--full" : `calendar-days-viewport--${calendarMode}`
+      }`}
+      style={!fullscreen && viewportHeight ? { height: `${viewportHeight}px` } : undefined}
+    >
+      <div
+        ref={fullscreen ? undefined : daysGridRef}
+        className="calendar-month-stack"
+        style={!fullscreen ? { transform: `translateY(${gridTranslateY}px)` } : undefined}
+      >
+        {monthRows.map((row, rowIndex) => (
+          <div
+            key={`calendar-row-${row[0]?.id || rowIndex}`}
+            className={`calendar-grid calendar-grid--days calendar-row ${
+              rowIndex === activeRowIndex ? "calendar-row--active" : ""
+            }`}
+          >
+            {row.map((cell) => (
+              <div key={cell.id} className={getCalendarDayClassName(cell)}>
+                <span className="calendar-day__number">{cell.number}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const desktopCalendar = (
+    <>
       <div className="calendar-card__header">
         <div>
           <div className="calendar-card__month">{monthTitle}</div>
@@ -3998,58 +4086,71 @@ function CalendarBlock({
         </div>
       </div>
 
-      <div className="calendar-grid calendar-grid--labels">
-        {weekDayLabels.map((day) => (
-          <div key={day} className="calendar-grid__label">
-            {day}
-          </div>
-        ))}
+      {renderCalendarLabels()}
+      {renderCalendarRows()}
+    </>
+  );
+
+  return (
+    <>
+      <div className={`calendar-card ${isMobileViewport ? "calendar-card--mobile-summary" : ""}`}>
+        {isMobileViewport ? (
+          <button
+            type="button"
+            className="analytics-card__button calendar-card__mobile-button"
+            onClick={() => {
+              if (isMobileViewport) setIsMobileCalendarOpen(true);
+            }}
+            aria-expanded={isMobileViewport && isMobileCalendarOpen}
+          >
+            <span>
+              <span className="analytics-card__title">Календарь</span>
+              <span className="calendar-card__mobile-subtitle">Открыть месяц на весь экран</span>
+            </span>
+            <span className="analytics-card__arrow">
+              <span className="analytics-card__arrow-shape" />
+            </span>
+          </button>
+        ) : (
+          desktopCalendar
+        )}
       </div>
 
-      <div
-        className={`calendar-days-viewport calendar-days-viewport--${calendarMode}`}
-        style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
-      >
-        <div
-          ref={daysGridRef}
-          className="calendar-month-stack"
-          style={{ transform: `translateY(${gridTranslateY}px)` }}
-        >
-          {monthRows.map((row, rowIndex) => (
-            <div
-              key={`calendar-row-${row[0]?.id || rowIndex}`}
-              className={`calendar-grid calendar-grid--days calendar-row ${
-                rowIndex === activeRowIndex ? "calendar-row--active" : ""
-              }`}
-            >
-              {row.map((cell) => {
-                const isToday = isSameDay(cell.date, currentDate);
-                const isFuture = isFutureDay(cell.date, currentDate);
-                const canColorDay = !cell.outOfMonth;
-                const apiDay = calendarDayByDate.get(cell.id);
-                const dayState =
-                  isToday && canColorDay && !isFuture ? liveTodayState ?? apiDay?.state ?? null : apiDay?.state ?? null;
-                const hasZeroMember = canColorDay && dayState === "bad";
-                const isComplete = canColorDay && dayState === "good";
+      {isMobileViewport && isMobileCalendarOpen && (
+        <div className="mobile-visual-modal mobile-calendar-modal" role="dialog" aria-modal="true" aria-label="Календарь месяца">
+          <button
+            type="button"
+            className="mobile-visual-modal__close"
+            onClick={() => setIsMobileCalendarOpen(false)}
+            aria-label="Закрыть календарь"
+          >
+            ×
+          </button>
 
-                return (
-                  <div
-                    key={cell.id}
-                    className={`calendar-day ${cell.outOfMonth ? "calendar-day--muted" : ""} ${
-                      isComplete ? "calendar-day--complete" : ""
-                    } ${hasZeroMember ? "calendar-day--broken" : ""} ${
-                      isToday ? "calendar-day--today" : ""
-                    }`}
-                  >
-                    <span className="calendar-day__number">{cell.number}</span>
-                  </div>
-                );
-              })}
+          <div className="mobile-calendar-modal__panel">
+            <div className="mobile-visual-modal__header">
+              <div>
+                <h3 className="mobile-visual-modal__title">Календарь</h3>
+                <p className="mobile-visual-modal__subtitle">{monthTitle}</p>
+              </div>
             </div>
-          ))}
+
+            <div className="calendar-card__controls mobile-calendar-modal__controls">
+              <button type="button" className="round-control" onClick={() => shiftDate(-1, "month")} aria-label="Предыдущий месяц">
+                <span className="round-control__arrow round-control__arrow--prev" />
+              </button>
+              <span className="mobile-calendar-modal__mode">Месяц</span>
+              <button type="button" className="round-control" onClick={() => shiftDate(1, "month")} aria-label="Следующий месяц">
+                <span className="round-control__arrow" />
+              </button>
+            </div>
+
+            {renderCalendarLabels()}
+            {renderCalendarRows({ fullscreen: true })}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
@@ -4057,7 +4158,9 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
   const dates = data?.dates || [];
   const datasets = data?.datasets || [];
   const maxTasks = Math.max(1, data?.maxTasks || 1);
+  const isMobileViewport = useIsMobileViewport();
   const [focusedMemberId, setFocusedMemberId] = useState(null);
+  const [isMobileChartOpen, setIsMobileChartOpen] = useState(false);
   const pointsCount = dates.length;
   const chartHeight = 260;
   const chartWidth = Math.max(640, pointsCount * (pointsCount > 7 ? 34 : 74) + 92);
@@ -4074,6 +4177,7 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
         ...datasets.filter((dataset) => dataset.id === activeFocusedMemberId),
       ]
     : datasets;
+  const inlineOpen = !isMobileViewport && isOpen;
   const getX = (index) =>
     pointsCount > 1
       ? padding.left + (index / (pointsCount - 1)) * plotWidth
@@ -4095,6 +4199,16 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
       document.removeEventListener("mousedown", clearFocusOutsidePicker);
     };
   }, [focusedMemberId]);
+
+
+  const handleCardClick = () => {
+    if (isMobileViewport) {
+      setIsMobileChartOpen(true);
+      return;
+    }
+
+    onToggle();
+  };
 
   const handleMemberIconClick = (event, memberId) => {
     event.stopPropagation();
@@ -4125,172 +4239,205 @@ function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
     return segments;
   };
 
-  return (
-    <div className={`analytics-card ${isOpen ? "analytics-card--open" : ""}`}>
-      <button
-        type="button"
-        className="analytics-card__button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-      >
-        <span className="analytics-card__title">{title}</span>
-        <span className={`analytics-card__arrow ${isOpen ? "analytics-card__arrow--open" : ""}`}>
-          <span className="analytics-card__arrow-shape" />
-        </span>
-      </button>
+  const renderChart = (variant = "inline") => (
+    <div className={`analytics-line-chart ${variant === "fullscreen" ? "analytics-line-chart--fullscreen" : ""}`}>
+      <div className="analytics-line-chart__body">
+        <div className="analytics-line-chart__scroll">
+          <svg
+            className="analytics-line-chart__svg"
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            role="img"
+            aria-label={`${title}: график выполненных заданий по датам`}
+          >
+            {yTicks.map((tick) => {
+              const y = getY(tick);
 
-      <div className={`analytics-card__content ${isOpen ? "analytics-card__content--open" : ""}`}>
-        <div className="analytics-card__content-inner">
-          <div className="analytics-line-chart">
-            <div className="analytics-line-chart__body">
-              <div className="analytics-line-chart__scroll">
-                <svg
-                  className="analytics-line-chart__svg"
-                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                  role="img"
-                  aria-label={`${title}: график выполненных заданий по датам`}
-                >
-                  {yTicks.map((tick) => {
-                    const y = getY(tick);
-
-                    return (
-                      <g key={`y-${tick}`}>
-                        <line
-                          x1={padding.left}
-                          y1={y}
-                          x2={chartWidth - padding.right}
-                          y2={y}
-                          className="analytics-line-chart__grid"
-                        />
-                        <text
-                          x={padding.left - 12}
-                          y={y + 4}
-                          textAnchor="end"
-                          className="analytics-line-chart__label"
-                        >
-                          {tick}
-                        </text>
-                      </g>
-                    );
-                  })}
-
+              return (
+                <g key={`y-${tick}`}>
                   <line
                     x1={padding.left}
-                    y1={padding.top}
-                    x2={padding.left}
-                    y2={chartHeight - padding.bottom}
-                    className="analytics-line-chart__axis"
-                  />
-                  <line
-                    x1={padding.left}
-                    y1={chartHeight - padding.bottom}
+                    y1={y}
                     x2={chartWidth - padding.right}
-                    y2={chartHeight - padding.bottom}
-                    className="analytics-line-chart__axis"
+                    y2={y}
+                    className="analytics-line-chart__grid"
                   />
-
-                  {dates.map((date, index) => {
-                    const x = getX(index);
-
-                    return (
-                      <g key={`x-${getDateKey(date)}`}>
-                        <line
-                          x1={x}
-                          y1={padding.top}
-                          x2={x}
-                          y2={chartHeight - padding.bottom}
-                          className="analytics-line-chart__grid analytics-line-chart__grid--vertical"
-                        />
-                        <text
-                          x={x}
-                          y={chartHeight - 18}
-                          textAnchor="middle"
-                          className="analytics-line-chart__label"
-                        >
-                          {formatAnalyticsDateLabel(date)}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {orderedDatasets.map((dataset) => {
-                    const isFocused = activeFocusedMemberId === dataset.id;
-                    const isDimmed = Boolean(activeFocusedMemberId) && !isFocused;
-                    const visibleSegments = buildVisibleSegments(dataset.points);
-
-                    return (
-                      <g
-                        key={dataset.id}
-                        className={`analytics-line-chart__series ${isFocused ? "analytics-line-chart__series--focused" : ""} ${
-                          isDimmed ? "analytics-line-chart__series--dimmed" : ""
-                        }`}
-                      >
-                        {visibleSegments.map((segment, segmentIndex) => {
-                          if (segment.length < 2) return null;
-
-                          const path = segment
-                            .map((point, pointIndex) =>
-                              `${pointIndex === 0 ? "M" : "L"} ${getX(point.index)} ${getY(point.value)}`
-                            )
-                            .join(" ");
-
-                          return (
-                            <path
-                              key={`${dataset.id}-segment-${segmentIndex}`}
-                              d={path}
-                              className="analytics-line-chart__line"
-                              style={{ stroke: dataset.color }}
-                            />
-                          );
-                        })}
-
-                        {dataset.points.map((point, index) => {
-                          if (point.hasData === false) return null;
-
-                          return (
-                            <circle
-                              key={point.id}
-                              cx={getX(index)}
-                              cy={getY(point.value)}
-                              r={isFocused ? "6" : "5"}
-                              className="analytics-line-chart__point"
-                              style={{ fill: dataset.color }}
-                            />
-                          );
-                        })}
-                      </g>
-                    );
-                  })}
-                </svg>
-              </div>
-
-              <div
-                className="analytics-line-chart__members"
-                data-analytics-member-picker="true"
-                aria-label="Выбор линии участника"
-              >
-                {datasets.map((dataset) => (
-                  <button
-                    key={dataset.id}
-                    type="button"
-                    className={`analytics-line-chart__member ${
-                      activeFocusedMemberId === dataset.id ? "analytics-line-chart__member--active" : ""
-                    }`}
-                    style={{ backgroundColor: dataset.avatar?.color || dataset.avatarColor || dataset.color }}
-                    onClick={(event) => handleMemberIconClick(event, dataset.id)}
-                    aria-pressed={activeFocusedMemberId === dataset.id}
-                    aria-label={`Выделить линию: ${dataset.name}`}
-                    title={dataset.name}
+                  <text
+                    x={padding.left - 12}
+                    y={y + 4}
+                    textAnchor="end"
+                    className="analytics-line-chart__label"
                   >
-                    {renderMemberAvatar(dataset.avatar, dataset.initials)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+                    {tick}
+                  </text>
+                </g>
+              );
+            })}
+
+            <line
+              x1={padding.left}
+              y1={padding.top}
+              x2={padding.left}
+              y2={chartHeight - padding.bottom}
+              className="analytics-line-chart__axis"
+            />
+            <line
+              x1={padding.left}
+              y1={chartHeight - padding.bottom}
+              x2={chartWidth - padding.right}
+              y2={chartHeight - padding.bottom}
+              className="analytics-line-chart__axis"
+            />
+
+            {dates.map((date, index) => {
+              const x = getX(index);
+
+              return (
+                <g key={`x-${getDateKey(date)}`}>
+                  <line
+                    x1={x}
+                    y1={padding.top}
+                    x2={x}
+                    y2={chartHeight - padding.bottom}
+                    className="analytics-line-chart__grid analytics-line-chart__grid--vertical"
+                  />
+                  <text
+                    x={x}
+                    y={chartHeight - 18}
+                    textAnchor="middle"
+                    className="analytics-line-chart__label"
+                  >
+                    {formatAnalyticsDateLabel(date)}
+                  </text>
+                </g>
+              );
+            })}
+
+            {orderedDatasets.map((dataset) => {
+              const isFocused = activeFocusedMemberId === dataset.id;
+              const isDimmed = Boolean(activeFocusedMemberId) && !isFocused;
+              const visibleSegments = buildVisibleSegments(dataset.points);
+
+              return (
+                <g
+                  key={dataset.id}
+                  className={`analytics-line-chart__series ${isFocused ? "analytics-line-chart__series--focused" : ""} ${
+                    isDimmed ? "analytics-line-chart__series--dimmed" : ""
+                  }`}
+                >
+                  {visibleSegments.map((segment, segmentIndex) => {
+                    if (segment.length < 2) return null;
+
+                    const path = segment
+                      .map((point, pointIndex) =>
+                        `${pointIndex === 0 ? "M" : "L"} ${getX(point.index)} ${getY(point.value)}`
+                      )
+                      .join(" ");
+
+                    return (
+                      <path
+                        key={`${dataset.id}-segment-${segmentIndex}`}
+                        d={path}
+                        className="analytics-line-chart__line"
+                        style={{ stroke: dataset.color }}
+                      />
+                    );
+                  })}
+
+                  {dataset.points.map((point, index) => {
+                    if (point.hasData === false) return null;
+
+                    return (
+                      <circle
+                        key={point.id}
+                        cx={getX(index)}
+                        cy={getY(point.value)}
+                        r={isFocused ? "6" : "5"}
+                        className="analytics-line-chart__point"
+                        style={{ fill: dataset.color }}
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        <div
+          className="analytics-line-chart__members"
+          data-analytics-member-picker="true"
+          aria-label="Выбор линии участника"
+        >
+          {datasets.map((dataset) => (
+            <button
+              key={dataset.id}
+              type="button"
+              className={`analytics-line-chart__member ${
+                activeFocusedMemberId === dataset.id ? "analytics-line-chart__member--active" : ""
+              }`}
+              style={{ backgroundColor: dataset.avatar?.color || dataset.avatarColor || dataset.color }}
+              onClick={(event) => handleMemberIconClick(event, dataset.id)}
+              aria-pressed={activeFocusedMemberId === dataset.id}
+              aria-label={`Выделить линию: ${dataset.name}`}
+              title={dataset.name}
+            >
+              {renderMemberAvatar(dataset.avatar, dataset.initials)}
+            </button>
+          ))}
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <div className={`analytics-card ${inlineOpen ? "analytics-card--open" : ""} ${isMobileViewport ? "analytics-card--mobile-summary" : ""}`}>
+        <button
+          type="button"
+          className="analytics-card__button"
+          onClick={handleCardClick}
+          aria-expanded={inlineOpen || (isMobileViewport && isMobileChartOpen)}
+        >
+          <span>
+            <span className="analytics-card__title">{title}</span>
+            {isMobileViewport && <span className="analytics-card__mobile-subtitle">Открыть график на весь экран</span>}
+          </span>
+          <span className={`analytics-card__arrow ${inlineOpen ? "analytics-card__arrow--open" : ""}`}>
+            <span className="analytics-card__arrow-shape" />
+          </span>
+        </button>
+
+        {!isMobileViewport && (
+          <div className={`analytics-card__content ${inlineOpen ? "analytics-card__content--open" : ""}`}>
+            <div className="analytics-card__content-inner">{renderChart()}</div>
+          </div>
+        )}
+      </div>
+
+      {isMobileViewport && isMobileChartOpen && (
+        <div className="mobile-visual-modal mobile-chart-modal" role="dialog" aria-modal="true" aria-label={title}>
+          <button
+            type="button"
+            className="mobile-visual-modal__close"
+            onClick={() => setIsMobileChartOpen(false)}
+            aria-label="Закрыть график"
+          >
+            ×
+          </button>
+
+          <div className="mobile-chart-modal__rotated">
+            <div className="mobile-visual-modal__header mobile-chart-modal__header">
+              <div>
+                <h3 className="mobile-visual-modal__title">{title}</h3>
+                <p className="mobile-visual-modal__subtitle">Повернутый просмотр для телефона</p>
+              </div>
+            </div>
+
+            {renderChart("fullscreen")}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
