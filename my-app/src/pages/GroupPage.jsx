@@ -1150,6 +1150,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const notesRevealRef = useRef(null);
   const settingsRef = useRef(null);
   const dragRef = useRef(null);
+  const notePressRef = useRef(null);
+  const notesBoardTapRef = useRef(null);
 
   const [habitId] = useState(() => getHabitIdFromLocation());
   const authToken = useMemo(
@@ -1234,6 +1236,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const [analyticsOpen, setAnalyticsOpen] = useState({ week: true, month: true });
   const [notes, setNotes] = useState([]);
   const [isNotesPanelVisible, setIsNotesPanelVisible] = useState(false);
+  const [notesPanelScale, setNotesPanelScale] = useState(1);
   const [notesMenu, setNotesMenu] = useState(null);
   const [activeNoteMenu, setActiveNoteMenu] = useState(null);
   const [noteEditor, setNoteEditor] = useState(null);
@@ -1254,6 +1257,32 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     [displayUserName, userAvatar]
   );
   const displayUserInitials = resolvedUserAvatar.label || USER.initials;
+
+  useLayoutEffect(() => {
+    const node = notesPanelRef.current;
+    if (!node) return undefined;
+
+    const updateNotesPanelScale = () => {
+      const width = node.clientWidth || node.getBoundingClientRect().width || 0;
+      const nextScale = width > 0 && width < 360 ? Math.max(0.82, Math.min(1, width / 360)) : 1;
+      setNotesPanelScale((prevScale) => {
+        const roundedScale = Math.round(nextScale * 1000) / 1000;
+        return Math.abs(prevScale - roundedScale) > 0.005 ? roundedScale : prevScale;
+      });
+    };
+
+    updateNotesPanelScale();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateNotesPanelScale);
+      return () => window.removeEventListener("resize", updateNotesPanelScale);
+    }
+
+    const observer = new ResizeObserver(updateNotesPanelScale);
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const updateCurrentDate = () => setCurrentDate(new Date());
@@ -2240,6 +2269,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const handleNotesBoardContextMenu = (event) => {
     event.preventDefault();
 
+    if (getIsMobileViewport()) return;
+
     const clickedUi = event.target.closest(
       "button, a, input, textarea, label, [data-note-ui='true'], [data-note-item='true']"
     );
@@ -2255,6 +2286,53 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       y: point.y,
       boardX: point.boardX,
       boardY: point.boardY,
+    });
+  };
+
+  const handleNotesBoardPointerDown = (event) => {
+    if (!getIsMobileViewport() || event.pointerType === "mouse") return;
+
+    const clickedUi = event.target.closest(
+      "button, a, input, textarea, label, [data-note-ui='true'], [data-note-item='true']"
+    );
+
+    if (clickedUi || isSpecialUploadOpen || noteEditor) {
+      notesBoardTapRef.current = null;
+      return;
+    }
+
+    notesBoardTapRef.current = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    };
+  };
+
+  const handleNotesBoardPointerUp = (event) => {
+    const boardTap = notesBoardTapRef.current;
+    notesBoardTapRef.current = null;
+
+    if (!boardTap || boardTap.pointerId !== event.pointerId) return;
+    if (!getIsMobileViewport() || event.pointerType === "mouse") return;
+
+    const movedDistance = Math.hypot(event.clientX - boardTap.clientX, event.clientY - boardTap.clientY);
+    if (movedDistance > 10) return;
+
+    const clickedUi = event.target.closest(
+      "button, a, input, textarea, label, [data-note-ui='true'], [data-note-item='true']"
+    );
+
+    if (clickedUi || isSpecialUploadOpen || noteEditor) return;
+
+    const point = getBoardMenuPoint(event, 230, 58);
+    if (!point) return;
+
+    setNotesMenu(null);
+    setActiveNoteMenu(null);
+    setNoteEditor({
+      x: point.boardX,
+      y: point.boardY,
+      text: "",
     });
   };
 
@@ -2373,8 +2451,17 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     }
   };
 
+  const clearNotePress = useCallback(() => {
+    if (notePressRef.current?.timerId) {
+      window.clearTimeout(notePressRef.current.timerId);
+    }
+
+    notePressRef.current = null;
+  }, []);
+
   const onDrag = useCallback((event) => {
     if (!dragRef.current) return;
+    if (event.cancelable) event.preventDefault();
 
     const { id, rect, offsetX, offsetY, lastClientX, lastClientY } = dragRef.current;
     const noteWidth = window.innerWidth <= 760 ? 150 : 200;
@@ -2436,7 +2523,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     );
 
     dragRef.current = null;
+    clearNotePress();
     window.removeEventListener("mousemove", onDrag);
+    window.removeEventListener("pointermove", onDrag);
 
     if (habitId && authToken && backendNoteId && typeof pinXPercent === "number" && typeof pinYPercent === "number") {
       try {
@@ -2450,10 +2539,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
         setPageError(getErrorMessage(error));
       }
     }
-  }, [authToken, habitId, loadNotes, onDrag]);
+  }, [authToken, clearNotePress, habitId, loadNotes, onDrag]);
 
-  const startDrag = (event, noteId) => {
-    if (event.button !== 0) return;
+  const startDrag = (event, noteId, { usePointerEvents = false } = {}) => {
+    if (event.button !== undefined && event.button !== 0) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -2488,16 +2577,87 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
           : item
       )
     );
+    if (usePointerEvents) {
+      window.addEventListener("pointermove", onDrag, { passive: false });
+      window.addEventListener("pointerup", stopDrag, { once: true });
+      window.addEventListener("pointercancel", stopDrag, { once: true });
+      return;
+    }
+
     window.addEventListener("mousemove", onDrag);
     window.addEventListener("mouseup", stopDrag, { once: true });
   };
 
+  const handleNoteMouseDown = (event, noteId) => {
+    if (getIsMobileViewport()) return;
+    startDrag(event, noteId);
+  };
+
+  const startNotePointerPress = (event, noteId) => {
+    if (event.pointerType === "mouse") return;
+    if (!getIsMobileViewport()) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    clearNotePress();
+
+    const pressData = {
+      pointerId: event.pointerId,
+      noteId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      pointerType: event.pointerType,
+    };
+
+    notePressRef.current = {
+      ...pressData,
+      timerId: window.setTimeout(() => {
+        const activePress = notePressRef.current;
+        if (!activePress || activePress.pointerId !== pressData.pointerId || activePress.noteId !== noteId) return;
+
+        startDrag(
+          {
+            button: 0,
+            clientX: pressData.clientX,
+            clientY: pressData.clientY,
+            pointerId: pressData.pointerId,
+            pointerType: pressData.pointerType,
+            preventDefault: () => {},
+            stopPropagation: () => {},
+          },
+          noteId,
+          { usePointerEvents: true }
+        );
+        notePressRef.current = null;
+      }, 340),
+    };
+  };
+
+  const handleNotePointerMove = (event) => {
+    const activePress = notePressRef.current;
+    if (!activePress || activePress.pointerId !== event.pointerId) return;
+
+    const movedDistance = Math.hypot(event.clientX - activePress.clientX, event.clientY - activePress.clientY);
+    if (movedDistance > 9) clearNotePress();
+  };
+
+  const handleNotePointerEnd = (event) => {
+    const activePress = notePressRef.current;
+    if (!activePress || activePress.pointerId !== event.pointerId) return;
+
+    clearNotePress();
+  };
+
   useEffect(() => {
     return () => {
+      clearNotePress();
       window.removeEventListener("mousemove", onDrag);
       window.removeEventListener("mouseup", stopDrag);
+      window.removeEventListener("pointermove", onDrag);
+      window.removeEventListener("pointerup", stopDrag);
+      window.removeEventListener("pointercancel", stopDrag);
     };
-  }, [onDrag, stopDrag]);
+  }, [clearNotePress, onDrag, stopDrag]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -2851,6 +3011,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
                   <div
                     ref={notesPanelRef}
                     className="group-panel group-panel--notes"
+                    onPointerDown={handleNotesBoardPointerDown}
+                    onPointerUp={handleNotesBoardPointerUp}
                     onContextMenu={handleNotesBoardContextMenu}
                     aria-label="Поле заметок группы"
                   >
@@ -2887,9 +3049,22 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
                               "--note-tilt": `${note.tilt || 0}deg`,
                               "--note-peel-x": `${note.peelX || 0}px`,
                               "--note-peel-y": `${note.peelY || 0}px`,
+                              "--note-scale": notesPanelScale,
                             }}
-                            onMouseDown={(event) => startDrag(event, note.id)}
-                            onContextMenu={(event) => openNoteActions(event, note.id)}
+                            onMouseDown={(event) => handleNoteMouseDown(event, note.id)}
+                            onPointerDown={(event) => startNotePointerPress(event, note.id)}
+                            onPointerMove={handleNotePointerMove}
+                            onPointerUp={handleNotePointerEnd}
+                            onPointerCancel={handleNotePointerEnd}
+                            onContextMenu={(event) => {
+                              if (getIsMobileViewport()) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                return;
+                              }
+
+                              openNoteActions(event, note.id);
+                            }}
                             aria-label={`Записка от ${noteAuthorName}: ${note.text}`}
                             title={`Автор: ${noteAuthorName}`}
                           >
