@@ -3901,6 +3901,25 @@ function CalendarBlock({
     () => new Map((calendarDays || []).map((day) => [day.date, day])),
     [calendarDays]
   );
+  const groupStatsMembers = groupStats?.members;
+  const liveTodayState = useMemo(() => {
+    const members = Array.isArray(groupStatsMembers) ? groupStatsMembers : [];
+    const membersWithTasks = members.filter((member) => Number(member.total || 0) > 0);
+
+    if (membersWithTasks.length === 0) return null;
+
+    const hasMemberWithoutProgress = membersWithTasks.some(
+      (member) => Number(member.completed || 0) === 0
+    );
+
+    if (hasMemberWithoutProgress) return "bad";
+
+    const isFullyCompleted = membersWithTasks.every(
+      (member) => Number(member.completed || 0) >= Number(member.total || 0)
+    );
+
+    return isFullyCompleted ? "good" : "ok";
+  }, [groupStatsMembers]);
   const activeRowIndex = useMemo(
     () => getActiveMonthRowIndex(monthRows, viewedDate),
     [monthRows, viewedDate]
@@ -4008,29 +4027,10 @@ function CalendarBlock({
                 const isFuture = isFutureDay(cell.date, currentDate);
                 const canColorDay = !cell.outOfMonth;
                 const apiDay = calendarDayByDate.get(cell.id);
-                const progress = apiDay
-                  ? {
-                      completed: Number(
-                        apiDay.fullyCompletedMembersCount ??
-                        apiDay.completedMembersCount ??
-                        0
-                      ),
-                      total: Number(apiDay.totalMembersCount || 0),
-                    }
-                  : isFuture
-                    ? { completed: 0, total: groupStats.members.length }
-                    : { completed: 0, total: groupStats.members.length };
-                const dayState = apiDay?.state ?? null;
-                const hasZeroMember = apiDay
-                  ? canColorDay && dayState === "bad"
-                  : canColorDay && !isFuture && isToday && groupStats.members.some((member) => member.completed === 0);
-                const isComplete = apiDay
-                  ? canColorDay && dayState === "good"
-                  : canColorDay &&
-                    !isFuture &&
-                    progress.total > 0 &&
-                    progress.completed === progress.total &&
-                    !hasZeroMember;
+                const dayState =
+                  isToday && canColorDay && !isFuture ? liveTodayState ?? apiDay?.state ?? null : apiDay?.state ?? null;
+                const hasZeroMember = canColorDay && dayState === "bad";
+                const isComplete = canColorDay && dayState === "good";
 
                 return (
                   <div
