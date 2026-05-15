@@ -352,6 +352,16 @@ function isBackendPictureAvatar(avatar) {
   return avatar?.type === "picture" || avatar?.type === "photo";
 }
 
+function getBackendHoverText(item) {
+  return String(item?.hoverText || item?.hover_text || "").trim();
+}
+
+function getEmojiAvatarHoverText(slide) {
+  if (slide?.type !== "emoji") return "";
+
+  return String(slide.hoverText || getBackendHoverText(slide.raw) || "").trim();
+}
+
 function isColorEditableSlide(slide) {
   return slide?.type === "monogram" || slide?.type === "emoji";
 }
@@ -366,6 +376,7 @@ function normalizeSharedAvatar(slide, fallbackName = "") {
       label: slide.label,
       color: slide.color,
       src: slide.src,
+      hoverText: slide.hoverText || getBackendHoverText(slide.raw),
       raw: slide.raw || null,
     };
   }
@@ -375,6 +386,7 @@ function normalizeSharedAvatar(slide, fallbackName = "") {
     type: slide.type === "emoji" ? "emoji" : "letter",
     label: slide.label || getInitial(fallbackName),
     color: slide.color,
+    hoverText: slide.hoverText || getBackendHoverText(slide.raw),
     raw: slide.raw || null,
   };
 }
@@ -408,6 +420,7 @@ function normalizePreviewSlideFromSharedAvatar(avatar, fallbackName = "") {
       backendId: avatar.backendId || avatar.id || null,
       label: avatar.label || avatar.value || "🙂",
       color,
+      hoverText: avatar.hoverText || avatar.hover_text || getBackendHoverText(avatar.raw),
       raw: avatar.raw || avatar,
     };
   }
@@ -418,6 +431,7 @@ function normalizePreviewSlideFromSharedAvatar(avatar, fallbackName = "") {
     backendId: avatar.backendId || avatar.id || null,
     label: avatar.label || avatar.value || getInitial(fallbackName),
     color,
+    hoverText: avatar.hoverText || avatar.hover_text || getBackendHoverText(avatar.raw),
     raw: avatar.raw || avatar,
   };
 }
@@ -564,6 +578,7 @@ export default function ProfilePage({
       backendId: backendLetterAvatar?.id || null,
       label: currentInitial,
       color: avatarColors.monogram || backendLetterAvatar?.bgColor || profileData.avatarBgColor || "#ede2da",
+      hoverText: getBackendHoverText(backendLetterAvatar),
       raw: backendLetterAvatar || null,
     };
 
@@ -594,6 +609,7 @@ export default function ProfilePage({
       backendId: avatar.id,
       label: avatar.value || "🙂",
       color: avatar.bgColor || avatar.bg_color || "#f3e3db",
+      hoverText: getBackendHoverText(avatar),
       raw: avatar,
     }));
 
@@ -1120,6 +1136,7 @@ export default function ProfilePage({
                               const direction = Math.sign(offset);
                               const desktopX = offset === 0 ? 0 : direction * (distance === 1 ? 112 : 176);
                               const mobileX = offset === 0 ? 0 : direction * (distance === 1 ? 86 : 134);
+                              const avatarHoverText = getEmojiAvatarHoverText(slide);
 
                               return (
                                 <button
@@ -1141,6 +1158,7 @@ export default function ProfilePage({
                                       : selectAvatar(index)
                                   }
                                   aria-label={slide.type === "upload" ? "Загрузить фото" : `Выбрать аватарку ${slide.label}`}
+                                  title={avatarHoverText || undefined}
                                   tabIndex={isVisible ? 0 : -1}
                                   disabled={isBusy && slide.type !== "upload"}
                                 >
@@ -1222,6 +1240,7 @@ export default function ProfilePage({
                           className="profile-avatar-preview"
                           style={{ "--avatar-bg": stablePreviewSlide?.color || "#ede2da" }}
                           aria-label="Текущая аватарка профиля"
+                          title={getEmojiAvatarHoverText(stablePreviewSlide) || undefined}
                         >
                           <AvatarContent slide={stablePreviewSlide} size="hero" />
                         </div>

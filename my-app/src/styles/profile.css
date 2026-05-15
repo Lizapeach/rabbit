@@ -1159,3 +1159,25 @@
     margin-top: 20px;
   }
 }
+
+/* === Mobile profile card edit button placement === */
+@media (max-width: 520px) {
+  .profile-info-card {
+    position: relative;
+  }
+
+  .profile-info-card__content {
+    min-height: 74px;
+    padding-right: 96px;
+  }
+
+  .profile-info-card__button {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    align-self: auto;
+    z-index: 2;
+    max-width: 86px;
+    text-align: right;
+  }
+}
