@@ -549,3 +549,94 @@
 .notifications__empty {
   background: var(--color-modal-inner-solid);
 }
+
+/* === Mobile header fit fix === */
+@media (max-width: 640px) {
+  .topbar {
+    min-width: 0;
+    max-width: 100%;
+    padding: 10px 10px;
+    gap: 8px;
+    border-radius: 22px;
+    box-sizing: border-box;
+  }
+
+  .brand-button {
+    width: auto;
+    max-width: 128px;
+    min-width: 0;
+    height: 44px;
+    flex: 1 1 auto;
+  }
+
+  .brand-logo__image {
+    max-width: 100%;
+    height: 74%;
+  }
+
+  .topbar-actions {
+    flex: 0 0 auto;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .coin-icon,
+  .bell-icon,
+  .user-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .coins-widget,
+  .profile-widget {
+    height: 42px;
+    width: 42px;
+  }
+
+  .profile-widget:hover {
+    width: 42px;
+  }
+
+  .coins-widget.coins-widget--open .coins-widget__panel {
+    width: 78px;
+    height: 42px;
+    padding: 0 12px;
+    right: 21px;
+  }
+
+  .coins-widget__panel,
+  .profile-widget__panel {
+    height: 42px;
+  }
+
+  .notification-count {
+    top: 2px;
+    right: 2px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 0.62rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand-button {
+    max-width: 104px;
+  }
+
+  .coin-icon,
+  .bell-icon,
+  .user-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .coins-widget,
+  .profile-widget {
+    height: 38px;
+    width: 38px;
+  }
+
+  .topbar-actions {
+    gap: 4px;
+  }
+}
