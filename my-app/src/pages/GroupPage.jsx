@@ -89,6 +89,62 @@ function getErrorMessage(error, fallback = "Ошибка запроса к се�
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function ModalInnerLoader({ text = "Загрузка..." }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 20,
+        minHeight: "100%",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px",
+        borderRadius: "inherit",
+        background: "var(--surface-page-gradient, #f8efe9)",
+        color: "var(--text-primary, #3a2f2a)",
+        fontFamily: "var(--font-main, inherit)",
+        fontSize: "18px",
+        fontWeight: 700,
+        textAlign: "center",
+      }}
+      aria-live="polite"
+      aria-busy="true"
+    >
+      {text}
+    </div>
+  );
+}
+
+function getBackendFileUrl(file) {
+  if (!file) return "";
+
+  return (
+    file.url ||
+    file.publicUrl ||
+    file.public_url ||
+    file.signedUrl ||
+    file.signed_url ||
+    file.downloadUrl ||
+    file.download_url ||
+    file.src ||
+    ""
+  );
+}
+
+const HABIT_TYPE_NAMES = {
+  cleaning: "Уборка",
+  sport: "Спорт",
+  nutrition: "Питание",
+  reading: "Чтение",
+};
+
+function getHabitTypeName(typeCode) {
+  if (!typeCode) return "—";
+
+  return HABIT_TYPE_NAMES[typeCode] || typeCode;
+}
+
 async function apiRequest(path, { method = "GET", token, body } = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     method,
@@ -123,7 +179,7 @@ function normalizeBackendAvatar(avatar, member) {
     member?.avatar?.bg_color ||
     USER.avatarColor;
   const fallbackLabel = getInitial(member?.name || member?.login || USER.name);
-  const avatarSrc = avatar?.src || avatar?.file?.url || avatar?.url || "";
+  const avatarSrc = avatar?.src || avatar?.url || getBackendFileUrl(avatar?.file);
   const avatarColor = avatar?.bgColor || avatar?.bg_color || avatar?.color || fallbackColor;
 
   if ((avatar?.type === "picture" || avatar?.type === "photo") && avatarSrc) {
@@ -378,6 +434,59 @@ function normalizeBackendPage(pageData) {
     progress: pageData?.progress || null,
     memberProgress: pageData?.memberProgress || {},
     habit: pageData?.habit || null,
+  };
+}
+
+function normalizeMemberProfileResponse(profileData, fallbackMember, fallbackGroupInfo) {
+  const backendMember = profileData?.member || {};
+  const record = profileData?.record || {};
+  const fallbackName = backendMember.name || fallbackMember?.name || "Участник";
+  const avatar = normalizeBackendAvatar(backendMember.avatar, {
+    ...fallbackMember,
+    id: backendMember.id || fallbackMember?.backendMemberId || fallbackMember?.id,
+    name: fallbackName,
+    login: fallbackMember?.login,
+    displayColor:
+      backendMember?.avatar?.bgColor ||
+      backendMember?.avatar?.bg_color ||
+      fallbackMember?.avatar?.color ||
+      fallbackMember?.avatarColor ||
+      fallbackMember?.color,
+  });
+  const avatarColor = normalizeHexColor(
+    avatar.color || fallbackMember?.avatarColor || fallbackMember?.color,
+    USER.avatarColor
+  );
+
+  return {
+    member: {
+      id: String(backendMember.id || fallbackMember?.backendMemberId || fallbackMember?.id || ""),
+      userId: String(backendMember.userId || fallbackMember?.userId || ""),
+      habitId: String(backendMember.habitId || fallbackMember?.habitId || ""),
+      name: fallbackName,
+      initials: avatar.label || getInitial(fallbackName),
+      avatarColor,
+      avatar: {
+        ...avatar,
+        color: avatarColor,
+      },
+    },
+    record: {
+      days: Number(record.days || 0),
+      habitId: record.habitId || fallbackMember?.habitId || "",
+      habitTitle: record.habitTitle || fallbackGroupInfo?.name || "—",
+      habitTypeCode: record.habitTypeCode || "",
+    },
+    achievements: Array.isArray(profileData?.achievements)
+      ? profileData.achievements.map((achievement, index) => ({
+          id: String(achievement.id || achievement.code || achievement.title || `achievement-${index}`),
+          code: achievement.code || "",
+          title: achievement.title || "Достижение",
+          description: achievement.description || "",
+          rewardCoins: Number(achievement.rewardCoins || 0),
+          receivedAt: achievement.receivedAt || "",
+        }))
+      : [],
   };
 }
 
@@ -967,6 +1076,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const [isTaskEditorOpen, setIsTaskEditorOpen] = useState(false);
   const [isGroupInfoEditorOpen, setIsGroupInfoEditorOpen] = useState(false);
   const [isMemberInfoOpen, setIsMemberInfoOpen] = useState(false);
+  const [memberProfileState, setMemberProfileState] = useState({
+    status: "idle",
+    data: null,
+    error: "",
+    fallbackMember: null,
+  });
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [exitModalStep, setExitModalStep] = useState("confirm");
   const [exitPreview, setExitPreview] = useState(null);
@@ -1534,22 +1649,20 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
 
   const handleOpenTaskEditor = async () => {
     setIsGroupSettingsOpen(false);
-    setIsTaskEditorOpen(false);
     setTaskEditorOptions(null);
     setTaskEditorError("");
+    setTaskEditorStatus("loading");
+    setIsTaskEditorOpen(true);
 
     if (!habitId || !authToken) {
       const message = !habitId ? "Не найден habitId для изменения заданий" : "Не найден токен авторизации";
       setTaskEditorStatus("error");
       setTaskEditorError(message);
       setPageError(message);
-      setIsTaskEditorOpen(true);
       return;
     }
 
     try {
-      onPageLoadingChange?.(true, pageLoadingRoute);
-      setTaskEditorStatus("loading");
       const data = await apiRequest(`/api/habits/${habitId}/tasks/me/edit-options`, {
         token: authToken,
       });
@@ -1557,15 +1670,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       setTaskEditorOptions(normalizeTaskEditOptions(data));
       setTaskEditorStatus("ready");
       setTaskEditorError("");
-      setIsTaskEditorOpen(true);
     } catch (error) {
       const message = getErrorMessage(error);
       setTaskEditorStatus("error");
       setTaskEditorError(message);
       setPageError(message);
-      setIsTaskEditorOpen(true);
-    } finally {
-      onPageLoadingChange?.(false, pageLoadingRoute);
     }
   };
 
@@ -1606,22 +1715,20 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     if (!isOwner) return;
 
     setIsGroupSettingsOpen(false);
-    setIsGroupInfoEditorOpen(false);
     setGroupInfoEditorData(null);
     setGroupInfoEditorError("");
+    setGroupInfoEditorStatus("loading");
+    setIsGroupInfoEditorOpen(true);
 
     if (!habitId || !authToken) {
       const message = !habitId ? "Не найден habitId для изменения группы" : "Не найден токен авторизации";
       setGroupInfoEditorStatus("error");
       setGroupInfoEditorError(message);
       setPageError(message);
-      setIsGroupInfoEditorOpen(true);
       return;
     }
 
     try {
-      onPageLoadingChange?.(true, pageLoadingRoute);
-      setGroupInfoEditorStatus("loading");
       const data = await apiRequest(`/api/habits/${habitId}/details/edit-options`, {
         token: authToken,
       });
@@ -1629,22 +1736,71 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       setGroupInfoEditorData(data?.habit || null);
       setGroupInfoEditorStatus("ready");
       setGroupInfoEditorError("");
-      setIsGroupInfoEditorOpen(true);
     } catch (error) {
       const message = getErrorMessage(error);
       setGroupInfoEditorStatus("error");
       setGroupInfoEditorError(message);
       setPageError(message);
-      setIsGroupInfoEditorOpen(true);
-    } finally {
-      onPageLoadingChange?.(false, pageLoadingRoute);
     }
   };
 
-  const handleOpenSelectedMemberInfo = () => {
+  const handleCloseMemberInfo = () => {
+    setIsMemberInfoOpen(false);
+    setMemberProfileState({
+      status: "idle",
+      data: null,
+      error: "",
+      fallbackMember: null,
+    });
+  };
+
+  const handleOpenSelectedMemberInfo = async () => {
     if (selectedFriendId === "me") return;
 
+    const targetMember = selectedFriend;
+    const backendMemberId = targetMember?.backendMemberId || targetMember?.id;
+
     setIsMemberInfoOpen(true);
+    setMemberProfileState({
+      status: "loading",
+      data: null,
+      error: "",
+      fallbackMember: targetMember,
+    });
+
+    if (!habitId || !authToken || !backendMemberId) {
+      setMemberProfileState({
+        status: "error",
+        data: null,
+        error: !habitId
+          ? "Не найден habitId для загрузки профиля участника"
+          : !authToken
+            ? "Не найден токен авторизации"
+            : "Не найден memberId участника",
+        fallbackMember: targetMember,
+      });
+      return;
+    }
+
+    try {
+      const data = await apiRequest(`/api/habits/${habitId}/members/${backendMemberId}/profile`, {
+        token: authToken,
+      });
+
+      setMemberProfileState({
+        status: "ready",
+        data: normalizeMemberProfileResponse(data, targetMember, groupInfo),
+        error: "",
+        fallbackMember: targetMember,
+      });
+    } catch (error) {
+      setMemberProfileState({
+        status: "error",
+        data: null,
+        error: getErrorMessage(error, "Не удалось загрузить профиль участника"),
+        fallbackMember: targetMember,
+      });
+    }
   };
 
   const handleSaveGroupInfo = async (nextInfo) => {
@@ -2613,13 +2769,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
 
         {isMemberInfoOpen && (
           <MemberInfoModal
-            member={selectedFriend}
-            memberStats={selectedMemberStats}
-            groupInfo={groupInfo}
-            categoryName="Чтение"
-            streakDays={streakDays}
-            isAdmin={selectedFriend.id === adminMemberId}
-            onClose={() => setIsMemberInfoOpen(false)}
+            profileState={memberProfileState}
+            isAdmin={(memberProfileState.fallbackMember || selectedFriend)?.id === adminMemberId}
+            onClose={handleCloseMemberInfo}
           />
         )}
 
@@ -2633,7 +2785,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
               <div className="modal-card__title">Прикрепить фото</div>
               <div className="modal-card__text">
                 Особое задание выполняется лично и не влияет на общий прогресс группы.
-                После первого выполнения начислится {SPECIAL_TASK_REWARD_COINS} монет.
+                После выполнения начислится {SPECIAL_TASK_REWARD_COINS} монет.
               </div>
 
               <label className="upload-field">
@@ -2877,30 +3029,25 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
 }
 
 
-function getMemberAchievements(member, memberStats) {
-  const donePercent = memberStats?.total > 0 ? Math.round((memberStats.completed / memberStats.total) * 100) : 0;
-  const titles = donePercent === 100
-    ? ["Идеальный день", "Командный вклад"]
-    : ["Участник группы"];
-
-  return titles.map((title, index) => ({
-    id: `${member?.id || "member"}-achievement-${index}`,
-    title,
-    desc:
-      index === 0
-        ? `Сегодня выполнено ${memberStats?.completed || 0}/${memberStats?.total || 0} обычных заданий.`
-        : donePercent === 100
-          ? "Участник закрыл все обычные задания за день."
-          : "Достижение участника внутри этой группы.",
-  }));
-}
-
-function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakDays, isAdmin, onClose }) {
-  const achievements = getMemberAchievements(member, memberStats);
+function MemberInfoModal({ profileState, isAdmin, onClose }) {
+  const isLoading = profileState?.status === "loading";
+  const hasError = profileState?.status === "error";
+  const profile = profileState?.data || null;
+  const fallbackMember = profileState?.fallbackMember || {};
+  const member = profile?.member || fallbackMember;
+  const record = profile?.record || {};
+  const achievements = profile?.achievements || [];
+  const memberName = member?.name || "Участник";
+  const memberAvatar = member?.avatar || fallbackMember?.avatar;
+  const memberInitials = member?.initials || fallbackMember?.initials || getInitial(memberName);
+  const memberAvatarColor = memberAvatar?.color || member?.avatarColor || fallbackMember?.avatarColor || USER.avatarColor;
+  const recordDays = Number(record.days || 0);
+  const categoryName = getHabitTypeName(record.habitTypeCode);
+  const habitTitle = record.habitTitle || "—";
 
   return (
     <div className="modal-backdrop member-info-backdrop" data-note-ui="true" onClick={onClose}>
-      <div className="member-info-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="member-info-modal" style={{ position: "relative", overflow: "hidden" }} onClick={(event) => event.stopPropagation()}>
         <button type="button" className="task-editor-modal__close" onClick={onClose} aria-label="Закрыть окно">
           ×
         </button>
@@ -2908,37 +3055,44 @@ function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakD
         <div className="member-info-modal__header">
           <div className="member-info-modal__identity">
             <h2 className="task-editor-modal__title">Информация участника</h2>
-            <h2 className="member-info-modal__name"> {member.name}</h2>
+            <h2 className="member-info-modal__name">{memberName}</h2>
             {isAdmin && <div className="member-info-modal__role">Администратор группы</div>}
           </div>
         </div>
 
         <div className="member-info-modal__content">
+          {isLoading && <ModalInnerLoader />}
+          {hasError && <div className="group-form-error-card">{profileState.error}</div>}
+
           <div className="member-info-record-row">
             <div
               className="member-info-record-avatar"
-              style={{ backgroundColor: member.avatar?.color || member.avatarColor }}
+              style={{ backgroundColor: memberAvatarColor }}
               aria-hidden="true"
             >
-              {renderMemberAvatar(member.avatar, member.initials)}
+              {renderMemberAvatar(memberAvatar, memberInitials)}
             </div>
 
             <section className="member-info-record record-streak">
               <div className="record-streak__inner member-info-record__inner">
                 <div className="record-streak__days member-info-record__days">
                   <span className="record-streak__card-label">Дней</span>
-                  <strong className="record-streak__value member-info-record__value">{streakDays}</strong>
+                  <strong className="record-streak__value member-info-record__value">{isLoading ? "—" : recordDays}</strong>
                 </div>
 
                 <div className="record-streak__details member-info-record__details">
                   <div className="record-streak__meta-card member-info-record__meta-card">
                     <span className="record-streak__card-label">Категория</span>
-                    <strong className="record-streak__meta-value member-info-record__meta-value">{categoryName}</strong>
+                    <strong className="record-streak__meta-value member-info-record__meta-value">
+                      {isLoading ? "—" : categoryName}
+                    </strong>
                   </div>
 
                   <div className="record-streak__meta-card member-info-record__meta-card">
                     <span className="record-streak__card-label">Группа</span>
-                    <strong className="record-streak__meta-value member-info-record__meta-value">{groupInfo.name}</strong>
+                    <strong className="record-streak__meta-value member-info-record__meta-value">
+                      {isLoading ? "—" : habitTitle}
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -2948,7 +3102,21 @@ function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakD
           <section className="member-info-achievements">
             <div className="member-info-achievements__title">Достижения</div>
             <div className="member-info-achievements__list">
-              {achievements.map((achievement) => (
+              {!isLoading && !hasError && achievements.length === 0 && (
+                <div className="member-info-achievement achievement-card">
+                  <div className="achievement-card__content">
+                    <div className="achievement-card__icon member-info-achievement__icon" aria-hidden="true">
+                      <img src={achievementIcon} alt="" className="achievement-card__icon-image member-info-achievement__icon-image" />
+                    </div>
+                    <div className="member-info-achievement__text">
+                      <strong>Пока нет достижений</strong>
+                      <small>Когда участник получит достижение, оно появится здесь.</small>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isLoading && !hasError && achievements.map((achievement) => (
                 <div key={achievement.id} className="member-info-achievement achievement-card">
                   <div className="achievement-card__content">
                     <div className="achievement-card__icon member-info-achievement__icon" aria-hidden="true">
@@ -2956,7 +3124,8 @@ function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakD
                     </div>
                     <div className="member-info-achievement__text">
                       <strong>{achievement.title}</strong>
-                      <small>{achievement.desc}</small>
+                      <small>{achievement.description || "Описание достижения не указано."}</small>
+                      {achievement.rewardCoins > 0 && <small>Награда: {achievement.rewardCoins} монет</small>}
                     </div>
                   </div>
                 </div>
@@ -2968,7 +3137,6 @@ function MemberInfoModal({ member, memberStats, groupInfo, categoryName, streakD
     </div>
   );
 }
-
 
 function GroupInfoEditorModal({ habit, fallbackGroupInfo, status, requestError, onClose, onSave }) {
   const sourceTitle = habit?.title ?? fallbackGroupInfo?.name ?? "";
@@ -3009,7 +3177,7 @@ function GroupInfoEditorModal({ habit, fallbackGroupInfo, status, requestError, 
 
   return (
     <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={isBusy ? undefined : onClose}>
-      <div className="task-editor-modal group-info-editor-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="task-editor-modal group-info-editor-modal" style={{ position: "relative", overflow: "hidden" }} onClick={(event) => event.stopPropagation()}>
         <button
           type="button"
           className="task-editor-modal__close"
@@ -3019,6 +3187,8 @@ function GroupInfoEditorModal({ habit, fallbackGroupInfo, status, requestError, 
         >
           ×
         </button>
+
+        {status === "loading" && <ModalInnerLoader />}
 
         <div className="task-editor-modal__header">
           <h2 className="task-editor-modal__title">Изменить название и описание</h2>
@@ -3140,7 +3310,7 @@ function TaskEditorModal({ editOptions, status, requestError, onClose, onSave })
 
   return (
     <div className="modal-backdrop task-editor-backdrop" data-note-ui="true" onClick={isBusy ? undefined : onClose}>
-      <div className="task-editor-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="task-editor-modal" style={{ position: "relative", overflow: "hidden" }} onClick={(event) => event.stopPropagation()}>
         <button
           type="button"
           className="task-editor-modal__close"
@@ -3150,6 +3320,8 @@ function TaskEditorModal({ editOptions, status, requestError, onClose, onSave })
         >
           ×
         </button>
+
+        {status === "loading" && <ModalInnerLoader />}
 
         <div className="task-editor-modal__header">
           <h2 className="task-editor-modal__title">Изменить задания</h2>

@@ -455,7 +455,7 @@
   border: 1px solid var(--color-border-control);
   border-radius: 12px;
   outline: none;
-  background: var(--color-inner-block-bg);
+  background: var(--color-modal-inner-solid);
 }
 
 .profile-info-card__input:focus {
@@ -1008,7 +1008,7 @@
 
 .profile-info-card__input,
 .profile-info-card__input:focus {
-  background: var(--color-category-card-bg);
+  background: var(--color-modal-inner-solid);
 }
 
 .profile-info-card__input:focus {
