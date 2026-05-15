@@ -37,6 +37,7 @@ const uniqueTaskBase = {
 };
 
 const SPECIAL_TASK_REWARD_COINS = 15;
+const MAX_SPECIAL_TASK_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const MEMBER_COLOR_STORAGE_KEY = "quiet-pages-member-colors";
 const API_URL = import.meta.env.VITE_API_URL || "https://habbit-backend-k33d.onrender.com";
 const NOTES_POLL_INTERVAL_MS = 5000;
@@ -153,6 +154,34 @@ async function apiRequest(path, { method = "GET", token, body } = {}) {
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+  const text = await response.text();
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text ? { message: text } : null;
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Ошибка ${response.status}`);
+  }
+
+  return data;
+}
+
+async function apiUploadFile(path, { token, file } = {}) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
   });
 
   const text = await response.text();
@@ -383,6 +412,91 @@ function buildTaskEditorRequestBody(draft, templates) {
   return { templateTasks, customTasks };
 }
 
+function normalizeSpecialTaskFile(file) {
+  if (!file) return null;
+
+  return {
+    id: file.id ? String(file.id) : "",
+    storageKey: file.storageKey || file.storage_key || "",
+    url: getBackendFileUrl(file),
+    originalName: file.originalName || file.original_name || "",
+    mimeType: file.mimeType || file.mime_type || "",
+    sizeBytes: Number(file.sizeBytes ?? file.size_bytes ?? 0),
+    createdAt: file.createdAt || file.created_at || "",
+  };
+}
+
+function normalizeSpecialTaskSubmission(submission) {
+  if (!submission) return null;
+
+  const file = normalizeSpecialTaskFile(submission.file);
+
+  return {
+    id: submission.id ? String(submission.id) : "",
+    specialTaskOccurrenceId: submission.specialTaskOccurrenceId
+      ? String(submission.specialTaskOccurrenceId)
+      : submission.special_task_occurrence_id
+        ? String(submission.special_task_occurrence_id)
+        : "",
+    habitMemberId: submission.habitMemberId
+      ? String(submission.habitMemberId)
+      : submission.habit_member_id
+        ? String(submission.habit_member_id)
+        : "",
+    userId: submission.userId
+      ? String(submission.userId)
+      : submission.user_id
+        ? String(submission.user_id)
+        : "",
+    userName: submission.userName || submission.user_name || submission.name || "Участник",
+    fileId: submission.fileId
+      ? String(submission.fileId)
+      : submission.file_id
+        ? String(submission.file_id)
+        : file?.id || "",
+    submittedAt: submission.submittedAt || submission.submitted_at || "",
+    file,
+  };
+}
+
+function normalizeBackendSpecialTask(specialTask) {
+  if (!specialTask) return null;
+
+  const mySubmission = normalizeSpecialTaskSubmission(specialTask.mySubmission || specialTask.my_submission);
+
+  return {
+    id: specialTask.id ? String(specialTask.id) : "",
+    habitId: specialTask.habitId ? String(specialTask.habitId) : specialTask.habit_id ? String(specialTask.habit_id) : "",
+    specialTaskTemplateId: specialTask.specialTaskTemplateId
+      ? String(specialTask.specialTaskTemplateId)
+      : specialTask.special_task_template_id
+        ? String(specialTask.special_task_template_id)
+        : "",
+    occurrenceDate: specialTask.occurrenceDate || specialTask.occurrence_date || "",
+    code: specialTask.code || "",
+    title: specialTask.title || uniqueTaskBase.title,
+    description: specialTask.description || uniqueTaskBase.desc,
+    rewardValue: Number(specialTask.rewardValue ?? specialTask.reward_value ?? SPECIAL_TASK_REWARD_COINS),
+    isSubmittedByMe: Boolean(specialTask.isSubmittedByMe ?? specialTask.is_submitted_by_me ?? mySubmission),
+    mySubmission,
+    submissions: Array.isArray(specialTask.submissions)
+      ? specialTask.submissions.map(normalizeSpecialTaskSubmission).filter(Boolean)
+      : [],
+  };
+}
+
+function doesSpecialSubmissionBelongToMember(submission, member) {
+  if (!submission || !member) return false;
+
+  const sameHabitMember =
+    submission.habitMemberId &&
+    member.backendMemberId &&
+    String(submission.habitMemberId) === String(member.backendMemberId);
+  const sameUser = submission.userId && member.userId && String(submission.userId) === String(member.userId);
+
+  return Boolean(sameHabitMember || sameUser);
+}
+
 function normalizeBackendPage(pageData) {
   const currentMemberId = pageData?.currentMemberId;
   const tasksByMemberId = pageData?.tasksByMemberId || {};
@@ -434,6 +548,7 @@ function normalizeBackendPage(pageData) {
     progress: pageData?.progress || null,
     memberProgress: pageData?.memberProgress || {},
     habit: pageData?.habit || null,
+    specialTask: normalizeBackendSpecialTask(pageData?.specialTask),
   };
 }
 
@@ -817,17 +932,6 @@ function hasTaskEditorErrors(errors) {
   );
 }
 
-const createInitialSpecialTasks = () =>
-  friendsData.reduce((tasksByMember, friend) => {
-    tasksByMember[friend.id] = {
-      done: false,
-      photo: null,
-      completedAt: null,
-    };
-
-    return tasksByMember;
-  }, {});
-
 const BUNNY_MODEL_URL = "/live2d/bunny/bunny.json";
 const BUNNY_CRY_MODEL_URL = "/live2d/bunny/bunnycry.json";
 const BUNNY_NAME = "Банни";
@@ -1091,8 +1195,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const [adminMemberId, setAdminMemberId] = useState("me");
   const [removedMemberIds] = useState([]);
   const [memberRemoveConfirm, setMemberRemoveConfirm] = useState(null);
-  const [specialTasks, setSpecialTasks] = useState(() => createInitialSpecialTasks());
+  const [specialTask, setSpecialTask] = useState(null);
   const [isSpecialUploadOpen, setIsSpecialUploadOpen] = useState(false);
+  const [specialUploadStatus, setSpecialUploadStatus] = useState("idle");
+  const [specialUploadError, setSpecialUploadError] = useState("");
+  const [specialAwardedCoins, setSpecialAwardedCoins] = useState(0);
   const [isFriendsExpanded, setIsFriendsExpanded] = useState(false);
   const [calendarMode, setCalendarMode] = useState("week");
   const [viewedDate, setViewedDate] = useState(() => new Date());
@@ -1174,6 +1281,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       setAdminMemberId(normalized.ownerMemberUiId || "me");
       setBackendStreakDays(normalized.currentStreak);
       setGroupCreatedDateKey(extractHabitCreatedDateKey(normalized.habit));
+      setSpecialTask(normalized.specialTask);
       setSelectedFriendId((prev) =>
         nextMembers.some((member) => member.id === prev) ? prev : normalized.currentMemberUiId || "me"
       );
@@ -1393,11 +1501,21 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     [groupStats.members, selectedFriendId]
   );
 
-  const selectedSpecialTask = specialTasks[selectedFriendId] || {
-    done: false,
-    photo: null,
-    completedAt: null,
-  };
+  const selectedSpecialTask = useMemo(() => {
+    if (!specialTask) return null;
+
+    const submission =
+      selectedFriendId === "me"
+        ? specialTask.mySubmission
+        : specialTask.submissions.find((item) => doesSpecialSubmissionBelongToMember(item, selectedFriend));
+
+    return {
+      ...specialTask,
+      done: selectedFriendId === "me" ? specialTask.isSubmittedByMe : Boolean(submission),
+      photo: getBackendFileUrl(submission?.file),
+      submission,
+    };
+  }, [selectedFriend, selectedFriendId, specialTask]);
 
   const requiredProgressTasks = useMemo(
     () => myTasks.filter((task) => task.type !== "special"),
@@ -1987,27 +2105,89 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     }
   };
 
-  const handleSpecialPhoto = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleOpenSpecialUpload = () => {
+    if (!specialTask || selectedFriendId !== "me") return;
 
-    const src = URL.createObjectURL(file);
-    const wasAlreadyDone = Boolean(specialTasks.me?.done);
+    setSpecialUploadError("");
+    setSpecialAwardedCoins(0);
+    setIsSpecialUploadOpen(true);
+  };
 
-    setSpecialTasks((prev) => ({
-      ...prev,
-      me: {
-        done: true,
-        photo: src,
-        completedAt: getDateKey(currentDate),
-      },
-    }));
-
-    if (!wasAlreadyDone) {
-      setUserCoins((prevCoins) => prevCoins + SPECIAL_TASK_REWARD_COINS);
-    }
+  const handleCloseSpecialUpload = () => {
+    if (specialUploadStatus === "submitting") return;
 
     setIsSpecialUploadOpen(false);
+    setSpecialUploadError("");
+  };
+
+  const handleSpecialPhoto = async (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (!specialTask?.id) {
+      setSpecialUploadError("Особое задание не найдено");
+      input.value = "";
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setSpecialUploadError("Для особого задания нужно прикрепить изображение");
+      input.value = "";
+      return;
+    }
+
+    if (file.size > MAX_SPECIAL_TASK_FILE_SIZE_BYTES) {
+      setSpecialUploadError("Размер файла не должен превышать 5 МБ");
+      input.value = "";
+      return;
+    }
+
+    setSpecialUploadStatus("submitting");
+    setSpecialUploadError("");
+    setSpecialAwardedCoins(0);
+
+    try {
+      const uploadData = await apiUploadFile("/api/files/upload", {
+        token: authToken,
+        file,
+      });
+      const fileId = uploadData?.file?.id;
+
+      if (!fileId) {
+        throw new Error("Сервер не вернул id загруженного файла");
+      }
+
+      const submissionData = await apiRequest(
+        `/api/habits/${habitId}/special-tasks/${specialTask.id}/submission`,
+        {
+          method: "PUT",
+          token: authToken,
+          body: { fileId },
+        }
+      );
+
+      const nextSpecialTask = normalizeBackendSpecialTask(submissionData?.specialTask);
+      const awardedCoins = Number(submissionData?.awardedCoins || 0);
+
+      if (nextSpecialTask) {
+        setSpecialTask(nextSpecialTask);
+      } else {
+        await loadHabitPage({ silent: true });
+      }
+
+      if (submissionData?.coinsAwarded && awardedCoins > 0) {
+        setUserCoins((prevCoins) => prevCoins + awardedCoins);
+        setSpecialAwardedCoins(awardedCoins);
+      }
+
+      setIsSpecialUploadOpen(false);
+    } catch (error) {
+      setSpecialUploadError(getErrorMessage(error));
+    } finally {
+      setSpecialUploadStatus("idle");
+      input.value = "";
+    }
   };
 
   const getBoardMenuPoint = (event, menuWidth = 230, menuHeight = 96) => {
@@ -2511,13 +2691,16 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
                             />
                           ))}
 
-                          <SpecialTaskCard
-                            taskState={selectedSpecialTask}
-                            disabled={selectedFriendId !== "me"}
-                            isOwnTask={selectedFriendId === "me"}
-                            rewardCoins={SPECIAL_TASK_REWARD_COINS}
-                            onOpenUpload={() => setIsSpecialUploadOpen(true)}
-                          />
+                          {selectedSpecialTask && (
+                            <SpecialTaskCard
+                              taskState={selectedSpecialTask}
+                              disabled={selectedFriendId !== "me" || specialUploadStatus === "submitting"}
+                              isOwnTask={selectedFriendId === "me"}
+                              uploadStatus={specialUploadStatus}
+                              awardedCoins={specialAwardedCoins}
+                              onOpenUpload={handleOpenSpecialUpload}
+                            />
+                          )}
                         </AnimatedScrollList>
 
                         <div className="group-task-board__footer">
@@ -2775,22 +2958,36 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
           />
         )}
 
-        {isSpecialUploadOpen && (
+        {isSpecialUploadOpen && specialTask && (
           <div
             className="modal-backdrop"
             data-note-ui="true"
-            onClick={() => setIsSpecialUploadOpen(false)}
+            onClick={handleCloseSpecialUpload}
           >
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-card__title">Прикрепить фото</div>
-              <div className="modal-card__text">
-                Особое задание выполняется лично и не влияет на общий прогресс группы.
-                После выполнения начислится {SPECIAL_TASK_REWARD_COINS} монет.
+              <div className="modal-card__title">
+                {specialTask.isSubmittedByMe ? "Заменить фото" : "Прикрепить фото"}
+              </div>
+              <div className="group-form-error-card special-upload-warning">
+                {specialTask.isSubmittedByMe
+                  ? "Фото уже загружено. Можно заменить его без повторного начисления монет."
+                  : `Особое задание выполняется лично и не влияет на общий прогресс группы. После первого выполнения начислится ${specialTask.rewardValue} монет.`}
               </div>
 
+              {specialUploadError && (
+                <div className="modal-card__text modal-card__text--warning">
+                  {specialUploadError}
+                </div>
+              )}
+
               <label className="upload-field">
-                <span>Выбрать фото</span>
-                <input type="file" accept="image/*" onChange={handleSpecialPhoto} />
+                <span>{specialUploadStatus === "submitting" ? "Загрузка..." : "Выбрать фото"}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleSpecialPhoto}
+                  disabled={specialUploadStatus === "submitting"}
+                />
               </label>
             </div>
           </div>
@@ -3625,9 +3822,10 @@ function TaskCard({ task, disabled, onToggle }) {
   );
 }
 
-function SpecialTaskCard({ taskState, disabled, isOwnTask, rewardCoins, onOpenUpload }) {
+function SpecialTaskCard({ taskState, disabled, isOwnTask, uploadStatus, awardedCoins, onOpenUpload }) {
   const done = Boolean(taskState?.done);
   const photo = taskState?.photo;
+  const buttonText = done ? "Заменить фото" : "Отметить";
 
   return (
     <div className={`special-task-card ${done ? "special-task-card--done" : ""}`}>
@@ -3637,7 +3835,8 @@ function SpecialTaskCard({ taskState, disabled, isOwnTask, rewardCoins, onOpenUp
           disabled={disabled}
           onClick={onOpenUpload}
           className={`special-task-card__button ${done ? "special-task-card__button--done" : ""}`}
-          aria-label={done ? "Особое задание выполнено" : "Прикрепить фото к особому заданию"}
+          aria-label={buttonText}
+          title={buttonText}
         >
           <AnimatedCheckMark visible={done} />
         </button>
@@ -3645,16 +3844,29 @@ function SpecialTaskCard({ taskState, disabled, isOwnTask, rewardCoins, onOpenUp
         <div className="special-task-card__body">
           <div className="special-task-card__title">
             <TaskDoneAnimation done={done} variant="special">
-              {uniqueTaskBase.title}
+              {taskState?.title || uniqueTaskBase.title}
             </TaskDoneAnimation>
           </div>
-          <div className="special-task-card__desc">{uniqueTaskBase.desc}</div>
-          <div className="special-task-card__meta">
-            Личное задание · не входит в прогресс группы · +{rewardCoins} монет
-          </div>
+          <div className="special-task-card__desc">{taskState?.description || uniqueTaskBase.desc}</div>
+          {isOwnTask && (
+            <div className="special-task-card__meta special-task-card__meta--muted">
+              {uploadStatus === "submitting"
+                ? "Фото загружается..."
+                : done
+                  ? "Нажми на отметку, чтобы заменить фото."
+                  : "Нажми на отметку, чтобы загрузить фото."}
+            </div>
+          )}
+          {isOwnTask && awardedCoins > 0 && (
+            <div className="special-task-card__meta special-task-card__meta--muted">
+              +{awardedCoins} монет начислено
+            </div>
+          )}
           {!isOwnTask && (
             <div className="special-task-card__meta special-task-card__meta--muted">
-              У каждого участника это задание отмечается только в его личном профиле.
+              {done
+                ? `${taskState?.submission?.userName || "Участник"} уже прикрепил фото.`
+                : "Этот участник пока не прикрепил фото к особому заданию."}
             </div>
           )}
           {photo && (

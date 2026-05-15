@@ -2619,6 +2619,10 @@ button {
   color: var(--color-error);
 }
 
+.special-upload-warning {
+  margin-top: 14px;
+}
+
 .modal-card__button:disabled {
   cursor: default;
   opacity: 0.54;
