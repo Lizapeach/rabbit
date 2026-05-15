@@ -2269,6 +2269,44 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     setNotesMenu(null);
   };
 
+  const openNoteEditorAtBoardPoint = (clientX, clientY) => {
+    const rect = notesPanelRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 760;
+    const noteWidth = isMobile ? Math.min(142, Math.max(104, rect.width * 0.36)) : 200;
+    const noteHeight = isMobile ? 92 : 130;
+    const boardX = Math.min(
+      Math.max(clientX - rect.left, 16),
+      Math.max(16, rect.width - noteWidth)
+    );
+    const boardY = Math.min(
+      Math.max(clientY - rect.top, 16),
+      Math.max(16, rect.height - noteHeight)
+    );
+
+    setActiveNoteMenu(null);
+    setNotesMenu(null);
+    setNoteEditor({
+      x: boardX,
+      y: boardY,
+      text: "",
+    });
+  };
+
+  const handleNotesBoardTap = (event) => {
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 760;
+    if (!isMobile || event.detail > 1) return;
+
+    const clickedUi = event.target.closest(
+      "button, a, input, textarea, label, [data-note-ui='true'], [data-note-item='true']"
+    );
+
+    if (clickedUi || isSpecialUploadOpen || noteEditor || isClearNotesConfirmOpen) return;
+
+    openNoteEditorAtBoardPoint(event.clientX, event.clientY);
+  };
+
   const requestClearNotes = () => {
     setNotesMenu(null);
     setActiveNoteMenu(null);
@@ -2306,8 +2344,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     const rect = notesPanelRef.current?.getBoundingClientRect();
     const boardWidth = rect?.width || 800;
     const boardHeight = rect?.height || 520;
-    const nextX = Math.min(Math.max(noteEditor.x - 76, 12), Math.max(12, boardWidth - 190));
-    const nextY = Math.min(Math.max(noteEditor.y - 24, 12), Math.max(12, boardHeight - 130));
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 760;
+    const noteWidth = isMobile ? Math.min(142, Math.max(104, boardWidth * 0.36)) : 200;
+    const noteHeight = isMobile ? 92 : 130;
+    const nextX = Math.min(Math.max(noteEditor.x - (isMobile ? noteWidth / 2 : 76), 12), Math.max(12, boardWidth - noteWidth - 12));
+    const nextY = Math.min(Math.max(noteEditor.y - (isMobile ? noteHeight / 2 : 24), 12), Math.max(12, boardHeight - noteHeight - 12));
     const content = noteEditor.text.trim().slice(0, 200);
 
     if (!habitId || !authToken) {
@@ -2377,10 +2418,11 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     if (!dragRef.current) return;
 
     const { id, rect, offsetX, offsetY, lastClientX, lastClientY } = dragRef.current;
-    const noteWidth = window.innerWidth <= 760 ? 150 : 200;
-    const noteMinHeight = 26;
-    const nextX = Math.max(10, Math.min(rect.width - noteWidth + 160, event.clientX - rect.left - offsetX));
-    const nextY = Math.max(10, Math.min(rect.height - noteMinHeight - 10, event.clientY - rect.top - offsetY));
+    const isMobile = typeof window !== "undefined" && window.innerWidth <= 760;
+    const noteWidth = isMobile ? Math.min(142, Math.max(104, rect.width * 0.36)) : 200;
+    const noteMinHeight = isMobile ? 82 : 96;
+    const nextX = Math.max(10, Math.min(Math.max(10, rect.width - noteWidth - 10), event.clientX - rect.left - offsetX));
+    const nextY = Math.max(10, Math.min(Math.max(10, rect.height - noteMinHeight - 10), event.clientY - rect.top - offsetY));
     const pinXPercent = toPercent(nextX, rect.width);
     const pinYPercent = toPercent(nextY, rect.height);
 
@@ -2851,6 +2893,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
                   <div
                     ref={notesPanelRef}
                     className="group-panel group-panel--notes"
+                    onClick={handleNotesBoardTap}
                     onContextMenu={handleNotesBoardContextMenu}
                     aria-label="Поле заметок группы"
                   >
@@ -2881,13 +2924,14 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
                               left: typeof note.x === "number" ? note.x : `${note.pinXPercent || 0}%`,
                               top: typeof note.y === "number" ? note.y : `${note.pinYPercent || 0}%`,
                               zIndex: note.dragging ? 200 : note.zIndex,
-                              minHeight: Math.max(96, 96 + Math.floor(note.text.length / 42) * 22),
+                              "--note-extra-height": `${Math.floor(note.text.length / 42) * 22}px`,
                               "--note-accent": noteAuthorColor,
                               "--note-accent-soft": hexToRgba(noteAuthorColor, 0.22),
                               "--note-tilt": `${note.tilt || 0}deg`,
                               "--note-peel-x": `${note.peelX || 0}px`,
                               "--note-peel-y": `${note.peelY || 0}px`,
                             }}
+                            onClick={(event) => event.stopPropagation()}
                             onMouseDown={(event) => startDrag(event, note.id)}
                             onContextMenu={(event) => openNoteActions(event, note.id)}
                             aria-label={`Записка от ${noteAuthorName}: ${note.text}`}
