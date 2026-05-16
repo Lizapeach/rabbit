@@ -213,7 +213,7 @@ export default function GroupOverviewBlock({
             <div className="group-overview-grid">
               <aside
                 className="group-character-space group-character-space--clickable"
-                style={{ backgroundColor: bunnyShopState.backgroundColor }}
+                style={{ backgroundColor: bunnyShopState?.backgroundColor || "#f7eadf" }}
                 role="button"
                 tabIndex={0}
                 onClick={onOpenBunnyShop}
@@ -228,7 +228,7 @@ export default function GroupOverviewBlock({
                   isPaused={isBunnyShopOpen}
                 />
                 <div className="group-character-space__name" aria-label="Имя персонажа">
-                  {bunnyShopState.name}
+                  {bunnyShopState?.name || "Банни"}
                 </div>
               </aside>
 

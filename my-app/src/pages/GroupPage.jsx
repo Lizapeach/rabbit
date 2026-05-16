@@ -591,26 +591,44 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     };
   }, [areSpecialTasksUnlocked, selectedFriend, selectedFriendId, specialTask]);
 
-  const requiredProgressTasks = useMemo(
-    () => myTasks.filter((task) => task.type !== "special"),
-    [myTasks]
+  const groupProgressMembers = useMemo(
+    () =>
+      groupStats.members
+        .map((member) => ({
+          ...member,
+          completed: Number(member.completed || 0),
+          total: Number(member.total || 0),
+        }))
+        .filter((member) => member.total > 0),
+    [groupStats.members]
   );
 
   const shouldShowCryBunny = useMemo(
     () =>
-      requiredProgressTasks.length > 0 &&
-      requiredProgressTasks.every((task) => !task.done),
-    [requiredProgressTasks]
+      groupProgressMembers.length > 0 &&
+      groupProgressMembers.some((member) => member.completed === 0),
+    [groupProgressMembers]
   );
 
   const shouldShowHappyBunny = useMemo(
     () =>
-      requiredProgressTasks.length > 0 &&
-      requiredProgressTasks.every((task) => task.done),
-    [requiredProgressTasks]
+      groupProgressMembers.length > 0 &&
+      groupProgressMembers.every((member) => member.completed >= member.total),
+    [groupProgressMembers]
   );
 
-  const isTodayPersonalCompleted = shouldShowHappyBunny;
+  const isTodayPersonalCompleted = useMemo(
+    () => {
+      const currentMemberStats = groupProgressMembers.find((member) => member.id === "me");
+
+      return Boolean(
+        currentMemberStats &&
+        currentMemberStats.total > 0 &&
+        currentMemberStats.completed >= currentMemberStats.total
+      );
+    },
+    [groupProgressMembers]
+  );
 
   useEffect(() => {
     if (!habitId || !hasLoadedHabitProgress) return;

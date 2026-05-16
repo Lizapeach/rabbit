@@ -248,6 +248,63 @@ export async function apiUploadFile(path, { token, file } = {}) {
   return data;
 }
 
+
+export const BUNNY_SHOP_SLOT_BY_SECTION_ID = {
+  head: "head_accessory",
+  nose: "nose_accessory",
+  body: "body_accessory",
+};
+
+export async function fetchHabitShop({ habitId, token } = {}) {
+  if (!habitId) throw new Error("Не найден id привычки для загрузки магазина.");
+
+  return apiRequest(`/api/habits/${habitId}/shop`, { token });
+}
+
+export async function updateBunnyName({ habitId, token, itemId, bunnyName } = {}) {
+  if (!habitId) throw new Error("Не найден id привычки для изменения имени зайчика.");
+  if (!itemId) throw new Error("Не найден itemId покупки имени зайчика.");
+
+  return apiRequest(`/api/habits/${habitId}/shop/bunny-name`, {
+    method: "PATCH",
+    token,
+    body: {
+      itemId,
+      bunnyName,
+    },
+  });
+}
+
+export async function updateBunnyBackground({ habitId, token, itemId, bunnyBgColor } = {}) {
+  if (!habitId) throw new Error("Не найден id привычки для изменения фона зайчика.");
+  if (!itemId) throw new Error("Не найден itemId покупки фона зайчика.");
+
+  return apiRequest(`/api/habits/${habitId}/shop/bunny-background`, {
+    method: "PATCH",
+    token,
+    body: {
+      itemId,
+      bunnyBgColor,
+    },
+  });
+}
+
+export async function unequipBunnyShopSlot({ habitId, token, slot } = {}) {
+  if (!habitId) throw new Error("Не найден id привычки для снятия предмета.");
+  if (!slot) throw new Error("Не найден слот предмета, который нужно снять.");
+
+  return apiRequest(`/api/habits/${habitId}/shop/slots/${slot}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function unequipBunnyShopSection({ habitId, token, sectionId } = {}) {
+  const slot = BUNNY_SHOP_SLOT_BY_SECTION_ID[sectionId] || sectionId;
+
+  return unequipBunnyShopSlot({ habitId, token, slot });
+}
+
 export function normalizeBackendAvatar(avatar, member) {
   const fallbackColor =
     member?.displayColor ||
