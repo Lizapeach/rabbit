@@ -26,7 +26,6 @@ export default function GroupNotesBlock({
   noteElementsRef,
   notesMenu,
   activeNoteMenu,
-  noteEditor,
   isClearNotesConfirmOpen,
   onNotesBoardPointerDown,
   onNotesBoardPointerUp,
@@ -41,9 +40,6 @@ export default function GroupNotesBlock({
   onDeleteNote,
   onCloseClearNotesConfirm,
   onConfirmClearNotes,
-  onCloseNoteEditor,
-  onChangeNoteEditorText,
-  onSaveNote,
 }) {
   return (
     <div
@@ -174,29 +170,6 @@ export default function GroupNotesBlock({
         </div>
       )}
 
-      {noteEditor && (
-        <div className="modal-backdrop modal-backdrop--note" data-note-ui="true" onClick={onCloseNoteEditor}>
-          <div className="note-editor" onClick={(event) => event.stopPropagation()}>
-            <div className="note-editor__title">Новая записка</div>
-
-            <textarea
-              autoFocus
-              maxLength={200}
-              value={noteEditor.text}
-              onChange={(event) => onChangeNoteEditorText(event.target.value)}
-              placeholder="Напиши, что хочешь сохранить для группы..."
-              className="note-editor__textarea"
-            />
-
-            <div className="note-editor__footer">
-              <div className="note-editor__count">{noteEditor.text.length}/200</div>
-              <button type="button" data-note-ui="true" onClick={onSaveNote} className="note-editor__button">
-                Готово
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

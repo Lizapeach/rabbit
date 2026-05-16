@@ -175,6 +175,19 @@
   color: var(--color-note-text);
 }
 
+.modal-backdrop--note {
+  z-index: 140;
+  background:
+    radial-gradient(circle at 50% 20%, var(--color-glass-highlight), transparent 34%),
+    var(--color-backdrop-bg);
+  backdrop-filter: blur(14px);
+}
+
+.modal-backdrop--note .note-editor {
+  position: relative;
+  z-index: 141;
+}
+
 .note-editor__title {
   font-size: 1.25rem;
   font-weight: 600;
@@ -231,10 +244,6 @@
   box-shadow: 0 12px 28px var(--color-note-action-shadow);
 }
 
-.group-page .note-editor {
-  position: relative;
-  z-index: 1601;
-}
 
 @media (max-width: 760px) {
     .sticky-note {

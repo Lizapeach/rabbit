@@ -5,6 +5,8 @@ import BorderGlow from "../Animation/BorderGlow";
 import achievementIcon from "../../assets/icons/achievement.svg";
 
 export default function LobbySideBlock({ achievements, recordStreak }) {
+  const hasRecord = Boolean(recordStreak?.hasRecord || Number(recordStreak?.days || 0) > 0);
+
   return (
     <aside className="content-grid__side">
       <div className="record-panel">
@@ -15,30 +17,43 @@ export default function LobbySideBlock({ achievements, recordStreak }) {
               <p className="section-description">
                 Самое большое количество дней подряд без пропусков.
               </p>
-              <div className="record-streak">
-                <div className="record-streak__inner">
-                  <div className="record-streak__days">
-                    <div className="record-streak__card-label">Дней</div>
-                    <div className="record-streak__value">{recordStreak.days}</div>
-                  </div>
 
-                  <div className="record-streak__details">
-                    <div className="record-streak__meta-card">
-                      <div className="record-streak__card-label">Категория</div>
-                      <div className="record-streak__meta-value">
-                        {recordStreak.category}
-                      </div>
+              {hasRecord ? (
+                <div className="record-streak">
+                  <div className="record-streak__inner">
+                    <div className="record-streak__days">
+                      <div className="record-streak__card-label">Дней</div>
+                      <div className="record-streak__value">{recordStreak.days}</div>
                     </div>
 
-                    <div className="record-streak__meta-card">
-                      <div className="record-streak__card-label">Название</div>
-                      <div className="record-streak__meta-value">
-                        {recordStreak.group}
+                    <div className="record-streak__details">
+                      <div className="record-streak__meta-card">
+                        <div className="record-streak__card-label">Категория</div>
+                        <div className="record-streak__meta-value">
+                          {recordStreak.category || "—"}
+                        </div>
+                      </div>
+
+                      <div className="record-streak__meta-card">
+                        <div className="record-streak__card-label">Группа</div>
+                        <div className="record-streak__meta-value">
+                          {recordStreak.group || "—"}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="record-streak">
+                  <div className="record-streak__inner">
+                    <div className="record-streak__meta-card">
+                      <div className="record-streak__meta-value">
+                        Рекорд пока не установлен
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </BorderGlow>
         </AnimatedContent>

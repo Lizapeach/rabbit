@@ -10,8 +10,8 @@ import LobbySideBlock from "../components/LobbyPage/LobbySideBlock";
 import {
   ACHIEVEMENTS,
   CATEGORY_TITLE_BY_ID,
-  RECORD_STREAK,
   buildCategoriesFromHabits,
+  buildRecordStreak,
   createHabitOnServer,
   getInitial,
   getStoredAuthToken,
@@ -31,6 +31,7 @@ export default function LobbyPage({
   const userEmail = userProfile?.email || "ela@gmail.com";
   const coins = userProfile?.coinsBalance ?? userProfile?.coins ?? 0;
   const [habits, setHabits] = useState([]);
+  const [habitsRecord, setHabitsRecord] = useState(null);
   const [habitsLoadState, setHabitsLoadState] = useState({
     status: "idle",
     error: "",
@@ -43,12 +44,17 @@ export default function LobbyPage({
   const habitsLoadError = habitsLoadState.error;
 
   const categories = useMemo(() => buildCategoriesFromHabits(habits), [habits]);
+  const recordStreak = useMemo(
+    () => buildRecordStreak(habitsRecord, habits),
+    [habits, habitsRecord]
+  );
   const hasGroups = categories.some((category) => category.groups?.length > 0);
 
   const loadHabits = useCallback(
     async ({ silent = false } = {}) => {
       if (!getStoredAuthToken()) {
         setHabits([]);
+        setHabitsRecord(null);
         setHabitsLoadState({ status: "no-token", error: "" });
         onPageLoadingChange?.(false, pageLoadingRoute);
         return [];
@@ -60,13 +66,17 @@ export default function LobbyPage({
       }
 
       try {
-        const nextHabits = await requestHabitsFromServer();
+        const data = await requestHabitsFromServer();
+        const nextHabits = data.habits || [];
+
         setHabits(nextHabits);
+        setHabitsRecord(data.record || null);
         setHabitsLoadState({ status: "success", error: "" });
         return nextHabits;
       } catch (error) {
         console.error("Habit list loading failed:", error);
         setHabits([]);
+        setHabitsRecord(null);
         setHabitsLoadState({
           status: "error",
           error: error?.message || "Не удалось загрузить привычку",
@@ -271,7 +281,7 @@ export default function LobbyPage({
 
               <LobbySideBlock
                 achievements={ACHIEVEMENTS}
-                recordStreak={RECORD_STREAK}
+                recordStreak={recordStreak}
               />
             </section>
           </main>

@@ -53,6 +53,7 @@ import {
   BUNNY_CRY_MODEL_URL,
   BUNNY_NAME,
   getDateKey,
+  writeTodayStreakPreview,
   buildPastDates,
   normalizeStatsResponse
 } from "../utils/groupPageUtils.jsx";
@@ -465,7 +466,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     };
   }, [friendsWithColors, myTasks]);
 
-  const streakDays = backendStreakDays ?? 0;
+  const hasLoadedHabitProgress = backendStreakDays !== null;
+  const isTodayGroupCompleted = groupStats.total > 0 && groupStats.completed === groupStats.total;
+  const streakDays = (backendStreakDays ?? 0) + (isTodayGroupCompleted ? 1 : 0);
 
   const selectedMemberStats = useMemo(
     () =>
@@ -509,6 +512,21 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       requiredProgressTasks.every((task) => task.done),
     [requiredProgressTasks]
   );
+
+  const isTodayPersonalCompleted = shouldShowHappyBunny;
+
+  useEffect(() => {
+    if (!habitId || !hasLoadedHabitProgress) return;
+
+    writeTodayStreakPreview(
+      habitId,
+      {
+        personalCompleted: isTodayPersonalCompleted,
+        groupCompleted: isTodayGroupCompleted,
+      },
+      currentDate
+    );
+  }, [currentDate, habitId, hasLoadedHabitProgress, isTodayGroupCompleted, isTodayPersonalCompleted]);
 
   const activeBunnyModelUrl = shouldShowCryBunny ? BUNNY_CRY_MODEL_URL : BUNNY_MODEL_URL;
   const activeBunnyAnimationMode = shouldShowCryBunny ? "cry" : "idle";
@@ -1754,7 +1772,10 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
             </div>
           )}
 
-          <GroupTitleRibbon groupName={groupInfo.name} streakDays={streakDays} />
+          <GroupTitleRibbon
+            groupName={groupInfo.name}
+            streakDays={streakDays}
+          />
 
           <main className="group-main">
             <GroupOverviewBlock
@@ -1833,7 +1854,6 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
               noteElementsRef={noteElementsRef}
               notesMenu={notesMenu}
               activeNoteMenu={activeNoteMenu}
-              noteEditor={noteEditor}
               isClearNotesConfirmOpen={isClearNotesConfirmOpen}
               onNotesBoardPointerDown={handleNotesBoardPointerDown}
               onNotesBoardPointerUp={handleNotesBoardPointerUp}
@@ -1848,13 +1868,36 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
               onDeleteNote={deleteNote}
               onCloseClearNotesConfirm={() => setIsClearNotesConfirmOpen(false)}
               onConfirmClearNotes={confirmClearNotes}
-              onCloseNoteEditor={() => setNoteEditor(null)}
-              onChangeNoteEditorText={(text) => setNoteEditor((prev) => ({ ...prev, text }))}
-              onSaveNote={saveNote}
             />
             </section>
           </main>
         </div>
+
+        {noteEditor && (
+          <div className="modal-backdrop modal-backdrop--note" data-note-ui="true" onClick={() => setNoteEditor(null)}>
+            <div className="note-editor" onClick={(event) => event.stopPropagation()}>
+              <div className="note-editor__title">Новая записка</div>
+
+              <textarea
+                autoFocus
+                maxLength={200}
+                value={noteEditor.text}
+                onChange={(event) =>
+                  setNoteEditor((prev) => (prev ? { ...prev, text: event.target.value } : prev))
+                }
+                placeholder="Напиши, что хочешь сохранить для группы..."
+                className="note-editor__textarea"
+              />
+
+              <div className="note-editor__footer">
+                <div className="note-editor__count">{noteEditor.text.length}/200</div>
+                <button type="button" data-note-ui="true" onClick={saveNote} className="note-editor__button">
+                  Готово
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isTaskEditorOpen && (
           <TaskEditorModal

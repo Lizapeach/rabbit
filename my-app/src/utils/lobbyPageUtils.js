@@ -1,5 +1,3 @@
-
-
 export const CATEGORY_OPTIONS = [
   {
     id: "sport",
@@ -56,15 +54,71 @@ export const ACHIEVEMENTS = [
 ];
 
 export const RECORD_STREAK = {
-  days: 29,
-  category: "Чтение",
-  group: "Буба",
+  days: 0,
+  category: "",
+  group: "",
+  hasRecord: false,
+  isPreview: false,
 };
+
+export const TODAY_STREAK_PREVIEW_STORAGE_KEY = "habbit-today-streak-preview";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
   "https://habbit-backend-k33d.onrender.com";
+
+export function getDateKey(date = new Date()) {
+  const safeDate = date instanceof Date ? date : new Date(date);
+  const year = safeDate.getFullYear();
+  const month = String(safeDate.getMonth() + 1).padStart(2, "0");
+  const day = String(safeDate.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getEmptyTodayStreakPreview(dateKey = getDateKey()) {
+  return {
+    dateKey,
+    personalHabitIds: {},
+    groupHabitIds: {},
+  };
+}
+
+function normalizeTodayStreakPreview(rawPreview, dateKey = getDateKey()) {
+  if (!rawPreview || rawPreview.dateKey !== dateKey) {
+    return getEmptyTodayStreakPreview(dateKey);
+  }
+
+  return {
+    dateKey,
+    personalHabitIds:
+      rawPreview.personalHabitIds && typeof rawPreview.personalHabitIds === "object"
+        ? rawPreview.personalHabitIds
+        : {},
+    groupHabitIds:
+      rawPreview.groupHabitIds && typeof rawPreview.groupHabitIds === "object"
+        ? rawPreview.groupHabitIds
+        : {},
+  };
+}
+
+export function readTodayStreakPreview(date = new Date()) {
+  const dateKey = getDateKey(date);
+
+  if (typeof window === "undefined") {
+    return getEmptyTodayStreakPreview(dateKey);
+  }
+
+  try {
+    return normalizeTodayStreakPreview(
+      JSON.parse(window.localStorage.getItem(TODAY_STREAK_PREVIEW_STORAGE_KEY) || "null"),
+      dateKey
+    );
+  } catch {
+    return getEmptyTodayStreakPreview(dateKey);
+  }
+}
 
 export function getStoredAuthToken() {
   try {
@@ -100,7 +154,10 @@ export async function requestHabitsFromServer() {
     throw new Error(data?.message || "Не удалось получить список привычек");
   }
 
-  return Array.isArray(data?.habits) ? data.habits : [];
+  return {
+    habits: Array.isArray(data?.habits) ? data.habits : [],
+    record: data?.record || null,
+  };
 }
 
 export async function createHabitOnServer(payload) {
@@ -198,10 +255,47 @@ export function getRoleText(role) {
   return "Участник";
 }
 
-export function normalizeHabitToGroup(habit) {
+export function getHabitTypeLabel(habitTypeCode) {
+  return CATEGORY_TITLE_BY_ID[habitTypeCode] || habitTypeCode || "—";
+}
+
+export function getHabitTodayPersonalCompleted(habit, todayPreview = readTodayStreakPreview()) {
+  const habitId = String(habit?.id || "");
+
+  return Boolean(
+    (habitId && todayPreview.personalHabitIds?.[habitId]) ||
+      habit?.memberTodayCompleted ||
+      habit?.todayPersonalCompleted ||
+      habit?.todayCompletedByMe ||
+      habit?.isTodayCompletedByMe ||
+      habit?.isTodayCompleted ||
+      habit?.todayCompleted ||
+      habit?.todayStatus === "done" ||
+      habit?.todayStatus === "good"
+  );
+}
+
+export function getHabitTodayGroupCompleted(habit, todayPreview = readTodayStreakPreview()) {
+  const habitId = String(habit?.id || "");
+
+  return Boolean(
+    (habitId && todayPreview.groupHabitIds?.[habitId]) ||
+      habit?.groupTodayCompleted ||
+      habit?.todayGroupCompleted ||
+      habit?.isTodayGroupCompleted ||
+      habit?.todayHabitStatus === "good" ||
+      habit?.todayGroupStatus === "good"
+  );
+}
+
+export function normalizeHabitToGroup(habit, todayPreview = readTodayStreakPreview()) {
   const title = String(habit?.title || "Без названия").trim() || "Без названия";
   const description = String(habit?.description || "").trim();
   const currentStreak = Number(habit?.currentStreak || 0);
+  const memberCurrentStreak = Number(habit?.memberCurrentStreak || 0);
+  const memberBestStreak = Number(habit?.memberBestStreak || 0);
+  const isTodayGroupCompleted = getHabitTodayGroupCompleted(habit, todayPreview);
+  const isTodayPersonalCompleted = getHabitTodayPersonalCompleted(habit, todayPreview);
   const roleText = getRoleText(habit?.role);
 
   return {
@@ -218,10 +312,17 @@ export function normalizeHabitToGroup(habit) {
     createdAt: habit?.createdAt,
     joinedAt: habit?.joinedAt,
     currentStreak,
+    displayedCurrentStreak: currentStreak + (isTodayGroupCompleted ? 1 : 0),
+    memberCurrentStreak,
+    displayedMemberCurrentStreak: memberCurrentStreak + (isTodayPersonalCompleted ? 1 : 0),
+    memberBestStreak,
+    isTodayGroupCompleted,
+    isTodayPersonalCompleted,
   };
 }
 
 export function buildCategoriesFromHabits(habits) {
+  const todayPreview = readTodayStreakPreview();
   const categoriesMap = new Map(
     CATEGORY_OPTIONS.map((category) => [
       category.id,
@@ -242,15 +343,50 @@ export function buildCategoriesFromHabits(habits) {
     if (!categoriesMap.has(habitTypeCode)) {
       categoriesMap.set(habitTypeCode, {
         id: habitTypeCode,
-        title: CATEGORY_TITLE_BY_ID[habitTypeCode] || habitTypeCode,
+        title: getHabitTypeLabel(habitTypeCode),
         groups: [],
       });
     }
 
-    categoriesMap.get(habitTypeCode).groups.push(normalizeHabitToGroup(habit));
+    categoriesMap.get(habitTypeCode).groups.push(normalizeHabitToGroup(habit, todayPreview));
   });
 
   return Array.from(categoriesMap.values()).filter(
     (category) => category.groups.length > 0
   );
+}
+
+export function buildRecordStreak(record, habits = []) {
+  const todayPreview = readTodayStreakPreview();
+  const officialDays = Number(record?.days || 0);
+  const officialHabitTypeCode = record?.habitTypeCode || "";
+
+  const result = {
+    days: officialDays,
+    category: officialDays > 0 ? getHabitTypeLabel(officialHabitTypeCode) : "",
+    group: officialDays > 0 ? record?.habitTitle || "—" : "",
+    habitId: record?.habitId || "",
+    habitTypeCode: officialHabitTypeCode,
+    hasRecord: officialDays > 0,
+    isPreview: false,
+  };
+
+  habits.forEach((habit) => {
+    if (habit?.status && habit.status !== "active") return;
+    if (!getHabitTodayPersonalCompleted(habit, todayPreview)) return;
+
+    const previewDays = Number(habit?.memberCurrentStreak || 0) + 1;
+
+    if (previewDays > result.days) {
+      result.days = previewDays;
+      result.category = getHabitTypeLabel(habit?.habitTypeCode);
+      result.group = habit?.title || "—";
+      result.habitId = habit?.id || "";
+      result.habitTypeCode = habit?.habitTypeCode || "";
+      result.hasRecord = previewDays > 0;
+      result.isPreview = true;
+    }
+  });
+
+  return result;
 }

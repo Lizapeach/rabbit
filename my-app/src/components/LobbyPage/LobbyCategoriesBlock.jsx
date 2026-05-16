@@ -130,7 +130,7 @@ export default function LobbyCategoriesBlock({
                                 </div>
 
                                 <div className="group-card__progress">
-                                  {getStreakText(group.currentStreak)}
+                                  {getStreakText(group.displayedCurrentStreak ?? group.currentStreak)}
                                 </div>
                               </div>
                             </div>

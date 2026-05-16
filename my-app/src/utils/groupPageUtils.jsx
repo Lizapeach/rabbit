@@ -23,6 +23,7 @@ export const MEMBER_COLOR_STORAGE_KEY = "quiet-pages-member-colors";
 export const API_URL = import.meta.env.VITE_API_URL || "https://habbit-backend-k33d.onrender.com";
 export const NOTES_POLL_INTERVAL_MS = 5000;
 export const AUTH_TOKEN_STORAGE_KEYS = ["token", "authToken", "habbitToken", "habbit-auth-token"];
+export const TODAY_STREAK_PREVIEW_STORAGE_KEY = "habbit-today-streak-preview";
 
 export const PERSONAL_TASK_TEMPLATES = [];
 
@@ -600,6 +601,7 @@ export function normalizeMemberProfileResponse(profileData, fallbackMember, fall
       habitId: record.habitId || fallbackMember?.habitId || "",
       habitTitle: record.habitTitle || fallbackGroupInfo?.name || "—",
       habitTypeCode: record.habitTypeCode || "",
+      habitTypeName: getHabitTypeName(record.habitTypeCode),
     },
     achievements: Array.isArray(profileData?.achievements)
       ? profileData.achievements.map((achievement, index) => ({
@@ -956,6 +958,76 @@ export function getDateKey(date) {
 
 export function isSameDay(firstDate, secondDate) {
   return getDateKey(firstDate) === getDateKey(secondDate);
+}
+
+function getEmptyTodayStreakPreview(dateKey = getDateKey(new Date())) {
+  return {
+    dateKey,
+    personalHabitIds: {},
+    groupHabitIds: {},
+  };
+}
+
+function normalizeTodayStreakPreview(rawPreview, dateKey = getDateKey(new Date())) {
+  if (!rawPreview || rawPreview.dateKey !== dateKey) {
+    return getEmptyTodayStreakPreview(dateKey);
+  }
+
+  return {
+    dateKey,
+    personalHabitIds:
+      rawPreview.personalHabitIds && typeof rawPreview.personalHabitIds === "object"
+        ? rawPreview.personalHabitIds
+        : {},
+    groupHabitIds:
+      rawPreview.groupHabitIds && typeof rawPreview.groupHabitIds === "object"
+        ? rawPreview.groupHabitIds
+        : {},
+  };
+}
+
+export function readTodayStreakPreview(date = new Date()) {
+  const dateKey = getDateKey(date);
+
+  if (typeof window === "undefined") {
+    return getEmptyTodayStreakPreview(dateKey);
+  }
+
+  try {
+    return normalizeTodayStreakPreview(
+      JSON.parse(window.localStorage.getItem(TODAY_STREAK_PREVIEW_STORAGE_KEY) || "null"),
+      dateKey
+    );
+  } catch {
+    return getEmptyTodayStreakPreview(dateKey);
+  }
+}
+
+export function writeTodayStreakPreview(
+  habitId,
+  { personalCompleted = false, groupCompleted = false } = {},
+  date = new Date()
+) {
+  if (typeof window === "undefined" || !habitId) return;
+
+  const dateKey = getDateKey(date);
+  const preview = readTodayStreakPreview(date);
+  const nextPreview = normalizeTodayStreakPreview(preview, dateKey);
+  const normalizedHabitId = String(habitId);
+
+  if (personalCompleted) {
+    nextPreview.personalHabitIds[normalizedHabitId] = true;
+  } else {
+    delete nextPreview.personalHabitIds[normalizedHabitId];
+  }
+
+  if (groupCompleted) {
+    nextPreview.groupHabitIds[normalizedHabitId] = true;
+  } else {
+    delete nextPreview.groupHabitIds[normalizedHabitId];
+  }
+
+  window.localStorage.setItem(TODAY_STREAK_PREVIEW_STORAGE_KEY, JSON.stringify(nextPreview));
 }
 
 export function isFutureDay(date, today) {
