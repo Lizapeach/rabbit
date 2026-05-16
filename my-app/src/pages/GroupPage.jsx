@@ -467,7 +467,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   }, [friendsWithColors, myTasks]);
 
   const hasLoadedHabitProgress = backendStreakDays !== null;
-  const isTodayGroupCompleted = groupStats.total > 0 && groupStats.completed === groupStats.total;
+  const groupMembersWithTasks = groupStats.members.filter(
+    (member) => Number(member.total || 0) > 0
+  );
+  const isTodayGroupCompleted =
+    groupMembersWithTasks.length > 0 &&
+    groupMembersWithTasks.every((member) => Number(member.completed || 0) > 0);
   const streakDays = (backendStreakDays ?? 0) + (isTodayGroupCompleted ? 1 : 0);
 
   const selectedMemberStats = useMemo(

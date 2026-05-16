@@ -277,14 +277,22 @@ export function getHabitTodayPersonalCompleted(habit, todayPreview = readTodaySt
 
 export function getHabitTodayGroupCompleted(habit, todayPreview = readTodayStreakPreview()) {
   const habitId = String(habit?.id || "");
+  const todayGroupStatus =
+    habit?.todayHabitStatus ||
+    habit?.todayGroupStatus ||
+    habit?.todayHabitState ||
+    habit?.todayGroupState ||
+    habit?.habitDailyStatus ||
+    habit?.dailyStatus ||
+    "";
 
   return Boolean(
     (habitId && todayPreview.groupHabitIds?.[habitId]) ||
       habit?.groupTodayCompleted ||
       habit?.todayGroupCompleted ||
       habit?.isTodayGroupCompleted ||
-      habit?.todayHabitStatus === "good" ||
-      habit?.todayGroupStatus === "good"
+      todayGroupStatus === "ok" ||
+      todayGroupStatus === "good"
   );
 }
 
@@ -373,9 +381,9 @@ export function buildRecordStreak(record, habits = []) {
 
   habits.forEach((habit) => {
     if (habit?.status && habit.status !== "active") return;
-    if (!getHabitTodayPersonalCompleted(habit, todayPreview)) return;
+    if (!getHabitTodayGroupCompleted(habit, todayPreview)) return;
 
-    const previewDays = Number(habit?.memberCurrentStreak || 0) + 1;
+    const previewDays = Number(habit?.currentStreak || 0) + 1;
 
     if (previewDays > result.days) {
       result.days = previewDays;
