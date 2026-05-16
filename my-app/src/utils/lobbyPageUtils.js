@@ -191,6 +191,55 @@ export async function createHabitOnServer(payload) {
   return data;
 }
 
+export function normalizeLobbyAchievement(achievement, index = 0) {
+  const rawRewardCoins = achievement?.rewardCoins ?? achievement?.reward_coins ?? 0;
+  const rewardCoins = Number(rawRewardCoins);
+  const receivedAt = achievement?.receivedAt || achievement?.received_at || "";
+  const description = String(achievement?.description || achievement?.desc || "").trim();
+
+  return {
+    id: String(achievement?.id || achievement?.code || achievement?.title || `achievement-${index}`),
+    code: achievement?.code || "",
+    title: String(achievement?.title || "Достижение").trim() || "Достижение",
+    desc: description || "Описание достижения не указано.",
+    description,
+    rewardCoins: Number.isFinite(rewardCoins) ? rewardCoins : 0,
+    receivedAt,
+  };
+}
+
+export function normalizeLobbyAchievements(achievements) {
+  if (!Array.isArray(achievements)) return [];
+
+  return achievements.map(normalizeLobbyAchievement).filter(Boolean);
+}
+
+export async function requestProfileFromServer() {
+  const token = getStoredAuthToken();
+
+  if (!token) {
+    throw new Error("Нет токена авторизации");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/profile`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Не удалось получить профиль");
+  }
+
+  return {
+    user: data?.user && typeof data.user === "object" ? data.user : null,
+    achievements: normalizeLobbyAchievements(data?.achievements),
+  };
+}
+
 export function getInitial(name) {
   const trimmedName = String(name || "").trim();
   return (trimmedName[0] || "П").toUpperCase();

@@ -8,7 +8,6 @@ import LobbyHeroBlock from "../components/LobbyPage/LobbyHeroBlock";
 import LobbySideBlock from "../components/LobbyPage/LobbySideBlock";
 
 import {
-  ACHIEVEMENTS,
   CATEGORY_TITLE_BY_ID,
   buildCategoriesFromHabits,
   buildRecordStreak,
@@ -16,6 +15,7 @@ import {
   getInitial,
   getStoredAuthToken,
   requestHabitsFromServer,
+  requestProfileFromServer,
 } from "../utils/lobbyPageUtils";
 
 import "../styles/lobby.css";
@@ -27,9 +27,13 @@ export default function LobbyPage({
   onPageLoadingChange,
   pageLoadingRoute,
 }) {
-  const userName = userProfile?.name || "Елизавета";
-  const userEmail = userProfile?.email || "ela@gmail.com";
-  const coins = userProfile?.coinsBalance ?? userProfile?.coins ?? 0;
+  const [lobbyProfile, setLobbyProfile] = useState(null);
+  const [profileAchievements, setProfileAchievements] = useState([]);
+
+  const displayedProfile = lobbyProfile || userProfile || {};
+  const userName = displayedProfile?.name || "Елизавета";
+  const userEmail = displayedProfile?.email || userProfile?.email || "ela@gmail.com";
+  const coins = displayedProfile?.coinsBalance ?? displayedProfile?.coins ?? userProfile?.coinsBalance ?? userProfile?.coins ?? 0;
   const [habits, setHabits] = useState([]);
   const [habitsRecord, setHabitsRecord] = useState(null);
   const [habitsLoadState, setHabitsLoadState] = useState({
@@ -55,6 +59,8 @@ export default function LobbyPage({
       if (!getStoredAuthToken()) {
         setHabits([]);
         setHabitsRecord(null);
+        setLobbyProfile(null);
+        setProfileAchievements([]);
         setHabitsLoadState({ status: "no-token", error: "" });
         onPageLoadingChange?.(false, pageLoadingRoute);
         return [];
@@ -66,7 +72,25 @@ export default function LobbyPage({
       }
 
       try {
-        const data = await requestHabitsFromServer();
+        const [habitsResult, profileResult] = await Promise.allSettled([
+          requestHabitsFromServer(),
+          requestProfileFromServer(),
+        ]);
+
+        if (profileResult.status === "fulfilled") {
+          setLobbyProfile(profileResult.value?.user || null);
+          setProfileAchievements(profileResult.value?.achievements || []);
+        } else {
+          console.error("Profile loading failed:", profileResult.reason);
+          setLobbyProfile(null);
+          setProfileAchievements([]);
+        }
+
+        if (habitsResult.status === "rejected") {
+          throw habitsResult.reason;
+        }
+
+        const data = habitsResult.value || {};
         const nextHabits = data.habits || [];
 
         setHabits(nextHabits);
@@ -77,6 +101,8 @@ export default function LobbyPage({
         console.error("Habit list loading failed:", error);
         setHabits([]);
         setHabitsRecord(null);
+        setLobbyProfile(null);
+        setProfileAchievements([]);
         setHabitsLoadState({
           status: "error",
           error: error?.message || "Не удалось загрузить привычку",
@@ -280,7 +306,7 @@ export default function LobbyPage({
               />
 
               <LobbySideBlock
-                achievements={ACHIEVEMENTS}
+                achievements={profileAchievements}
                 recordStreak={recordStreak}
               />
             </section>
