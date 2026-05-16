@@ -6,7 +6,10 @@ import BorderGlow from "../components/Animation/BorderGlow";
 
 import "../styles/auth.css";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://habbit-backend-k33d.onrender.com";
 const TOKEN_STORAGE_KEY = "habbit-auth-token";
 
 const AUTH_TABS = {
@@ -151,8 +154,10 @@ function buildProfileFromResponse(data, fallback) {
       : user.registered_at
         ? formatBackendDate(user.registered_at)
         : fallback.registeredAt || formatRegisteredAt(),
-    activeUserAvatarId: user.activeUserAvatarId ?? fallback.activeUserAvatarId,
-    avatarBgColor: user.avatarBgColor || fallback.avatarBgColor,
+    activeUserAvatarId:
+      user.activeUserAvatarId ?? user.active_user_avatar_id ?? fallback.activeUserAvatarId,
+    avatarBgColor: user.avatarBgColor || user.avatar_bg_color || fallback.avatarBgColor,
+    activeAvatar: user.activeAvatar || user.active_avatar || fallback.activeAvatar || null,
   };
 }
 
@@ -235,7 +240,14 @@ export default function AuthPage({ navigate, onAuthSuccess, userProfile }) {
       ...fallbackProfile,
     });
 
-    onAuthSuccess?.(nextProfile);
+    onAuthSuccess?.({
+      ...data,
+      user: {
+        ...nextProfile,
+        ...(data?.user || {}),
+        activeAvatar: data?.user?.activeAvatar || data?.user?.active_avatar || nextProfile.activeAvatar,
+      },
+    });
     navigate?.("/lobby");
   };
 

@@ -29,6 +29,7 @@ const EMPTY_PROFILE = {
   registeredAtFormatted: "",
   activeUserAvatarId: null,
   avatarBgColor: "",
+  activeAvatar: null,
 };
 
 function getRoute(pathname) {
@@ -161,6 +162,7 @@ function normalizeProfileData(profileData = {}, fallback = EMPTY_PROFILE) {
       fallback.activeUserAvatarId,
     avatarBgColor:
       source.avatarBgColor || source.avatar_bg_color || fallback.avatarBgColor || "",
+    activeAvatar: source.activeAvatar || source.active_avatar || fallback.activeAvatar || null,
   };
 }
 
@@ -224,14 +226,22 @@ function normalizeAvatar(avatar, profileData = EMPTY_PROFILE) {
 }
 
 function getActiveAvatarFromProfileResponse(data = {}) {
-  return data.activeAvatar || data.avatar || data.userAvatar || null;
+  return (
+    data?.user?.activeAvatar ||
+    data?.user?.active_avatar ||
+    data?.activeAvatar ||
+    data?.active_avatar ||
+    data?.avatar ||
+    data?.userAvatar ||
+    null
+  );
 }
 
 async function requestCurrentProfile() {
   const token = getStoredAuthToken();
   if (!token) return null;
 
-  const response = await fetch(`${API_BASE_URL}/api/profile`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -427,12 +437,16 @@ function App() {
     return { profile: nextProfile, avatar: nextAvatar };
   }, []);
 
-  const handleAuthSuccess = useCallback((nextProfileData = {}) => {
-    const responseData = nextProfileData?.user
-      ? nextProfileData
+  const handleAuthSuccess = useCallback((authResponse = {}) => {
+    const responseData = authResponse?.user
+      ? authResponse
       : {
-          user: nextProfileData,
-          activeAvatar: nextProfileData.avatar || nextProfileData.userAvatar,
+          user: authResponse,
+          activeAvatar:
+            authResponse.activeAvatar ||
+            authResponse.active_avatar ||
+            authResponse.avatar ||
+            authResponse.userAvatar,
         };
 
     handleProfileResponse(responseData);
@@ -511,7 +525,7 @@ function App() {
 
     return {
       ...normalizedAvatar,
-      label: normalizedAvatar.type === "letter" ? getInitial(userProfile.name) : normalizedAvatar.label,
+      label: normalizedAvatar.label || getInitial(userProfile.name),
       color: normalizedAvatar.color || userProfile.avatarBgColor || "#ede2da",
     };
   }, [userAvatar, userProfile]);

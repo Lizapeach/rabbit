@@ -292,15 +292,25 @@ export function normalizeProfileFromBackend(profileResponse, fallbackProfile = {
       fallbackProfile.activeUserAvatarId ??
       null,
     avatarBgColor: user.avatarBgColor || user.avatar_bg_color || fallbackProfile.avatarBgColor || "#F3E3DB",
+    activeAvatar: user.activeAvatar || user.active_avatar || fallbackProfile.activeAvatar || null,
   };
 }
 
 export function getBackendAvatars(profileResponse) {
-  return Array.isArray(profileResponse?.avatars) ? profileResponse.avatars : [];
+  if (Array.isArray(profileResponse?.avatars)) return profileResponse.avatars;
+  if (Array.isArray(profileResponse?.user?.avatars)) return profileResponse.user.avatars;
+  return [];
 }
 
 export function getBackendActiveAvatar(profileResponse) {
-  return profileResponse?.activeAvatar || profileResponse?.avatar || null;
+  return (
+    profileResponse?.user?.activeAvatar ||
+    profileResponse?.user?.active_avatar ||
+    profileResponse?.activeAvatar ||
+    profileResponse?.active_avatar ||
+    profileResponse?.avatar ||
+    null
+  );
 }
 
 export function getSlideIdForBackendActiveAvatar(profileResponse) {
@@ -424,4 +434,3 @@ export function normalizePreviewSlideFromSharedAvatar(avatar, fallbackName = "")
     raw: avatar.raw || avatar,
   };
 }
-

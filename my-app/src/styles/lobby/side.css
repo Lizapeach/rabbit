@@ -245,3 +245,15 @@
     font-size: 1.35rem;
   }
 }
+.record-streak__inner.record-streak__inner--empty {
+  grid-template-columns: 1fr;
+  padding: 0 12px 12px;
+  box-sizing: border-box;
+}
+
+.record-streak__inner--empty .record-streak__empty-card {
+  width: 100%;
+  min-height: 110px;
+  padding: 18px 16px;
+  box-sizing: border-box;
+}

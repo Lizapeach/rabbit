@@ -45,8 +45,8 @@ export default function LobbySideBlock({ achievements, recordStreak }) {
                 </div>
               ) : (
                 <div className="record-streak">
-                  <div className="record-streak__inner">
-                    <div className="record-streak__meta-card">
+                  <div className="record-streak__inner record-streak__inner--empty">
+                    <div className="record-streak__meta-card record-streak__empty-card">
                       <div className="record-streak__meta-value">
                         Рекорд пока не установлен
                       </div>
