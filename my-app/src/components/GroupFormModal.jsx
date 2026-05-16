@@ -6,7 +6,7 @@ import booksIcon from "../assets/icons/books.svg";
 import cleanIcon from "../assets/icons/clean.svg";
 import dumbbellsIcon from "../assets/icons/dumbbells.svg";
 
-import "../styles/group-form-modal.css";
+import "../styles/components/group-form-modal.css";
 
 const CATEGORY_OPTIONS = [
   { id: "sport", title: "Спорт" },
@@ -234,6 +234,24 @@ const LOCAL_TASK_TEMPLATES = {
 
 const CUSTOM_TASK_IDS = ["custom-1", "custom-2", "custom-3", "custom-4"];
 const EMPTY_VALIDATION_ERRORS = {};
+
+const TEMPLATE_NUMBER_HINT_BY_CODE = {
+  reading_pages: "10",
+  reading_minutes: "20",
+  reading_chapters: "1",
+  sport_minutes: "30",
+  sport_sets: "3",
+  sport_steps: "5000",
+  sport_stretch: "10",
+  nutrition_water: "8",
+  nutrition_no_sweets: "24",
+  nutrition_calories: "1800",
+  cleaning_minutes: "15",
+};
+
+const TEMPLATE_TEXT_HINT_BY_CODE = {
+  reading_note: "мысль",
+};
 
 const JOIN_PREVIEW_MODES = {
   NEW_MEMBER: "new_member",
@@ -601,12 +619,28 @@ function validateTemplateValue(template, value) {
   return null;
 }
 
+function getTemplatePlaceholder(template) {
+  if (template?.placeholder) return template.placeholder;
+
+  const templateCode = template?.code || template?.id || "";
+
+  if (template?.valueType === "number") {
+    return TEMPLATE_NUMBER_HINT_BY_CODE[templateCode] || String(template?.minValue || 1);
+  }
+
+  if (template?.valueType === "text") {
+    return TEMPLATE_TEXT_HINT_BY_CODE[templateCode] || "слово";
+  }
+
+  return "";
+}
+
 function getTemplateInputProps(template) {
   if (template.valueType !== "number" && template.valueType !== "text") return {};
 
   return {
     type: template.valueType === "number" ? "number" : "text",
-    placeholder: template.placeholder,
+    placeholder: getTemplatePlaceholder(template),
     min: template.minValue,
     max: template.maxValue,
     step: template.step || (template.valueType === "number" ? 1 : undefined),
@@ -1385,8 +1419,10 @@ function TasksStep({ templates, form, setForm, errors = {}, isLoading = false, l
             const hasError = Boolean(errorMessage);
             const inputProps = getTemplateInputProps(template);
             const currentValue = form.templateValues?.[template.id] || "";
+            const placeholderValue = getTemplatePlaceholder(template);
+            const tailValue = currentValue || (template.valueType === "number" ? placeholderValue : "");
             const { before } = splitTemplateText(template.templateText);
-            const tail = getTemplateTail(template, currentValue);
+            const tail = getTemplateTail(template, tailValue);
             const choices = getTemplateChoices(template);
 
             return (

@@ -1,287 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import ClickSpark from "../components/ClickSpark";
+import ClickSpark from "../components/Animation/ClickSpark";
 import Header from "../components/Header";
-import achievementIcon from "../assets/icons/achievement.svg";
-import appleIcon from "../assets/icons/apple.svg";
-import booksIcon from "../assets/icons/books.svg";
-import cleanIcon from "../assets/icons/clean.svg";
-import dumbbellsIcon from "../assets/icons/dumbbells.svg";
-import AnimatedContent from "../components/AnimatedContent";
-import AnimatedScrollList from "../components/AnimatedScrollList";
-import BorderGlow from "../components/BorderGlow";
 import GroupFormModal from "../components/GroupFormModal";
+import LobbyCategoriesBlock from "../components/LobbyPage/LobbyCategoriesBlock";
+import LobbyHeroBlock from "../components/LobbyPage/LobbyHeroBlock";
+import LobbySideBlock from "../components/LobbyPage/LobbySideBlock";
+
+import {
+  ACHIEVEMENTS,
+  CATEGORY_TITLE_BY_ID,
+  RECORD_STREAK,
+  buildCategoriesFromHabits,
+  createHabitOnServer,
+  getInitial,
+  getStoredAuthToken,
+  requestHabitsFromServer,
+} from "../utils/lobbyPageUtils";
 
 import "../styles/lobby.css";
 
-const CATEGORY_OPTIONS = [
-  {
-    id: "sport",
-    title: "Спорт",
-  },
-  {
-    id: "nutrition",
-    title: "Питание",
-  },
-  {
-    id: "cleaning",
-    title: "Уборка",
-  },
-  {
-    id: "reading",
-    title: "Чтение",
-  },
-];
-
-const CATEGORY_TITLE_BY_ID = CATEGORY_OPTIONS.reduce((acc, category) => {
-  acc[category.id] = category.title;
-  return acc;
-}, {});
-
-const CATEGORY_ICON_BY_ID = {
-  sport: dumbbellsIcon,
-  nutrition: appleIcon,
-  cleaning: cleanIcon,
-  reading: booksIcon,
-};
-
-const ACHIEVEMENTS = [
-  {
-    title: "7 дней подряд",
-    desc: "Ты удерживала ритм без пропусков целую неделю.",
-  },
-  {
-    title: "Первый устойчивый ритм",
-    desc: "Закрыто 10 выполнений по разным привычкам.",
-  },
-  {
-    title: "Внимание к себе",
-    desc: "Стабильный прогресс в категории Питание.",
-  },
-  {
-    title: "Тихий фокус",
-    desc: "Серия чтения превысила 5 дней.",
-  },
-  {
-    title: "Мягкий старт",
-    desc: "Первые привычки успешно добавлены и активны.",
-  },
-  {
-    title: "Командный темп",
-    desc: "Внутри одной привычки неделя прошла без общего провала.",
-  },
-  {
-    title: "Нежная настойчивость",
-    desc: "Серия закрытых задач продолжает расти каждый день.",
-  },
-];
-
-const RECORD_STREAK = {
-  days: 29,
-  category: "Чтение",
-  group: "Буба",
-};
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://habbit-backend-k33d.onrender.com";
-
-function getStoredAuthToken() {
-  try {
-    return (
-      localStorage.getItem("habbit-auth-token") ||
-      localStorage.getItem("habbitToken") ||
-      localStorage.getItem("authToken") ||
-      localStorage.getItem("token") ||
-      ""
-    );
-  } catch {
-    return "";
-  }
-}
-
-async function requestHabitsFromServer() {
-  const token = getStoredAuthToken();
-
-  if (!token) {
-    throw new Error("Нет токена авторизации");
-  }
-
-  const response = await fetch(`${API_BASE_URL}/api/habits`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Не удалось получить список привычек");
-  }
-
-  return Array.isArray(data?.habits) ? data.habits : [];
-}
-
-async function createHabitOnServer(payload) {
-  const token = getStoredAuthToken();
-
-  if (!token) {
-    throw new Error("Нет токена авторизации");
-  }
-
-  const response = await fetch(`${API_BASE_URL}/api/habits`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      habitTypeCode: payload.categoryId,
-      title: payload.groupName,
-      description: payload.groupDescription,
-      templateTasks: payload.templateTasks || [],
-      customTasks: payload.customTasks || [],
-    }),
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Не удалось создать привычку");
-  }
-
-  return data;
-}
-
-function getInitial(name) {
-  const trimmedName = String(name || "").trim();
-  return (trimmedName[0] || "П").toUpperCase();
-}
-
-function getGroupWord(count) {
-  const number = Math.abs(Number(count));
-  const lastTwoDigits = number % 100;
-  const lastDigit = number % 10;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return "привычек";
-  if (lastDigit === 1) return "привычка";
-  if (lastDigit >= 2 && lastDigit <= 4) return "привычки";
-  return "привычек";
-}
-
-function getParticipantWord(count) {
-  const number = Math.abs(Number(count));
-  const lastTwoDigits = number % 100;
-  const lastDigit = number % 10;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return "участников";
-  if (lastDigit === 1) return "участник";
-  if (lastDigit >= 2 && lastDigit <= 4) return "участника";
-  return "участников";
-}
-
-function getStreakText(days) {
-  const count = Number(days || 0);
-  const lastTwoDigits = count % 100;
-  const lastDigit = count % 10;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return `${count} дней`;
-  }
-
-  if (lastDigit === 1) {
-    return `${count} день`;
-  }
-
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return `${count} дня`;
-  }
-
-  return `${count} дней`;
-}
-
-function getHabitMembersText(activeMembersCount, maxMembers) {
-  const activeCount = Number(activeMembersCount || 0);
-  const maxCount = Number(maxMembers || 0);
-
-  if (maxCount > 0) {
-    return `${activeCount} из ${maxCount} участников`;
-  }
-
-  return `${activeCount} ${getParticipantWord(activeCount)}`;
-}
-
-function getRoleText(role) {
-  if (role === "owner") return "Администратор";
-  if (role === "member") return "Участник";
-  return "Участник";
-}
-
-function normalizeHabitToGroup(habit) {
-  const title = String(habit?.title || "Без названия").trim() || "Без названия";
-  const description = String(habit?.description || "").trim();
-  const currentStreak = Number(habit?.currentStreak || 0);
-  const roleText = getRoleText(habit?.role);
-
-  return {
-    id: habit?.id,
-    name: title,
-    note: description || "Описание не добавлено",
-    membersText: getHabitMembersText(habit?.activeMembersCount, habit?.maxMembers),
-    roleLabel: roleText.toLowerCase(),
-    groupCode: habit?.inviteCode || "",
-    habitTypeCode: habit?.habitTypeCode,
-    habitMemberId: habit?.habitMemberId,
-    role: habit?.role,
-    status: habit?.status,
-    createdAt: habit?.createdAt,
-    joinedAt: habit?.joinedAt,
-    currentStreak,
-  };
-}
-
-function buildCategoriesFromHabits(habits) {
-  const categoriesMap = new Map(
-    CATEGORY_OPTIONS.map((category) => [
-      category.id,
-      {
-        ...category,
-        groups: [],
-      },
-    ])
-  );
-
-  habits.forEach((habit) => {
-    const habitTypeCode = habit?.habitTypeCode;
-    const status = habit?.status;
-
-    if (status && status !== "active") return;
-    if (!habitTypeCode) return;
-
-    if (!categoriesMap.has(habitTypeCode)) {
-      categoriesMap.set(habitTypeCode, {
-        id: habitTypeCode,
-        title: CATEGORY_TITLE_BY_ID[habitTypeCode] || habitTypeCode,
-        groups: [],
-      });
-    }
-
-    categoriesMap.get(habitTypeCode).groups.push(normalizeHabitToGroup(habit));
-  });
-
-  return Array.from(categoriesMap.values()).filter(
-    (category) => category.groups.length > 0
-  );
-}
-
-export default function LobbyPage({ navigate, userProfile, userAvatar, onPageLoadingChange, pageLoadingRoute }) {
+export default function LobbyPage({
+  navigate,
+  userProfile,
+  userAvatar,
+  onPageLoadingChange,
+  pageLoadingRoute,
+}) {
   const userName = userProfile?.name || "Елизавета";
   const userEmail = userProfile?.email || "ela@gmail.com";
   const coins = userProfile?.coinsBalance ?? userProfile?.coins ?? 0;
   const [habits, setHabits] = useState([]);
-  const [habitsLoadState, setHabitsLoadState] = useState({ status: "idle", error: "" });
+  const [habitsLoadState, setHabitsLoadState] = useState({
+    status: "idle",
+    error: "",
+  });
   const [expandedCategories, setExpandedCategories] = useState({});
   const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
   const [inviteCodeModal, setInviteCodeModal] = useState(null);
@@ -292,38 +45,41 @@ export default function LobbyPage({ navigate, userProfile, userAvatar, onPageLoa
   const categories = useMemo(() => buildCategoriesFromHabits(habits), [habits]);
   const hasGroups = categories.some((category) => category.groups?.length > 0);
 
-  const loadHabits = useCallback(async ({ silent = false } = {}) => {
-    if (!getStoredAuthToken()) {
-      setHabits([]);
-      setHabitsLoadState({ status: "no-token", error: "" });
-      onPageLoadingChange?.(false, pageLoadingRoute);
-      return [];
-    }
-
-    if (!silent) {
-      onPageLoadingChange?.(true, pageLoadingRoute);
-      setHabitsLoadState({ status: "loading", error: "" });
-    }
-
-    try {
-      const nextHabits = await requestHabitsFromServer();
-      setHabits(nextHabits);
-      setHabitsLoadState({ status: "success", error: "" });
-      return nextHabits;
-    } catch (error) {
-      console.error("Habit list loading failed:", error);
-      setHabits([]);
-      setHabitsLoadState({
-        status: "error",
-        error: error?.message || "Не удалось загрузить привычку",
-      });
-      return [];
-    } finally {
-      if (!silent) {
+  const loadHabits = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!getStoredAuthToken()) {
+        setHabits([]);
+        setHabitsLoadState({ status: "no-token", error: "" });
         onPageLoadingChange?.(false, pageLoadingRoute);
+        return [];
       }
-    }
-  }, [onPageLoadingChange, pageLoadingRoute]);
+
+      if (!silent) {
+        onPageLoadingChange?.(true, pageLoadingRoute);
+        setHabitsLoadState({ status: "loading", error: "" });
+      }
+
+      try {
+        const nextHabits = await requestHabitsFromServer();
+        setHabits(nextHabits);
+        setHabitsLoadState({ status: "success", error: "" });
+        return nextHabits;
+      } catch (error) {
+        console.error("Habit list loading failed:", error);
+        setHabits([]);
+        setHabitsLoadState({
+          status: "error",
+          error: error?.message || "Не удалось загрузить привычку",
+        });
+        return [];
+      } finally {
+        if (!silent) {
+          onPageLoadingChange?.(false, pageLoadingRoute);
+        }
+      }
+    },
+    [onPageLoadingChange, pageLoadingRoute]
+  );
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -335,9 +91,12 @@ export default function LobbyPage({ navigate, userProfile, userAvatar, onPageLoa
     };
   }, [loadHabits, userProfile?.id]);
 
-  useEffect(() => () => {
-    onPageLoadingChange?.(false, pageLoadingRoute);
-  }, [onPageLoadingChange, pageLoadingRoute]);
+  useEffect(
+    () => () => {
+      onPageLoadingChange?.(false, pageLoadingRoute);
+    },
+    [onPageLoadingChange, pageLoadingRoute]
+  );
 
   useEffect(() => {
     const handleHabitsChanged = () => {
@@ -496,213 +255,24 @@ export default function LobbyPage({ navigate, userProfile, userAvatar, onPageLoa
           />
 
           <main className="lobby-main">
-            <AnimatedContent distance={80} duration={0.8} delay={0}>
-              <section className="hero-card">
-                <BorderGlow>
-                  <div className="hero-card__inner">
-                    <h1 className="hero-card__title">
-                      Рады вас видеть,
-                      <span>{userName}</span>
-                    </h1>
-
-                    <div className="hero-card__divider" />
-
-                    <p className="hero-card__text">
-                      Даже одно маленькое выполненное действие движет вперёд.
-                    </p>
-                  </div>
-                </BorderGlow>
-              </section>
-            </AnimatedContent>
+            <LobbyHeroBlock userName={userName} />
 
             <section className="content-grid">
-              <div className="content-grid__main">
-                <AnimatedContent distance={80} duration={0.8} delay={0.15}>
-                  <BorderGlow>
-                    <div className="panel-card panel-card--categories">
-                      <div>
-                        <h2 className="section-title">Категории привычек</h2>
-                        <p className="section-description">
-                          {hasGroups
-                            ? "Здесь собраны твои привычки по категориям. Открывай карточки, чтобы смотреть созданные привычки, участников и ежедневный прогресс."
-                            : "Здесь будут отображаться все твои привычки собранные по категориям. Пока тут пусто, поэтому предлагаю нажать на плюс, создать первую привычку или присоединиться по коду"}
-                        </p>
-                      </div>
+              <LobbyCategoriesBlock
+                categories={categories}
+                expandedCategories={expandedCategories}
+                habitsLoadError={habitsLoadError}
+                hasGroups={hasGroups}
+                onGroupKeyDown={handleGroupKeyDown}
+                onOpenGroup={openGroupPage}
+                onOpenGroupForm={() => setIsGroupFormOpen(true)}
+                onToggleCategory={toggleCategory}
+              />
 
-                      {habitsLoadError && (
-                        <p className="section-description">{habitsLoadError}</p>
-                      )}
-
-                      <AnimatedScrollList className="category-list">
-                        {categories.map((category) => {
-                          const isOpen = !!expandedCategories[category.id];
-                          const categoryIcon = CATEGORY_ICON_BY_ID[category.id];
-
-                          return (
-                            <div
-                              key={category.id}
-                              className={`category-card category-card--${category.id}`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => toggleCategory(category.id)}
-                                className="category-card__button"
-                              >
-                                <div className="category-card__left">
-                                  <div className="category-card__icon" aria-hidden="true">
-                                    {categoryIcon ? (
-                                      <img
-                                        src={categoryIcon}
-                                        alt=""
-                                        className="category-card__icon-image"
-                                      />
-                                    ) : (
-                                      <span className="category-card__icon-empty">
-                                        {getInitial(category.title)}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div>
-                                    <div className="category-card__title">{category.title}</div>
-                                    <div className="category-card__subtitle">
-                                      {category.groups.length} {getGroupWord(category.groups.length)} в категории
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div
-                                  className={`category-card__arrow ${
-                                    isOpen ? "category-card__arrow--open" : ""
-                                  }`}
-                                  aria-hidden="true"
-                                >
-                                  <span className="category-card__arrow-shape" />
-                                </div>
-                              </button>
-
-                              <div
-                                className={`category-card__content ${
-                                  isOpen ? "category-card__content--open" : ""
-                                }`}
-                              >
-                                <div className="category-card__content-inner">
-                                  <div className="group-list">
-                                    {category.groups.map((group) => (
-                                        <div
-                                          key={group.id}
-                                          className="group-card"
-                                          role="button"
-                                          tabIndex={0}
-                                          onClick={() => openGroupPage(category, group)}
-                                          onKeyDown={(event) =>
-                                            handleGroupKeyDown(event, category, group)
-                                          }
-                                          aria-label={`Открыть привычку ${group.name}`}
-                                        >
-                                          <div className="group-card__top">
-                                            <div>
-                                              <div className="group-card__title">{group.name}</div>
-                                              <div className="group-card__note">{group.note}</div>
-                                              <div className="group-card__members">
-                                                <span className="group-card__members-line">
-                                                  Состав: {group.membersText}
-                                                </span>
-                                                <span className="group-card__members-line">
-                                                  Роль: {group.roleLabel}
-                                                </span>
-                                              </div>
-                                            </div>
-
-                                            <div className="group-card__progress">
-                                              {getStreakText(group.currentStreak)}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </AnimatedScrollList>
-
-                      <div className="add-category">
-                        <button
-                          type="button"
-                          onClick={() => setIsGroupFormOpen(true)}
-                          className="add-category__button"
-                        >
-                          <span className="add-category__plus" />
-                        </button>
-                      </div>
-                    </div>
-                  </BorderGlow>
-                </AnimatedContent>
-              </div>
-
-              <aside className="content-grid__side">
-                <div className="record-panel">
-                  <AnimatedContent distance={80} duration={0.8} delay={0.22}>
-                    <BorderGlow>
-                      <div className="panel-card panel-card--record">
-                        <h2 className="section-title">Рекордная серия</h2>
-                        <p className="section-description">Самое большое количество дней подряд без пропусков.</p>
-                        <div className="record-streak">
-                          <div className="record-streak__inner">
-                            <div className="record-streak__days">
-                              <div className="record-streak__card-label">Дней</div>
-                              <div className="record-streak__value">{RECORD_STREAK.days}</div>
-                            </div>
-
-                            <div className="record-streak__details">
-                              <div className="record-streak__meta-card">
-                                <div className="record-streak__card-label">Категория</div>
-                                <div className="record-streak__meta-value">{RECORD_STREAK.category}</div>
-                              </div>
-
-                              <div className="record-streak__meta-card">
-                                <div className="record-streak__card-label">Название</div>
-                                <div className="record-streak__meta-value">{RECORD_STREAK.group}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </BorderGlow>
-                  </AnimatedContent>
-                </div>
-
-                <div className="achievements-panel">
-                  <AnimatedContent distance={80} duration={0.8} delay={0.3}>
-                    <BorderGlow>
-                      <div className="panel-card panel-card--achievements">
-                        <h2 className="section-title">Личные достижения</h2>
-                        <AnimatedScrollList className="achievement-list">
-                          {ACHIEVEMENTS.map((item, index) => (
-                            <div key={`${item.title}-${index}`} className="achievement-card">
-                              <div className="achievement-card__content">
-                                <div className="achievement-card__icon">
-                                  <img
-                                    src={achievementIcon}
-                                    alt="Иконка достижения"
-                                    className="achievement-card__icon-image"
-                                  />
-                                </div>
-                                <div>
-                                  <div className="achievement-card__title">{item.title}</div>
-                                  <div className="achievement-card__desc">{item.desc}</div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </AnimatedScrollList>
-                      </div>
-                    </BorderGlow>
-                  </AnimatedContent>
-                </div>
-              </aside>
+              <LobbySideBlock
+                achievements={ACHIEVEMENTS}
+                recordStreak={RECORD_STREAK}
+              />
             </section>
           </main>
         </div>

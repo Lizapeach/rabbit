@@ -314,9 +314,9 @@ class PageErrorBoundary extends Component {
             textAlign: "center",
           }}
         >
-          <h1 style={{ margin: "0 0 12px", fontSize: "24px" }}>Страница временно не отобразилась</h1>
+          <h1 style={{ margin: "0 0 12px", fontSize: "24px" }}>Страница временно не достепна</h1>
           <p style={{ margin: "0 0 20px", lineHeight: 1.5 }}>
-            Данные не успели корректно собраться после загрузки. Можно вернуться в лобби или обновить страницу.
+            Мне очень жаль. Можно вернуться в лобби или обновить страницу.
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
             <button

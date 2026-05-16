@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 
-import ClickSpark from "../components/ClickSpark";
-import AnimatedContent from "../components/AnimatedContent";
-import BorderGlow from "../components/BorderGlow";
+import ClickSpark from "../components/Animation/ClickSpark";
+import AnimatedContent from "../components/Animation/AnimatedContent";
+import BorderGlow from "../components/Animation/BorderGlow";
 
 import "../styles/auth.css";
 

@@ -361,6 +361,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: var(--avatar-symbol-color, var(--color-text-main));
   font-weight: 700;
   line-height: 1;
 }

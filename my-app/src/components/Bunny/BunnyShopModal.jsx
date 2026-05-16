@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import coinIcon from "../assets/icons/coin.svg";
+import coinIcon from "../../assets/icons/coin.svg";
 import {
   BUNNY_ACCESSORY_SECTIONS,
   DEFAULT_BUNNY_SHOP_COSTS,
@@ -8,7 +8,7 @@ import {
   normalizeShopHexColor,
 } from "./bunnyShopConfig";
 
-import "../styles/bunny-shop.css";
+import "../../styles/components/bunny-shop.css";
 
 function PriceLabel({ price }) {
   return (

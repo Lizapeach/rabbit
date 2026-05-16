@@ -1,0 +1,83 @@
+.hero-card {
+  text-align: center;
+}
+
+.hero-card__inner {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  border: 1px solid var(--color-card-border);
+  border-radius: 36px;
+  background: var(--surface-hero-gradient);
+  box-shadow: 0 24px 60px var(--color-shadow-card);
+  backdrop-filter: blur(32px);
+}
+
+.hero-card__title {
+  margin: 0;
+  color: var(--color-text-main);
+  font-size: 2.5rem;
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+  font-weight: 600;
+}
+
+.hero-card__title span {
+  display: block;
+  color: var(--color-text-main);
+}
+
+.hero-card__text {
+  max-width: 38rem;
+  margin: 20px auto 0;
+  color: var(--color-text-soft);
+  font-size: 16px;
+  line-height: 2;
+}
+
+.hero-card__divider {
+  width: 500px;
+  height: 1px;
+  margin: 24px auto 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--color-transparent),
+    var(--color-divider),
+    var(--color-transparent)
+  );
+}
+
+@media (min-width: 640px) {
+  .hero-card__inner {
+    padding: 48px 32px;
+  }
+
+  .hero-card__title {
+    font-size: 3.4rem;
+  }
+
+  .hero-card__text {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-card__inner {
+    padding: 56px 48px;
+  }
+
+  .hero-card__title {
+    font-size: 4.2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-card__title {
+    font-size: 2.25rem;
+  }
+
+  .hero-card__divider {
+    width: min(500px, 100%);
+  }
+}

@@ -1,14 +1,14 @@
-import headBowImage from "../assets/images/бант.png";
-import broomImage from "../assets/images/веник.png";
-import clownWigImage from "../assets/images/клоунский_парик.png";
-import hatImage from "../assets/images/шляпа.png";
-import clownNoseImage from "../assets/images/клоунский_нос.png";
-import mustacheImage from "../assets/images/усы.png";
-import bodyBowImage from "../assets/images/бантик.png";
-import tieImage from "../assets/images/галстук.png";
-import starImage from "../assets/images/звезда.png";
-import iconImage from "../assets/images/значек.png";
-import scarfImage from "../assets/images/шарф.png";
+import headBowImage from "../../assets/images/бант.png";
+import broomImage from "../../assets/images/веник.png";
+import clownWigImage from "../../assets/images/клоунский_парик.png";
+import hatImage from "../../assets/images/шляпа.png";
+import clownNoseImage from "../../assets/images/клоунский_нос.png";
+import mustacheImage from "../../assets/images/усы.png";
+import bodyBowImage from "../../assets/images/бантик.png";
+import tieImage from "../../assets/images/галстук.png";
+import starImage from "../../assets/images/звезда.png";
+import iconImage from "../../assets/images/значек.png";
+import scarfImage from "../../assets/images/шарф.png";
 
 export const BUNNY_SHOP_STORAGE_KEY = "quiet-pages-bunny-shop";
 

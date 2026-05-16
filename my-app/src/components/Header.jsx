@@ -1,11 +1,11 @@
 import { useState } from "react";
-import AnimatedScrollList from "./AnimatedScrollList";
+import AnimatedScrollList from "./Animation/AnimatedScrollList";
 
 import bellIcon from "../assets/icons/bell.svg";
 import coinIcon from "../assets/icons/coin.svg";
 import logoIcon from "../assets/icons/logo.svg";
 
-import "../styles/header.css";
+import "../styles/components/header.css";
 
 const INITIAL_NOTIFICATIONS = [
   "В группе Quiet Pages появился новый прогресс за сегодня.",
@@ -37,18 +37,54 @@ function UserIcon({ initials, avatar }) {
     color: undefined,
   };
 
+  const avatarBackgroundColor = displayAvatar.color
+    || displayAvatar.bgColor
+    || displayAvatar.bg_color
+    || displayAvatar.backgroundColor;
+  const avatarSymbolColor = getReadableAvatarTextColor(avatarBackgroundColor);
+  const avatarImageSrc = displayAvatar.src || displayAvatar.url || displayAvatar.imageUrl;
+  const avatarLabel = displayAvatar.label || displayAvatar.value || initials;
+
   return (
     <div
       className="user-icon"
-      style={{ backgroundColor: displayAvatar.color }}
+      style={{
+        backgroundColor: avatarBackgroundColor,
+        color: avatarSymbolColor,
+        "--avatar-symbol-color": avatarSymbolColor,
+      }}
     >
-      {displayAvatar.type === "photo" && displayAvatar.src ? (
-        <img src={displayAvatar.src} alt="Фото профиля" className="user-icon__image" />
+      {displayAvatar.type === "photo" && avatarImageSrc ? (
+        <img src={avatarImageSrc} alt="Фото профиля" className="user-icon__image" />
       ) : (
-        <span className="user-icon__symbol">{displayAvatar.label || initials}</span>
+        <span className="user-icon__symbol">{avatarLabel}</span>
       )}
     </div>
   );
+}
+
+function getReadableAvatarTextColor(backgroundColor) {
+  if (!backgroundColor || typeof backgroundColor !== "string") {
+    return "var(--color-text-main)";
+  }
+
+  const normalizedColor = backgroundColor.trim();
+  const hexMatch = normalizedColor.match(/^#?([a-f\d]{3}|[a-f\d]{6})$/i);
+
+  if (!hexMatch) {
+    return "var(--color-text-main)";
+  }
+
+  const hex = hexMatch[1].length === 3
+    ? hexMatch[1].split("").map((char) => char + char).join("")
+    : hexMatch[1];
+
+  const red = parseInt(hex.slice(0, 2), 16);
+  const green = parseInt(hex.slice(2, 4), 16);
+  const blue = parseInt(hex.slice(4, 6), 16);
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+
+  return luminance < 150 ? "#fffaf6" : "#4c342b";
 }
 
 export default function Header({
