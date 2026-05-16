@@ -171,19 +171,46 @@ function getGroupWord(count) {
   return "привычек";
 }
 
-function getStreakText(value) {
-  const days = Number(value) || 0;
-  const lastTwoDigits = Math.abs(days) % 100;
-  const lastDigit = Math.abs(days) % 10;
+function getParticipantWord(count) {
+  const number = Math.abs(Number(count));
+  const lastTwoDigits = number % 100;
+  const lastDigit = number % 10;
 
-  let dayWord = "дней";
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return "участников";
+  if (lastDigit === 1) return "участник";
+  if (lastDigit >= 2 && lastDigit <= 4) return "участника";
+  return "участников";
+}
 
-  if (lastTwoDigits < 11 || lastTwoDigits > 14) {
-    if (lastDigit === 1) dayWord = "день";
-    else if (lastDigit >= 2 && lastDigit <= 4) dayWord = "дня";
+function getStreakText(days) {
+  const count = Number(days || 0);
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return `${count} дней`;
   }
 
-  return `${days} ${dayWord}`;
+  if (lastDigit === 1) {
+    return `${count} день`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${count} дня`;
+  }
+
+  return `${count} дней`;
+}
+
+function getHabitMembersText(activeMembersCount, maxMembers) {
+  const activeCount = Number(activeMembersCount || 0);
+  const maxCount = Number(maxMembers || 0);
+
+  if (maxCount > 0) {
+    return `${activeCount} из ${maxCount} участников`;
+  }
+
+  return `${activeCount} ${getParticipantWord(activeCount)}`;
 }
 
 function getRoleText(role) {
@@ -197,13 +224,13 @@ function normalizeHabitToGroup(habit) {
   const description = String(habit?.description || "").trim();
   const currentStreak = Number(habit?.currentStreak || 0);
   const roleText = getRoleText(habit?.role);
-  const statusText = habit?.status === "active" ? "активна" : "неактивна";
 
   return {
     id: habit?.id,
     name: title,
-    note: description || `${roleText}, привычка ${statusText}`,
-    progress: `Серия: ${getStreakText(currentStreak)}`,
+    note: description || "Описание не добавлено",
+    membersText: getHabitMembersText(habit?.activeMembersCount, habit?.maxMembers),
+    roleLabel: roleText.toLowerCase(),
     groupCode: habit?.inviteCode || "",
     habitTypeCode: habit?.habitTypeCode,
     habitMemberId: habit?.habitMemberId,
@@ -212,7 +239,6 @@ function normalizeHabitToGroup(habit) {
     createdAt: habit?.createdAt,
     joinedAt: habit?.joinedAt,
     currentStreak,
-    metaLabel: roleText,
   };
 }
 
@@ -578,11 +604,19 @@ export default function LobbyPage({ navigate, userProfile, userAvatar, onPageLoa
                                             <div>
                                               <div className="group-card__title">{group.name}</div>
                                               <div className="group-card__note">{group.note}</div>
+                                              <div className="group-card__members">
+                                                <span className="group-card__members-line">
+                                                  Состав: {group.membersText}
+                                                </span>
+                                                <span className="group-card__members-line">
+                                                  Роль: {group.roleLabel}
+                                                </span>
+                                              </div>
                                             </div>
-                                            <div className="group-card__progress">{group.progress}</div>
-                                          </div>
-                                          <div className="group-card__members">
-                                            {group.metaLabel}
+
+                                            <div className="group-card__progress">
+                                              {getStreakText(group.currentStreak)}
+                                            </div>
                                           </div>
                                         </div>
                                       ))}

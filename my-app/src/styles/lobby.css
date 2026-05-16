@@ -429,10 +429,18 @@ button {
 
 .group-card__members {
   margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   color: var(--color-text-members);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+  font-size: 13px;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.group-card__members-line {
+  display: block;
 }
 
 .add-category {
@@ -699,7 +707,7 @@ button {
   }
 
   .group-card__top {
-    align-items: start;
+    align-items: initial;
   }
 }
 
@@ -854,9 +862,8 @@ button {
 }
 
 @media (max-width: 520px) {
-  .group-card__top {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
+  .group-card__members {
+    font-size: 12px;
   }
 
   .group-card__progress {
@@ -973,7 +980,6 @@ button {
   border-color: var(--color-border-category-card);
 }
 
-/* === Round 4: lobby group cards match task cards on the group page === */
 .group-card,
 .group-card:hover {
   border-color: var(--color-border-soft);
