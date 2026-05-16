@@ -437,3 +437,77 @@ button {
       z-index: 2203 !important;
     }
 }
+
+/* Закрытые функциональные блоки. */
+.locked-feature {
+  position: relative;
+  overflow: hidden;
+}
+
+.locked-feature__content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  transition: filter 0.22s ease, opacity 0.22s ease, transform 0.22s ease;
+}
+
+.locked-feature--locked .locked-feature__content {
+  pointer-events: none;
+  user-select: none;
+  filter: blur(3px) grayscale(1);
+  opacity: 0.46;
+}
+
+.locked-feature__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px;
+  background: rgba(214, 212, 211, 0.62);
+  backdrop-filter: blur(1px) grayscale(1);
+  pointer-events: auto;
+  color: var(--color-text-main);
+  text-align: center;
+}
+
+.locked-feature__icon {
+  width: 52px;
+  height: 52px;
+  display: block;
+  object-fit: contain;
+  opacity: 0.82;
+  filter: drop-shadow(0 8px 18px rgba(70, 62, 56, 0.18));
+}
+
+.locked-feature__title {
+  color: var(--color-text-main);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.locked-feature__reason {
+  max-width: 280px;
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+@media (max-width: 760px) {
+  .locked-feature__overlay {
+    padding: 16px;
+  }
+
+  .locked-feature__icon {
+    width: 42px;
+    height: 42px;
+  }
+}

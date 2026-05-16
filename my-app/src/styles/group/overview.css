@@ -779,3 +779,50 @@
 .friend-stack__avatar {
   color: var(--avatar-symbol-color, var(--color-text-panel));
 }
+.task-card--hidden-state .task-card__title {
+  color: var(--color-text-soft);
+}
+
+.task-card__check--hidden {
+  border-color: var(--color-border-soft);
+  background: var(--color-button-bg);
+  color: var(--color-text-muted);
+}
+
+.task-card__hidden-mark {
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+
+.task-list-lock-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+.task-list-lock-shell .locked-feature__content {
+  height: auto;
+}
+
+.task-list-lock-shell .task-card:last-child {
+  margin-bottom: 0;
+}
+
+.task-list-lock-shell--locked {
+  margin-bottom: 12px;
+}
+
+.task-list-lock-shell--locked .locked-feature__overlay {
+  border-radius: inherit;
+}
+
+.special-task-card--locked {
+  min-height: 142px;
+  overflow: hidden;
+}
+
+.special-task-card--locked .locked-feature__overlay {
+  border-radius: inherit;
+}

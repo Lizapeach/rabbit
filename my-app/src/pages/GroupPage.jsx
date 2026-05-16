@@ -39,6 +39,7 @@ import {
   normalizeBackendSpecialTask,
   doesSpecialSubmissionBelongToMember,
   normalizeBackendPage,
+  getFeatureAccessState,
   normalizeMemberProfileResponse,
   normalizeLeaveOwnerCandidate,
   extractHabitCreatedDateKey,
@@ -83,6 +84,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const [calendarDays, setCalendarDays] = useState([]);
   const [weekStatsResponse, setWeekStatsResponse] = useState(null);
   const [monthStatsResponse, setMonthStatsResponse] = useState(null);
+  const [featureAccess, setFeatureAccess] = useState(null);
 
   const [groupInfo, setGroupInfo] = useState(() => ({
     name: window.history.state?.groupName || "",
@@ -175,6 +177,69 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     [displayUserName, userAvatar]
   );
   const displayUserInitials = resolvedUserAvatar.label || USER.initials;
+  const commonNotesAccess = useMemo(
+    () => getFeatureAccessState(featureAccess, "common_notes"),
+    [featureAccess]
+  );
+  const viewOtherTasksAccess = useMemo(
+    () => getFeatureAccessState(featureAccess, "view_other_tasks"),
+    [featureAccess]
+  );
+  const weekStatsAccess = useMemo(
+    () => getFeatureAccessState(featureAccess, "week_stats", { memberScoped: true }),
+    [featureAccess]
+  );
+  const monthStatsAccess = useMemo(
+    () => getFeatureAccessState(featureAccess, "month_stats", { memberScoped: true }),
+    [featureAccess]
+  );
+  const specialTasksAccess = useMemo(
+    () => getFeatureAccessState(featureAccess, "special_tasks"),
+    [featureAccess]
+  );
+
+  const DEFAULT_LOCK_REASON = "Функция временно закрыта из-за потери условия доступа.";
+
+  const getFrontendLockReason = (backendReason, fallbackReason) => {
+    if (!backendReason || backendReason === DEFAULT_LOCK_REASON) {
+      return fallbackReason;
+    }
+
+    return backendReason;
+  };
+
+  const commonNotesLockedReason = getFrontendLockReason(
+    commonNotesAccess.reason,
+    "Общие заметки откроются после 10 дней серии."
+  );
+
+  const viewOtherTasksLockedReason = getFrontendLockReason(
+    viewOtherTasksAccess.reason,
+    "Просмотр чужих заданий откроется после выполнения условия доступа."
+  );
+
+  const weekStatsLockedReason = getFrontendLockReason(
+    weekStatsAccess.reason,
+    "Недельная статистика пока закрыта для этого участника."
+  );
+
+  const monthStatsLockedReason = getFrontendLockReason(
+    monthStatsAccess.reason,
+    "Месячная статистика откроется после 30 дней участия в группе."
+  );
+
+  const specialTasksLockedReason = getFrontendLockReason(
+    specialTasksAccess.reason,
+    "Особое задание откроется после выполнения условия доступа."
+  );
+
+  const isFeatureAccessLoaded = featureAccess !== null;
+  const areCommonNotesUnlocked = !isFeatureAccessLoaded || commonNotesAccess.isUnlocked;
+  const canViewOtherTaskCompletions = !isFeatureAccessLoaded || viewOtherTasksAccess.isUnlocked;
+  const areWeekStatsUnlocked = !isFeatureAccessLoaded || weekStatsAccess.isUnlocked;
+  const areMonthStatsUnlocked = !isFeatureAccessLoaded || monthStatsAccess.isUnlocked;
+  const areSpecialTasksUnlocked = !isFeatureAccessLoaded || specialTasksAccess.isUnlocked;
+
 
   useLayoutEffect(() => {
     const node = notesPanelRef.current;
@@ -256,7 +321,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       setAdminMemberId(normalized.ownerMemberUiId || "me");
       setBackendStreakDays(normalized.currentStreak);
       setGroupCreatedDateKey(extractHabitCreatedDateKey(normalized.habit));
+      setFeatureAccess(normalized.featureAccess || {});
       setSpecialTask(normalized.specialTask);
+
+      const normalizedCommonNotesAccess = getFeatureAccessState(normalized.featureAccess || {}, "common_notes");
+      setNotes(normalizedCommonNotesAccess.isUnlocked ? normalized.notes || [] : []);
+
       setSelectedFriendId((prev) =>
         nextMembers.some((member) => member.id === prev) ? prev : normalized.currentMemberUiId || "me"
       );
@@ -293,19 +363,23 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   }, [authToken, calendarMode, habitId, viewedDate]);
 
   const loadStats = useCallback(async () => {
-    if (!habitId || !authToken) return;
+    if (!habitId || !authToken || !isFeatureAccessLoaded) return;
 
     const weekRange = getAnalyticsRange(currentDate, "week", groupCreatedDateKey);
     const monthRange = getAnalyticsRange(currentDate, "month", groupCreatedDateKey);
 
     try {
       const [weekData, monthData] = await Promise.all([
-        apiRequest(`/api/habits/${habitId}/stats?from=${weekRange.from}&to=${weekRange.to}`, {
-          token: authToken,
-        }),
-        apiRequest(`/api/habits/${habitId}/stats?from=${monthRange.from}&to=${monthRange.to}`, {
-          token: authToken,
-        }),
+        areWeekStatsUnlocked
+          ? apiRequest(`/api/habits/${habitId}/stats?from=${weekRange.from}&to=${weekRange.to}`, {
+              token: authToken,
+            })
+          : Promise.resolve(null),
+        areMonthStatsUnlocked
+          ? apiRequest(`/api/habits/${habitId}/stats?from=${monthRange.from}&to=${monthRange.to}`, {
+              token: authToken,
+            })
+          : Promise.resolve(null),
       ]);
 
       setWeekStatsResponse(weekData);
@@ -315,10 +389,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       setWeekStatsResponse(null);
       setMonthStatsResponse(null);
     }
-  }, [authToken, currentDate, groupCreatedDateKey, habitId]);
+  }, [areMonthStatsUnlocked, areWeekStatsUnlocked, authToken, currentDate, groupCreatedDateKey, habitId, isFeatureAccessLoaded]);
 
   const loadNotes = useCallback(async () => {
-    if (!habitId || !authToken) return;
+    if (!habitId || !authToken || !isFeatureAccessLoaded) return;
+
+    if (!areCommonNotesUnlocked) {
+      setNotes([]);
+      setNotesMenu(null);
+      setActiveNoteMenu(null);
+      setNoteEditor(null);
+      return;
+    }
 
     try {
       const data = await apiRequest(`/api/habits/${habitId}/notes`, { token: authToken });
@@ -326,7 +408,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     } catch (error) {
       setPageError(getErrorMessage(error));
     }
-  }, [authToken, habitId]);
+  }, [areCommonNotesUnlocked, authToken, habitId, isFeatureAccessLoaded]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -357,7 +439,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   }, [loadStats]);
 
   useEffect(() => {
-    if (!habitId || !authToken) return undefined;
+    if (!habitId || !authToken || !isFeatureAccessLoaded) return undefined;
 
     const timeoutId = window.setTimeout(() => {
       void loadNotes();
@@ -371,7 +453,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       window.clearTimeout(timeoutId);
       window.clearInterval(intervalId);
     };
-  }, [authToken, habitId, loadNotes]);
+  }, [authToken, habitId, isFeatureAccessLoaded, loadNotes]);
 
   const activeFriendsData = useMemo(
     () => sortCurrentMemberFirst(membersData.filter((friend) => !removedMemberIds.includes(friend.id))),
@@ -422,7 +504,17 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     [friendsWithColors, selectedFriendId]
   );
 
-  const visibleTasks = selectedFriendId === "me" ? myTasks : selectedFriend?.tasks || [];
+  const visibleTasks = useMemo(() => {
+    const tasks = selectedFriendId === "me" ? myTasks : selectedFriend?.tasks || [];
+
+    if (selectedFriendId === "me" || canViewOtherTaskCompletions) return tasks;
+
+    return tasks.map((task) => ({
+      ...task,
+      done: false,
+      isCompletionHidden: true,
+    }));
+  }, [canViewOtherTaskCompletions, myTasks, selectedFriend?.tasks, selectedFriendId]);
 
   const settingsMembers = useMemo(
     () =>
@@ -484,7 +576,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   );
 
   const selectedSpecialTask = useMemo(() => {
-    if (!specialTask) return null;
+    if (!specialTask || !areSpecialTasksUnlocked) return null;
 
     const submission =
       selectedFriendId === "me"
@@ -497,7 +589,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       photo: getBackendFileUrl(submission?.file),
       submission,
     };
-  }, [selectedFriend, selectedFriendId, specialTask]);
+  }, [areSpecialTasksUnlocked, selectedFriend, selectedFriendId, specialTask]);
 
   const requiredProgressTasks = useMemo(
     () => myTasks.filter((task) => task.type !== "special"),
@@ -1103,7 +1195,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   };
 
   const handleOpenSpecialUpload = () => {
-    if (!specialTask || selectedFriendId !== "me") return;
+    if (!areSpecialTasksUnlocked || !specialTask || selectedFriendId !== "me") return;
 
     setSpecialUploadError("");
     setSpecialAwardedCoins(0);
@@ -1801,6 +1893,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
               selectedMemberStats={selectedMemberStats}
               visibleTasks={visibleTasks}
               selectedSpecialTask={selectedSpecialTask}
+              isSpecialTasksLocked={isFeatureAccessLoaded && !areSpecialTasksUnlocked}
+              specialTasksLockedReason={specialTasksLockedReason}
+              otherTasksLockedReason={viewOtherTasksLockedReason}
               specialUploadStatus={specialUploadStatus}
               specialAwardedCoins={specialAwardedCoins}
               onOpenSelectedMemberInfo={handleOpenSelectedMemberInfo}
@@ -1846,14 +1941,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
               setAnalyticsOpen={setAnalyticsOpen}
               weekAnalyticsData={weekAnalyticsData}
               monthAnalyticsData={monthAnalyticsData}
+              weekStatsAccess={{ isUnlocked: areWeekStatsUnlocked, reason: weekStatsLockedReason }}
+              monthStatsAccess={{ isUnlocked: areMonthStatsUnlocked, reason: monthStatsLockedReason }}
             />
 
             <GroupNotesBlock
               notesRevealRef={notesRevealRef}
               isNotesPanelVisible={isNotesPanelVisible}
               notesPanelRef={notesPanelRef}
-              notesDescription={notesDescription}
-              notes={notes}
+              notesDescription={areCommonNotesUnlocked ? notesDescription : commonNotesLockedReason}
+              isLocked={isFeatureAccessLoaded && !areCommonNotesUnlocked}
+              lockedReason={commonNotesLockedReason}
+              notes={areCommonNotesUnlocked ? notes : []}
               friendsWithColors={friendsWithColors}
               notesPanelScale={notesPanelScale}
               noteElementsRef={noteElementsRef}
@@ -1878,7 +1977,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
           </main>
         </div>
 
-        {noteEditor && (
+        {areCommonNotesUnlocked && noteEditor && (
           <div className="modal-backdrop modal-backdrop--note" data-note-ui="true" onClick={() => setNoteEditor(null)}>
             <div className="note-editor" onClick={(event) => event.stopPropagation()}>
               <div className="note-editor__title">Новая записка</div>

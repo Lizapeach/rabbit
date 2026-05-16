@@ -1,5 +1,11 @@
 import BorderGlow from "../Animation/BorderGlow";
-import { USER, getIsMobileViewport, hexToRgba, normalizeHexColor } from "../../utils/groupPageUtils.jsx";
+import {
+  LockedFeatureOverlay,
+  USER,
+  getIsMobileViewport,
+  hexToRgba,
+  normalizeHexColor,
+} from "../../utils/groupPageUtils.jsx";
 
 export function FloatingMenu({ x, y, children }) {
   return (
@@ -20,6 +26,8 @@ export default function GroupNotesBlock({
   isNotesPanelVisible,
   notesPanelRef,
   notesDescription,
+  isLocked = false,
+  lockedReason = "",
   notes,
   friendsWithColors,
   notesPanelScale,
@@ -49,16 +57,17 @@ export default function GroupNotesBlock({
       <BorderGlow>
         <div
           ref={notesPanelRef}
-          className="group-panel group-panel--notes"
-          onPointerDown={onNotesBoardPointerDown}
-          onPointerUp={onNotesBoardPointerUp}
-          onContextMenu={onNotesBoardContextMenu}
-          aria-label="Поле заметок группы"
+          className={`group-panel group-panel--notes locked-feature ${isLocked ? "locked-feature--locked" : ""}`}
+          onPointerDown={isLocked ? undefined : onNotesBoardPointerDown}
+          onPointerUp={isLocked ? undefined : onNotesBoardPointerUp}
+          onContextMenu={isLocked ? (event) => event.preventDefault() : onNotesBoardContextMenu}
+          aria-label={isLocked ? "Поле заметок закрыто" : "Поле заметок группы"}
         >
-          <h2 className="section-title">Поле для заметок</h2>
-          <p className="section-description">{notesDescription}</p>
+          <div className="locked-feature__content group-notes-content">
+            <h2 className="section-title">Поле для заметок</h2>
+            <p className="section-description">{notesDescription}</p>
 
-          <div className="group-notes-layer">
+            <div className="group-notes-layer">
             {notes.map((note) => {
               const noteAuthor =
                 friendsWithColors.find((friend) => String(friend.backendMemberId) === String(note.authorMemberId)) ||
@@ -120,9 +129,9 @@ export default function GroupNotesBlock({
                 </button>
               );
             })}
-          </div>
+            </div>
 
-          {notesMenu && (
+            {!isLocked && notesMenu && (
             <FloatingMenu x={notesMenu.x} y={notesMenu.y}>
               <button type="button" data-note-ui="true" onClick={onOpenNoteEditor} className="menu-item">
                 Написать записку
@@ -140,17 +149,25 @@ export default function GroupNotesBlock({
             </FloatingMenu>
           )}
 
-          {activeNoteMenu && (
+            {!isLocked && activeNoteMenu && (
             <FloatingMenu x={activeNoteMenu.x} y={activeNoteMenu.y}>
               <button type="button" data-note-ui="true" onClick={onDeleteNote} className="menu-item menu-item--danger">
                 Удалить записку
               </button>
             </FloatingMenu>
+            )}
+          </div>
+
+          {isLocked && (
+            <LockedFeatureOverlay
+              reason={lockedReason || "Общие заметки пока закрыты."}
+              label="Заметки закрыты"
+            />
           )}
         </div>
       </BorderGlow>
 
-      {isClearNotesConfirmOpen && (
+      {!isLocked && isClearNotesConfirmOpen && (
         <div className="modal-backdrop" data-note-ui="true" onClick={onCloseClearNotesConfirm}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <div className="modal-card__title">Очистить поле?</div>

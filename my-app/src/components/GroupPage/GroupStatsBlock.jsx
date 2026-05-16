@@ -10,6 +10,7 @@ import {
   getDateKey,
   isFutureDay,
   isSameDay,
+  LockedFeatureOverlay,
   renderMemberAvatar,
   useIsMobileViewport,
   weekDayLabels,
@@ -308,7 +309,7 @@ export function CalendarBlock({
   );
 }
 
-export function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
+export function AnalyticsAccordion({ title, isOpen, onToggle, data, isLocked = false, lockedReason = "" }) {
   const dates = data?.dates || [];
   const datasets = data?.datasets || [];
   const maxTasks = Math.max(1, data?.maxTasks || 1);
@@ -356,6 +357,8 @@ export function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
 
 
   const handleCardClick = () => {
+    if (isLocked) return;
+
     if (isMobileViewport) {
       setIsMobileChartOpen(true);
       return;
@@ -545,12 +548,14 @@ export function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
 
   return (
     <>
-      <div className={`analytics-card ${inlineOpen ? "analytics-card--open" : ""} ${isMobileViewport ? "analytics-card--mobile-summary" : ""}`}>
+      <div className={`analytics-card locked-feature ${inlineOpen ? "analytics-card--open" : ""} ${isMobileViewport ? "analytics-card--mobile-summary" : ""} ${isLocked ? "locked-feature--locked analytics-card--locked" : ""}`}>
+        <div className="locked-feature__content analytics-card__locked-content">
         <button
           type="button"
           className="analytics-card__button"
           onClick={handleCardClick}
-          aria-expanded={inlineOpen || (isMobileViewport && isMobileChartOpen)}
+          disabled={isLocked}
+          aria-expanded={!isLocked && (inlineOpen || (isMobileViewport && isMobileChartOpen))}
         >
           <span>
             <span className="analytics-card__title">{title}</span>
@@ -561,14 +566,22 @@ export function AnalyticsAccordion({ title, isOpen, onToggle, data }) {
           </span>
         </button>
 
-        {!isMobileViewport && (
+        {!isMobileViewport && !isLocked && (
           <div className={`analytics-card__content ${inlineOpen ? "analytics-card__content--open" : ""}`}>
             <div className="analytics-card__content-inner">{renderChart()}</div>
           </div>
         )}
+        </div>
+
+        {isLocked && (
+          <LockedFeatureOverlay
+            reason={lockedReason || "Статистика пока закрыта."}
+            label="Статистика закрыта"
+          />
+        )}
       </div>
 
-      {isMobileViewport && isMobileChartOpen && (
+      {isMobileViewport && !isLocked && isMobileChartOpen && (
         <div className="mobile-visual-modal mobile-chart-modal" role="dialog" aria-modal="true" aria-label={title}>
           <button
             type="button"
@@ -609,6 +622,8 @@ export default function GroupStatsBlock({
   setAnalyticsOpen,
   weekAnalyticsData,
   monthAnalyticsData,
+  weekStatsAccess,
+  monthStatsAccess,
 }) {
   return (
     <AnimatedContent distance={80} duration={0.8} delay={0.15}>
@@ -636,6 +651,8 @@ export default function GroupStatsBlock({
                   isOpen={analyticsOpen.week}
                   onToggle={() => setAnalyticsOpen((prev) => ({ ...prev, week: !prev.week }))}
                   data={weekAnalyticsData}
+                  isLocked={weekStatsAccess?.isUnlocked === false}
+                  lockedReason={weekStatsAccess?.reason}
                 />
 
                 <AnalyticsAccordion
@@ -643,6 +660,8 @@ export default function GroupStatsBlock({
                   isOpen={analyticsOpen.month}
                   onToggle={() => setAnalyticsOpen((prev) => ({ ...prev, month: !prev.month }))}
                   data={monthAnalyticsData}
+                  isLocked={monthStatsAccess?.isUnlocked === false}
+                  lockedReason={monthStatsAccess?.reason}
                 />
               </div>
             </div>

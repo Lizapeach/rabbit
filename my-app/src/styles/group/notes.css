@@ -262,3 +262,19 @@
       transition-duration: 0.01ms;
     }
 }
+.group-notes-content {
+  min-height: 100%;
+}
+
+.group-panel--notes.locked-feature--locked {
+  min-height: 360px;
+}
+
+.group-panel--notes.locked-feature--locked .group-notes-layer,
+.group-panel--notes.locked-feature--locked .floating-menu {
+  display: none;
+}
+
+.group-panel--notes.locked-feature--locked .locked-feature__overlay {
+  border-radius: inherit;
+}

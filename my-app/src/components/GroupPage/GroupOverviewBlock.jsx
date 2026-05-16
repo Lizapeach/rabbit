@@ -3,7 +3,7 @@ import AnimatedScrollList from "../Animation/AnimatedScrollList";
 import BorderGlow from "../Animation/BorderGlow";
 import Live2DBunny from "../Bunny/Live2DBunny";
 import { TaskDoneAnimation, AnimatedCheckMark } from "../Animation/TaskDoneAnimation";
-import { renderMemberAvatar, uniqueTaskBase } from "../../utils/groupPageUtils.jsx";
+import { LockedFeatureOverlay, renderMemberAvatar, uniqueTaskBase } from "../../utils/groupPageUtils.jsx";
 import { GroupSettingsArea } from "./GroupSettings";
 
 const DEFAULT_AVATAR_TEXT_COLOR = "#3f352e";
@@ -55,22 +55,26 @@ function getAvatarStyle(avatar, fallbackColor, extraStyles = {}) {
 }
 
 export function TaskCard({ task, disabled, onToggle }) {
+  const isCompletionHidden = Boolean(task.isCompletionHidden);
+
   return (
-    <div className={`task-card ${task.done ? "task-card--done" : ""}`}>
+    <div className={`task-card ${task.done ? "task-card--done" : ""} ${isCompletionHidden ? "task-card--hidden-state" : ""}`}>
       <div className="task-card__content">
         <button
           type="button"
-          disabled={disabled}
+          disabled={disabled || isCompletionHidden}
           onClick={onToggle}
-          className={`task-card__check ${task.done ? "task-card__check--done" : ""}`}
-          aria-label={task.done ? "Отменить выполнение" : "Отметить выполненным"}
+          className={`task-card__check ${task.done ? "task-card__check--done" : ""} ${isCompletionHidden ? "task-card__check--hidden" : ""}`}
+          aria-label={isCompletionHidden ? "Состояние выполнения скрыто" : task.done ? "Отменить выполнение" : "Отметить выполненным"}
+          title={isCompletionHidden ? "Состояние выполнения скрыто" : undefined}
         >
-          <AnimatedCheckMark visible={task.done} />
+          {!isCompletionHidden && <AnimatedCheckMark visible={task.done} />}
+          {isCompletionHidden && <span className="task-card__hidden-mark" aria-hidden="true">?</span>}
         </button>
 
         <div className="task-card__body">
           <div className="task-card__title">
-            <TaskDoneAnimation done={task.done}>{task.title}</TaskDoneAnimation>
+            <TaskDoneAnimation done={!isCompletionHidden && task.done}>{task.title}</TaskDoneAnimation>
           </div>
           {task.desc && <div className="task-card__desc">{task.desc}</div>}
         </div>
@@ -137,6 +141,27 @@ export function SpecialTaskCard({ taskState, disabled, isOwnTask, uploadStatus, 
   );
 }
 
+function LockedSpecialTaskCard({ reason }) {
+  return (
+    <div className="special-task-card special-task-card--locked locked-feature locked-feature--locked">
+      <div className="locked-feature__content special-task-card__content">
+        <button
+          type="button"
+          disabled
+          className="special-task-card__button"
+          aria-label="Особое задание закрыто"
+        />
+
+        <div className="special-task-card__body">
+          <div className="special-task-card__title">{uniqueTaskBase.title}</div>
+          <div className="special-task-card__desc">Блок особого задания откроется после выполнения условия доступа.</div>
+        </div>
+      </div>
+      <LockedFeatureOverlay reason={reason || "Особое задание пока закрыто."} label="Особое задание закрыто" />
+    </div>
+  );
+}
+
 export default function GroupOverviewBlock({
   overviewTitle,
   overviewDescription,
@@ -155,6 +180,9 @@ export default function GroupOverviewBlock({
   selectedMemberStats,
   visibleTasks,
   selectedSpecialTask,
+  isSpecialTasksLocked,
+  specialTasksLockedReason,
+  otherTasksLockedReason,
   specialUploadStatus,
   specialAwardedCoins,
   onOpenSelectedMemberInfo,
@@ -166,6 +194,12 @@ export default function GroupOverviewBlock({
   onSelectFriend,
   groupSettings,
 }) {
+  const areVisibleTasksLocked =
+    selectedFriendId !== "me" && visibleTasks.some((task) => task.isCompletionHidden);
+  const visibleTasksForRender = areVisibleTasksLocked
+    ? visibleTasks.map((task) => ({ ...task, isCompletionHidden: false }))
+    : visibleTasks;
+
   return (
     <AnimatedContent distance={80} duration={0.8} delay={0.08}>
       <section className="group-overview-section">
@@ -242,16 +276,35 @@ export default function GroupOverviewBlock({
                 </div>
 
                 <AnimatedScrollList className="task-list" showGradients={false}>
-                  {visibleTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      disabled={selectedFriendId !== "me"}
-                      onToggle={() => onToggleTask(task.id)}
-                    />
-                  ))}
+                  {visibleTasksForRender.length > 0 && (
+                    <div
+                      className={`task-list-lock-shell locked-feature ${
+                        areVisibleTasksLocked ? "locked-feature--locked task-list-lock-shell--locked" : ""
+                      }`}
+                    >
+                      <div className="locked-feature__content task-list-lock-shell__content">
+                        {visibleTasksForRender.map((task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            disabled={selectedFriendId !== "me"}
+                            onToggle={() => onToggleTask(task.id)}
+                          />
+                        ))}
+                      </div>
 
-                  {selectedSpecialTask && (
+                      {areVisibleTasksLocked && (
+                        <LockedFeatureOverlay
+                          reason={otherTasksLockedReason || "Просмотр выполнения чужих заданий пока закрыт."}
+                          label="Задания участника закрыты"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {isSpecialTasksLocked && <LockedSpecialTaskCard reason={specialTasksLockedReason} />}
+
+                  {!isSpecialTasksLocked && selectedSpecialTask && (
                     <SpecialTaskCard
                       taskState={selectedSpecialTask}
                       disabled={selectedFriendId !== "me" || specialUploadStatus === "submitting"}

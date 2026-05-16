@@ -1826,3 +1826,14 @@
 .analytics-line-chart__member {
   color: var(--avatar-symbol-color, var(--color-text-panel));
 }
+.analytics-card--locked {
+  min-height: 120px;
+}
+
+.analytics-card--locked .analytics-card__button {
+  cursor: default;
+}
+
+.analytics-card--locked .locked-feature__overlay {
+  border-radius: inherit;
+}

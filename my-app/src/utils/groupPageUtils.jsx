@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState } from "react";
+import lockIcon from "../assets/icons/lock.svg";
 
 export const USER = {
   name: "Пользователь",
@@ -24,6 +25,43 @@ export const API_URL = import.meta.env.VITE_API_URL || "https://habbit-backend-k
 export const NOTES_POLL_INTERVAL_MS = 5000;
 export const AUTH_TOKEN_STORAGE_KEYS = ["token", "authToken", "habbitToken", "habbit-auth-token"];
 export const TODAY_STREAK_PREVIEW_STORAGE_KEY = "habbit-today-streak-preview";
+
+
+export function getFeatureAccessState(featureAccess, code, { memberScoped = false } = {}) {
+  const entry = featureAccess?.[code] || null;
+
+  if (!entry) {
+    return {
+      code,
+      name: "",
+      isUnlocked: true,
+      reason: "",
+      raw: null,
+    };
+  }
+
+  const currentMemberAccess = entry.currentMemberAccess || entry.current_member_access || null;
+  const access = memberScoped ? currentMemberAccess || entry : entry;
+  const rawIsUnlocked = access?.isUnlocked ?? access?.is_unlocked;
+
+  return {
+    code: entry.code || code,
+    name: entry.name || "",
+    isUnlocked: rawIsUnlocked !== false,
+    reason: access?.reason || entry.reason || "",
+    raw: entry,
+  };
+}
+
+export function LockedFeatureOverlay({ reason = "Функция пока закрыта.", label = "Функция закрыта" }) {
+  return (
+    <div className="locked-feature__overlay" aria-hidden="true">
+      <img src={lockIcon} alt="" className="locked-feature__icon" />
+      <span className="locked-feature__title">{label}</span>
+      {reason && <span className="locked-feature__reason">{reason}</span>}
+    </div>
+  );
+}
 
 export const PERSONAL_TASK_TEMPLATES = [];
 
@@ -240,6 +278,8 @@ export function normalizeBackendAvatar(avatar, member) {
 }
 
 export function normalizeBackendTask(task) {
+  const isCompletionHidden = Boolean(task.isCompletionHidden ?? task.is_completion_hidden);
+
   return {
     id: String(task.id),
     backendTaskId: task.id,
@@ -247,7 +287,8 @@ export function normalizeBackendTask(task) {
     templateId: task.taskTemplateCode || (task.taskTemplateId ? String(task.taskTemplateId) : null),
     templateValue: task.customValue || "",
     title: task.finalText || task.title || "Задание",
-    done: Boolean(task.isCompletedToday),
+    done: isCompletionHidden ? false : Boolean(task.isCompletedToday ?? task.is_completed_today),
+    isCompletionHidden,
     desc: undefined,
   };
 }
@@ -558,6 +599,8 @@ export function normalizeBackendPage(pageData) {
     progress: pageData?.progress || null,
     memberProgress: pageData?.memberProgress || {},
     habit: pageData?.habit || null,
+    featureAccess: pageData?.featureAccess || pageData?.feature_access || {},
+    notes: Array.isArray(pageData?.notes) ? pageData.notes.map(normalizeBackendNote).filter(Boolean) : [],
     specialTask: normalizeBackendSpecialTask(pageData?.specialTask),
   };
 }
