@@ -432,7 +432,7 @@ export function buildRecordStreak(record, habits = []) {
     if (habit?.status && habit.status !== "active") return;
     if (!getHabitTodayGroupCompleted(habit, todayPreview)) return;
 
-    const previewDays = Number(habit?.currentStreak || 0) + 1;
+    const previewDays = Number(habit?.currentStreak || 0);
 
     if (previewDays > result.days) {
       result.days = previewDays;

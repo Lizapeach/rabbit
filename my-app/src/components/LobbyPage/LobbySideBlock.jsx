@@ -5,6 +5,8 @@ import BorderGlow from "../Animation/BorderGlow";
 import achievementIcon from "../../assets/icons/achievement.svg";
 
 export default function LobbySideBlock({ achievements, recordStreak }) {
+  const achievementItems = Array.isArray(achievements) ? achievements : [];
+  const hasAchievements = achievementItems.length > 0;
   const hasRecord = Boolean(recordStreak?.hasRecord || Number(recordStreak?.days || 0) > 0);
 
   return (
@@ -64,25 +66,39 @@ export default function LobbySideBlock({ achievements, recordStreak }) {
           <BorderGlow>
             <div className="panel-card panel-card--achievements">
               <h2 className="section-title">Личные достижения</h2>
-              <AnimatedScrollList className="achievement-list">
-                {achievements.map((item, index) => (
-                  <div key={`${item.title}-${index}`} className="achievement-card">
-                    <div className="achievement-card__content">
-                      <div className="achievement-card__icon">
-                        <img
-                          src={achievementIcon}
-                          alt="Иконка достижения"
-                          className="achievement-card__icon-image"
-                        />
-                      </div>
-                      <div>
-                        <div className="achievement-card__title">{item.title}</div>
-                        <div className="achievement-card__desc">{item.desc}</div>
+
+              {hasAchievements ? (
+                <AnimatedScrollList className="achievement-list">
+                  {achievementItems.map((item, index) => (
+                    <div key={`${item.title}-${index}`} className="achievement-card">
+                      <div className="achievement-card__content">
+                        <div className="achievement-card__icon">
+                          <img
+                            src={achievementIcon}
+                            alt="Иконка достижения"
+                            className="achievement-card__icon-image"
+                          />
+                        </div>
+                        <div>
+                          <div className="achievement-card__title">{item.title}</div>
+                          <div className="achievement-card__desc">{item.desc}</div>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </AnimatedScrollList>
+              ) : (
+                <div className="achievements-empty">
+                  <div className="achievements-empty__card">
+                    <div className="achievements-empty__title">
+                      Достижений пока нет
+                    </div>
+                    <div className="achievements-empty__text">
+                      Выполняйте привычки и удерживайте серию, чтобы открыть первые достижения.
+                    </div>
                   </div>
-                ))}
-              </AnimatedScrollList>
+                </div>
+              )}
             </div>
           </BorderGlow>
         </AnimatedContent>
