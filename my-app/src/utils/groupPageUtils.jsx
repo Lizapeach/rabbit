@@ -709,7 +709,6 @@ export function normalizeMemberProfileResponse(profileData, fallbackMember, fall
           code: achievement.code || "",
           title: achievement.title || "Достижение",
           description: achievement.description || "",
-          rewardCoins: Number(achievement.rewardCoins || 0),
           receivedAt: achievement.receivedAt || "",
         }))
       : [],

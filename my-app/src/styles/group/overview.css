@@ -810,7 +810,10 @@
   margin-bottom: 0;
 }
 
-.task-list-lock-shell--locked {
+.task-list-lock-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
   margin-bottom: 12px;
 }
 
