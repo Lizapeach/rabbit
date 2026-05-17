@@ -200,6 +200,13 @@ export default function GroupOverviewBlock({
     ? visibleTasks.map((task) => ({ ...task, isCompletionHidden: false }))
     : visibleTasks;
 
+  const areMemberTasksLocked =
+  selectedFriendId !== "me" &&
+  visibleTasks.some((task) => task.isCompletionHidden);
+
+  const effectiveSpecialTasksLocked =
+    isSpecialTasksLocked || areMemberTasksLocked;
+
   return (
     <AnimatedContent distance={80} duration={0.8} delay={0.08}>
       <section className="group-overview-section">
@@ -302,7 +309,9 @@ export default function GroupOverviewBlock({
                     </div>
                   )}
 
-                  {isSpecialTasksLocked && <LockedSpecialTaskCard reason={specialTasksLockedReason} />}
+                  {effectiveSpecialTasksLocked && (
+                    <LockedSpecialTaskCard reason={specialTasksLockedReason} />
+                  )}
 
                   {!isSpecialTasksLocked && selectedSpecialTask && (
                     <SpecialTaskCard
