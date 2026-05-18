@@ -157,6 +157,7 @@ export async function requestHabitsFromServer() {
   return {
     habits: Array.isArray(data?.habits) ? data.habits : [],
     record: data?.record || null,
+    achievements: normalizeLobbyAchievements(data?.achievements),
   };
 }
 
@@ -415,7 +416,7 @@ export function buildCategoriesFromHabits(habits) {
 
 export function buildRecordStreak(record, habits = []) {
   const todayPreview = readTodayStreakPreview();
-  const officialDays = Number(record?.days || 0);
+  const officialDays = Number(record?.days ?? record?.bestStreak ?? 0);
   const officialHabitTypeCode = record?.habitTypeCode || "";
 
   const result = {

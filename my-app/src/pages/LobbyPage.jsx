@@ -79,11 +79,9 @@ export default function LobbyPage({
 
         if (profileResult.status === "fulfilled") {
           setLobbyProfile(profileResult.value?.user || null);
-          setProfileAchievements(profileResult.value?.achievements || []);
         } else {
           console.error("Profile loading failed:", profileResult.reason);
           setLobbyProfile(null);
-          setProfileAchievements([]);
         }
 
         if (habitsResult.status === "rejected") {
@@ -92,9 +90,11 @@ export default function LobbyPage({
 
         const data = habitsResult.value || {};
         const nextHabits = data.habits || [];
+        const nextAchievements = data.achievements || [];
 
         setHabits(nextHabits);
         setHabitsRecord(data.record || null);
+        setProfileAchievements(nextAchievements);
         setHabitsLoadState({ status: "success", error: "" });
         return nextHabits;
       } catch (error) {
