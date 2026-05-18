@@ -311,17 +311,37 @@ export function getHabitTypeLabel(habitTypeCode) {
 
 export function getHabitTodayPersonalCompleted(habit, todayPreview = readTodayStreakPreview()) {
   const habitId = String(habit?.id || "");
+  const personalStatus =
+    habit?.memberTodayStatus ||
+    habit?.todayPersonalStatus ||
+    habit?.todayStatusByMe ||
+    habit?.myTodayStatus ||
+    "";
+  const completedTasksCount = Number(
+    habit?.memberTodayCompletedTasksCount ??
+      habit?.todayPersonalCompletedTasksCount ??
+      habit?.todayCompletedTasksByMe ??
+      habit?.myTodayCompletedTasksCount ??
+      habit?.completedTasksCountToday ??
+      habit?.completedTasksToday ??
+      0
+  );
 
   return Boolean(
     (habitId && todayPreview.personalHabitIds?.[habitId]) ||
+      completedTasksCount > 0 ||
+      habit?.memberTodayHasCompletedTasks ||
+      habit?.todayPersonalHasCompletedTasks ||
+      habit?.hasTodayCompletedTasksByMe ||
       habit?.memberTodayCompleted ||
       habit?.todayPersonalCompleted ||
       habit?.todayCompletedByMe ||
       habit?.isTodayCompletedByMe ||
-      habit?.isTodayCompleted ||
-      habit?.todayCompleted ||
-      habit?.todayStatus === "done" ||
-      habit?.todayStatus === "good"
+      personalStatus === "started" ||
+      personalStatus === "partial" ||
+      personalStatus === "ok" ||
+      personalStatus === "done" ||
+      personalStatus === "good"
   );
 }
 
@@ -431,17 +451,20 @@ export function buildRecordStreak(record, habits = []) {
 
   habits.forEach((habit) => {
     if (habit?.status && habit.status !== "active") return;
-    if (!getHabitTodayGroupCompleted(habit, todayPreview)) return;
 
-    const previewDays = Number(habit?.currentStreak || 0);
+    const isTodayCompletedByMe = getHabitTodayPersonalCompleted(habit, todayPreview);
+    if (!isTodayCompletedByMe) return;
 
-    if (previewDays > result.days) {
-      result.days = previewDays;
+    const memberCurrentStreak = Number(habit?.memberCurrentStreak || 0);
+    const displayedPersonalStreak = memberCurrentStreak + 1;
+
+    if (displayedPersonalStreak > result.days) {
+      result.days = displayedPersonalStreak;
       result.category = getHabitTypeLabel(habit?.habitTypeCode);
       result.group = habit?.title || "—";
       result.habitId = habit?.id || "";
       result.habitTypeCode = habit?.habitTypeCode || "";
-      result.hasRecord = previewDays > 0;
+      result.hasRecord = displayedPersonalStreak > 0;
       result.isPreview = true;
     }
   });

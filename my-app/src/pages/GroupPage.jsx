@@ -617,14 +617,14 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     [groupProgressMembers]
   );
 
-  const isTodayPersonalCompleted = useMemo(
+  const hasAnyPersonalTaskCompletedToday = useMemo(
     () => {
       const currentMemberStats = groupProgressMembers.find((member) => member.id === "me");
 
       return Boolean(
         currentMemberStats &&
         currentMemberStats.total > 0 &&
-        currentMemberStats.completed >= currentMemberStats.total
+        currentMemberStats.completed > 0
       );
     },
     [groupProgressMembers]
@@ -636,12 +636,12 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     writeTodayStreakPreview(
       habitId,
       {
-        personalCompleted: isTodayPersonalCompleted,
+        personalCompleted: hasAnyPersonalTaskCompletedToday,
         groupCompleted: isTodayGroupCompleted,
       },
       currentDate
     );
-  }, [currentDate, habitId, hasLoadedHabitProgress, isTodayGroupCompleted, isTodayPersonalCompleted]);
+  }, [currentDate, habitId, hasLoadedHabitProgress, isTodayGroupCompleted, hasAnyPersonalTaskCompletedToday]);
 
   const activeBunnyModelUrl = shouldShowCryBunny ? BUNNY_CRY_MODEL_URL : BUNNY_MODEL_URL;
   const activeBunnyAnimationMode = shouldShowCryBunny ? "cry" : "idle";
