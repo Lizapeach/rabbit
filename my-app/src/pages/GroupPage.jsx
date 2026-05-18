@@ -35,6 +35,11 @@ import {
   getBackendFileUrl,
   apiRequest,
   apiUploadFile,
+  fetchHabitShop,
+  updateBunnyName,
+  updateBunnyBackground,
+  buyOrEquipBunnyShopItem,
+  unequipBunnyShopSection,
   normalizeTaskEditOptions,
   normalizeBackendSpecialTask,
   doesSpecialSubmissionBelongToMember,
@@ -107,6 +112,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
     }
   });
   const [isBunnyShopOpen, setIsBunnyShopOpen] = useState(false);
+  const [bunnyShopStatus, setBunnyShopStatus] = useState("idle");
+  const [bunnyShopError, setBunnyShopError] = useState("");
   const [membersData, setMembersData] = useState([]);
   const [myTasks, setMyTasks] = useState([]);
   const [selectedFriendId, setSelectedFriendId] = useState("me");
@@ -646,8 +653,8 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const activeBunnyModelUrl = shouldShowCryBunny ? BUNNY_CRY_MODEL_URL : BUNNY_MODEL_URL;
   const activeBunnyAnimationMode = shouldShowCryBunny ? "cry" : "idle";
   const bunnyAccessoryParams = useMemo(
-    () => getBunnyAccessoryParams(bunnyShopState.equippedItems),
-    [bunnyShopState.equippedItems]
+    () => getBunnyAccessoryParams(bunnyShopState.equippedItems, bunnyShopState.sections),
+    [bunnyShopState.equippedItems, bunnyShopState.sections]
   );
   const activeBunnyAccessoryParams = shouldShowCryBunny ? null : bunnyAccessoryParams;
 
@@ -717,77 +724,160 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   ? "Щёлкни правой кнопкой по панели, чтобы оставить заметку для себя. Заметку можно перетаскивать по полю, удерживая её левой кнопкой мыши. Когда пригласишь друзей, они тоже смогут её видеть :)."
   : "Щёлкни правой кнопкой по панели, чтобы оставить заметку для себя или друга. Участники группы её увидят, а саму заметку можно перетаскивать по полю левой кнопкой мыши.";
   
+  const getBunnyShopItemBackendId = (item) => item?.backendId ?? item?.itemId ?? item?.item_id ?? item?.id ?? null;
+
+  const getBunnyShopPayload = useCallback(
+    (data) => data?.shop || data?.bunnyShop || data?.bunny_shop || data?.data || data,
+    []
+  );
+
+  const isBunnyShopPayload = useCallback(
+    (data) => {
+      const payload = getBunnyShopPayload(data);
+
+      return Boolean(
+        payload &&
+          typeof payload === "object" &&
+          (payload.sections ||
+            payload.bunnySettings ||
+            payload.bunny_settings ||
+            payload.userCoinsBalance !== undefined ||
+            payload.user_coins_balance !== undefined)
+      );
+    },
+    [getBunnyShopPayload]
+  );
+
+  const applyBunnyShopPayload = useCallback(
+    (data) => {
+      const normalized = normalizeBunnyShopState(getBunnyShopPayload(data), BUNNY_NAME);
+
+      setBunnyShopState(normalized);
+      setUserCoins(normalized.userCoinsBalance ?? normalized.coins ?? 0);
+
+      return normalized;
+    },
+    [getBunnyShopPayload]
+  );
+
+  const loadBunnyShop = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!habitId || !authToken) {
+        if (!silent) {
+          setBunnyShopStatus("error");
+          setBunnyShopError("Не удалось загрузить магазин: нет авторизации или id группы.");
+        }
+
+        return null;
+      }
+
+      if (!silent) {
+        setBunnyShopStatus("loading");
+        setBunnyShopError("");
+      }
+
+      try {
+        const data = await fetchHabitShop({ habitId, token: authToken });
+        const normalized = applyBunnyShopPayload(data);
+
+        if (!silent) {
+          setBunnyShopStatus("success");
+          setBunnyShopError("");
+        }
+
+        return normalized;
+      } catch (error) {
+        const message = getErrorMessage(error, "Не удалось загрузить магазин питомца.");
+
+        if (!silent) {
+          setBunnyShopStatus("error");
+          setBunnyShopError(message);
+        }
+
+        throw error;
+      }
+    },
+    [applyBunnyShopPayload, authToken, habitId]
+  );
+
+  const syncBunnyShopAfterAction = useCallback(
+    async (data) => {
+      if (isBunnyShopPayload(data)) {
+        applyBunnyShopPayload(data);
+        setBunnyShopStatus("success");
+        setBunnyShopError("");
+        return;
+      }
+
+      await loadBunnyShop({ silent: true });
+    },
+    [applyBunnyShopPayload, isBunnyShopPayload, loadBunnyShop]
+  );
+
   const handleOpenBunnyShop = () => {
     setIsBunnyShopOpen(true);
+    loadBunnyShop().catch(() => {});
   };
 
   const handleBunnyShopKeyDown = (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
 
     event.preventDefault();
-    setIsBunnyShopOpen(true);
+    handleOpenBunnyShop();
   };
 
-  const spendBunnyCoins = (cost) => {
-    setUserCoins((prevCoins) => Math.max(0, prevCoins - cost));
-  };
+  const handleBuyBunnyName = async (nextName, item) => {
+    const itemId = getBunnyShopItemBackendId(item || bunnyShopState.reusableItems?.name);
 
-  const handleBuyBunnyName = (nextName, cost) => {
-    if (userCoins < cost) return;
+    if (!itemId) throw new Error("Не найден itemId покупки имени зайчика.");
 
-    spendBunnyCoins(cost);
-    setBunnyShopState((prev) => ({
-      ...prev,
-      name: nextName,
-    }));
-  };
-
-  const handleBuyBunnyBackground = (nextColor, cost) => {
-    if (userCoins < cost) return;
-
-    spendBunnyCoins(cost);
-    setBunnyShopState((prev) => ({
-      ...prev,
-      backgroundColor: nextColor,
-    }));
-  };
-
-  const handleBuyBunnyItem = (section, item) => {
-    if (!section || !item || userCoins < item.price) return;
-
-    spendBunnyCoins(item.price);
-    setBunnyShopState((prev) => ({
-      ...prev,
-      purchasedItemIds: prev.purchasedItemIds.includes(item.id)
-        ? prev.purchasedItemIds
-        : [...prev.purchasedItemIds, item.id],
-    }));
-  };
-
-  const handleEquipBunnyItem = (section, item) => {
-    if (!section || !item) return;
-
-    setBunnyShopState((prev) => {
-      if (!prev.purchasedItemIds.includes(item.id)) return prev;
-
-      return {
-        ...prev,
-        equippedItems: {
-          ...prev.equippedItems,
-          [section.id]: item.id,
-        },
-      };
+    const data = await updateBunnyName({
+      habitId,
+      token: authToken,
+      itemId,
+      bunnyName: nextName,
     });
+
+    await syncBunnyShopAfterAction(data);
   };
 
-  const handleUnequipBunnyCategory = (sectionId) => {
-    setBunnyShopState((prev) => ({
-      ...prev,
-      equippedItems: {
-        ...prev.equippedItems,
-        [sectionId]: null,
-      },
-    }));
+  const handleBuyBunnyBackground = async (nextColor, item) => {
+    const itemId = getBunnyShopItemBackendId(item || bunnyShopState.reusableItems?.background);
+
+    if (!itemId) throw new Error("Не найден itemId покупки фона зайчика.");
+
+    const data = await updateBunnyBackground({
+      habitId,
+      token: authToken,
+      itemId,
+      bunnyBgColor: nextColor,
+    });
+
+    await syncBunnyShopAfterAction(data);
+  };
+
+  const handleBuyOrEquipBunnyItem = async (section, item) => {
+    const itemId = getBunnyShopItemBackendId(item);
+
+    if (!itemId) throw new Error("Не найден itemId предмета магазина.");
+
+    const data = await buyOrEquipBunnyShopItem({
+      habitId,
+      token: authToken,
+      itemId,
+    });
+
+    await syncBunnyShopAfterAction(data);
+  };
+
+  const handleUnequipBunnyCategory = async (sectionId) => {
+    const data = await unequipBunnyShopSection({
+      habitId,
+      token: authToken,
+      sectionId,
+    });
+
+    await syncBunnyShopAfterAction(data);
   };
 
   const handleMemberColorChange = (memberId, nextColor) => {
@@ -1836,6 +1926,16 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   }, [bunnyShopState]);
 
   useEffect(() => {
+    if (!habitId || !authToken) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      void loadBunnyShop({ silent: true });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authToken, habitId, loadBunnyShop]);
+
+  useEffect(() => {
     if (!isGroupSettingsOpen) return undefined;
 
     const closeSettingsOutside = (event) => {
@@ -2039,13 +2139,18 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
             coins={userCoins}
             bunnyName={bunnyShopState.name}
             backgroundColor={bunnyShopState.backgroundColor}
+            reusableItems={bunnyShopState.reusableItems}
+            shopSections={bunnyShopState.sections}
             purchasedItemIds={bunnyShopState.purchasedItemIds}
             equippedItems={bunnyShopState.equippedItems}
+            isLoading={bunnyShopStatus === "loading"}
+            error={bunnyShopError}
+            onRetry={() => loadBunnyShop().catch(() => {})}
             onClose={() => setIsBunnyShopOpen(false)}
             onBuyName={handleBuyBunnyName}
             onBuyBackground={handleBuyBunnyBackground}
-            onBuyItem={handleBuyBunnyItem}
-            onEquipItem={handleEquipBunnyItem}
+            onBuyItem={handleBuyOrEquipBunnyItem}
+            onEquipItem={handleBuyOrEquipBunnyItem}
             onUnequipCategory={handleUnequipBunnyCategory}
           />
         )}

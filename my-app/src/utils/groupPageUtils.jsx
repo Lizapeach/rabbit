@@ -289,6 +289,16 @@ export async function updateBunnyBackground({ habitId, token, itemId, bunnyBgCol
   });
 }
 
+export async function buyOrEquipBunnyShopItem({ habitId, token, itemId } = {}) {
+  if (!habitId) throw new Error("Не найден id привычки для покупки или надевания предмета.");
+  if (!itemId) throw new Error("Не найден itemId предмета магазина.");
+
+  return apiRequest(`/api/habits/${habitId}/shop/items/${itemId}/buy-or-equip`, {
+    method: "POST",
+    token,
+  });
+}
+
 export async function unequipBunnyShopSlot({ habitId, token, slot } = {}) {
   if (!habitId) throw new Error("Не найден id привычки для снятия предмета.");
   if (!slot) throw new Error("Не найден слот предмета, который нужно снять.");

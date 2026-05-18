@@ -62,7 +62,7 @@ export const BUNNY_ACCESSORY_SECTIONS = [
       {
         id: "head-broom",
         backendKeys: ["head_broom", "broom", "веник"],
-        title: "Веник",
+        title: "Венок",
         image: broomImage,
         param: "broom",
         price: 45,
@@ -70,7 +70,7 @@ export const BUNNY_ACCESSORY_SECTIONS = [
       {
         id: "head-clown-wig",
         backendKeys: ["head_clown_wig", "cloun_wig", "clown_wig", "клоунский парик"],
-        title: "Клоунский парик",
+        title: "Парик клоуна",
         image: clownWigImage,
         param: "cloun_wig",
         price: 55,
