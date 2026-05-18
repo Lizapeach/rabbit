@@ -4,6 +4,7 @@ import coinIcon from "../../assets/icons/coin.svg";
 import {
   BUNNY_ACCESSORY_SECTIONS,
   BUNNY_SHOP_BUTTON_STATES,
+  BUNNY_SHOP_SLOT_BY_SECTION,
   DEFAULT_BUNNY_SHOP_COSTS,
   EMPTY_EQUIPPED_ITEMS,
   normalizeShopHexColor,
@@ -200,6 +201,7 @@ export default function BunnyShopModal({
   onBuyBackground,
   onBuyItem,
   onEquipItem,
+  onBuyOrEquipItem,
   onUnequipCategory,
 }) {
   const [message, setMessage] = useState(null);
@@ -234,6 +236,17 @@ export default function BunnyShopModal({
     }
   };
 
+
+  const runBuyOrEquipItemAction = (section, item, status) => {
+    if (onBuyOrEquipItem) return onBuyOrEquipItem(section, item, status);
+
+    if (status === BUNNY_SHOP_BUTTON_STATES.BUY) {
+      return onBuyItem?.(section, item);
+    }
+
+    return onEquipItem?.(section, item);
+  };
+
   const buyOrEquipItem = (section, item) => {
     const status = getItemStatus(item, ownedSet, equippedItems);
 
@@ -250,23 +263,25 @@ export default function BunnyShopModal({
 
       runAction(
         `buy-${section.id}-${item.id}`,
-        () => onBuyItem?.(section, item),
-        "Аксессуар куплен. Теперь его можно надеть."
+        () => runBuyOrEquipItemAction(section, item, status),
+        "Аксессуар куплен."
       );
       return;
     }
 
     runAction(
       `equip-${section.id}-${item.id}`,
-      () => onEquipItem?.(section, item),
+      () => runBuyOrEquipItemAction(section, item, status),
       "Аксессуар надет."
     );
   };
 
   const unequipSection = (sectionId) => {
+    const slotType = BUNNY_SHOP_SLOT_BY_SECTION[sectionId] || sectionId;
+
     runAction(
       `unequip-${sectionId}`,
-      () => onUnequipCategory?.(sectionId),
+      () => onUnequipCategory?.(sectionId, slotType),
       "Аксессуар снят."
     );
   };
@@ -373,6 +388,7 @@ export default function BunnyShopModal({
                               const isBuying = pendingAction === `buy-${section.id}-${item.id}`;
                               const isEquipping = pendingAction === `equip-${section.id}-${item.id}`;
                               const isPending = isBuying || isEquipping;
+                              const itemImage = item.imageUrl || item.image;
 
                               return (
                                 <article
@@ -381,9 +397,9 @@ export default function BunnyShopModal({
                                 >
                                   {status === BUNNY_SHOP_BUTTON_STATES.BUY && <PriceLabel price={item.price} />}
 
-                                  {item.image && (
+                                  {itemImage && (
                                     <div className="bunny-shop-item__image-frame">
-                                      <img src={item.image} alt={item.title} className="bunny-shop-item__image" />
+                                      <img src={itemImage} alt={item.title} className="bunny-shop-item__image" />
                                     </div>
                                   )}
 

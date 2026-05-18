@@ -1,16 +1,9 @@
-import headBowImage from "../../assets/images/бант.png";
-import broomImage from "../../assets/images/веник.png";
-import clownWigImage from "../../assets/images/клоунский_парик.png";
-import hatImage from "../../assets/images/шляпа.png";
-import clownNoseImage from "../../assets/images/клоунский_нос.png";
-import mustacheImage from "../../assets/images/усы.png";
-import bodyBowImage from "../../assets/images/бантик.png";
-import tieImage from "../../assets/images/галстук.png";
-import starImage from "../../assets/images/звезда.png";
-import iconImage from "../../assets/images/значек.png";
-import scarfImage from "../../assets/images/шарф.png";
-
 export const BUNNY_SHOP_STORAGE_KEY = "quiet-pages-bunny-shop";
+
+export const BUNNY_SHOP_API_BASE_URL =
+  import.meta.env?.VITE_API_BASE_URL ||
+  import.meta.env?.VITE_API_URL ||
+  "https://habbit-backend-k33d.onrender.com";
 
 export const DEFAULT_BUNNY_SHOP_COSTS = {
   name: 25,
@@ -50,110 +43,105 @@ export const BUNNY_ACCESSORY_SECTIONS = [
   {
     id: "head",
     title: "Аксессуары на голову",
-    items: [
-      {
-        id: "head-bow",
-        backendKeys: ["head_bow", "bow", "бант"],
-        title: "Бант",
-        image: headBowImage,
-        param: "bow",
-        price: 40,
-      },
-      {
-        id: "head-broom",
-        backendKeys: ["head_broom", "broom", "веник"],
-        title: "Венок",
-        image: broomImage,
-        param: "broom",
-        price: 45,
-      },
-      {
-        id: "head-clown-wig",
-        backendKeys: ["head_clown_wig", "cloun_wig", "clown_wig", "клоунский парик"],
-        title: "Парик клоуна",
-        image: clownWigImage,
-        param: "cloun_wig",
-        price: 55,
-      },
-      {
-        id: "head-hat",
-        backendKeys: ["head_hat", "hat", "шляпа"],
-        title: "Шляпа",
-        image: hatImage,
-        param: "hat",
-        price: 50,
-      },
-    ],
+    items: [],
   },
   {
     id: "nose",
     title: "Аксессуары на нос",
-    items: [
-      {
-        id: "nose-clown-nose",
-        backendKeys: ["nose_clown_nose", "cloun_nose", "clown_nose", "клоунский нос"],
-        title: "Клоунский нос",
-        image: clownNoseImage,
-        param: "cloun_nose",
-        price: 35,
-      },
-      {
-        id: "nose-mustache",
-        backendKeys: ["nose_mustache", "mustache", "усы"],
-        title: "Усы",
-        image: mustacheImage,
-        param: "mustache",
-        price: 35,
-      },
-    ],
+    items: [],
   },
   {
     id: "body",
     title: "Аксессуары на тело",
-    items: [
-      {
-        id: "body-bow",
-        backendKeys: ["body_bow", "boww", "бантик"],
-        title: "Бантик",
-        image: bodyBowImage,
-        param: "boww",
-        price: 40,
-      },
-      {
-        id: "body-tie",
-        backendKeys: ["body_tie", "tie", "галстук"],
-        title: "Галстук",
-        image: tieImage,
-        param: "tie",
-        price: 45,
-      },
-      {
-        id: "body-star",
-        backendKeys: ["body_star", "star", "звезда"],
-        title: "Звезда",
-        image: starImage,
-        param: "star",
-        price: 45,
-      },
-      {
-        id: "body-icon",
-        backendKeys: ["body_icon", "icon", "значок", "значек"],
-        title: "Значок",
-        image: iconImage,
-        param: "icon",
-        price: 45,
-      },
-      {
-        id: "body-scarf",
-        backendKeys: ["body_scarf", "scarf", "шарф"],
-        title: "Шарф",
-        image: scarfImage,
-        param: "scarf",
-        price: 50,
-      },
-    ],
+    items: [],
   },
 ];
+
+const BUNNY_ACCESSORY_LOCAL_META_BY_SECTION = {
+  head: [
+    {
+      id: "head-bow",
+      backendKeys: ["head_bow", "bow", "бант"],
+      title: "Бант",
+      param: "bow",
+      price: 40,
+    },
+    {
+      id: "head-broom",
+      backendKeys: ["head_broom", "broom", "веник", "венок"],
+      title: "Венок",
+      param: "broom",
+      price: 45,
+    },
+    {
+      id: "head-clown-wig",
+      backendKeys: ["head_clown_wig", "cloun_wig", "clown_wig", "клоунский парик"],
+      title: "Парик клоуна",
+      param: "cloun_wig",
+      price: 55,
+    },
+    {
+      id: "head-hat",
+      backendKeys: ["head_hat", "hat", "шляпа"],
+      title: "Шляпа",
+      param: "hat",
+      price: 50,
+    },
+  ],
+  nose: [
+    {
+      id: "nose-clown-nose",
+      backendKeys: ["nose_clown_nose", "cloun_nose", "clown_nose", "клоунский нос"],
+      title: "Клоунский нос",
+      param: "cloun_nose",
+      price: 35,
+    },
+    {
+      id: "nose-mustache",
+      backendKeys: ["nose_mustache", "mustache", "усы"],
+      title: "Усы",
+      param: "mustache",
+      price: 35,
+    },
+  ],
+  body: [
+    {
+      id: "body-bow",
+      backendKeys: ["body_bow", "boww", "бантик"],
+      title: "Бантик",
+      param: "boww",
+      price: 40,
+    },
+    {
+      id: "body-tie",
+      backendKeys: ["body_tie", "tie", "галстук"],
+      title: "Галстук",
+      param: "tie",
+      price: 45,
+    },
+    {
+      id: "body-star",
+      backendKeys: ["body_star", "star", "звезда"],
+      title: "Звезда",
+      param: "star",
+      price: 45,
+    },
+    {
+      id: "body-icon",
+      backendKeys: ["body_icon", "icon", "значок", "значек"],
+      title: "Значок",
+      param: "icon",
+      price: 45,
+    },
+    {
+      id: "body-scarf",
+      backendKeys: ["body_scarf", "scarf", "шарф"],
+      title: "Шарф",
+      param: "scarf",
+      price: 50,
+    },
+  ],
+};
 
 export const BUNNY_ACCESSORY_PARAM_KEYS = [
   "icon",
@@ -170,7 +158,9 @@ export const BUNNY_ACCESSORY_PARAM_KEYS = [
 ];
 
 const getAllShopItemIds = () =>
-  BUNNY_ACCESSORY_SECTIONS.flatMap((section) => section.items.map((item) => item.id));
+  Object.values(BUNNY_ACCESSORY_LOCAL_META_BY_SECTION)
+    .flat()
+    .map((item) => item.id);
 
 const normalizeCompareValue = (value) =>
   String(value || "")
@@ -185,16 +175,61 @@ const getRawItemType = (item) => item?.itemType || item?.item_type || item?.type
 
 const getRawItemTitle = (item) => item?.name || item?.title || item?.label || "";
 
-function findLocalAccessoryMeta(sectionId, item) {
-  const section = BUNNY_ACCESSORY_SECTIONS.find((candidate) => candidate.id === sectionId);
-  if (!section) return null;
+const getRawImageValue = (item) =>
+  item?.imageUrl ||
+  item?.image_url ||
+  item?.image ||
+  item?.url ||
+  item?.fileUrl ||
+  item?.file_url ||
+  item?.publicUrl ||
+  item?.public_url ||
+  item?.storageUrl ||
+  item?.storage_url ||
+  item?.storageKey ||
+  item?.storage_key ||
 
-  const itemType = normalizeCompareValue(getRawItemType(item));
-  const title = normalizeCompareValue(getRawItemTitle(item));
-  const rawId = normalizeCompareValue(getRawBackendId(item));
+  // ВАЖНО: твои поля из БД
+  item?.assetStorageKey ||
+  item?.asset_storage_key ||
+  item?.assetFileUrl ||
+  item?.asset_file_url ||
+  item?.assetUrl ||
+  item?.asset_url ||
+
+  item?.file?.imageUrl ||
+  item?.file?.image_url ||
+  item?.file?.url ||
+  item?.file?.fileUrl ||
+  item?.file?.file_url ||
+  item?.file?.publicUrl ||
+  item?.file?.public_url ||
+  item?.file?.storageUrl ||
+  item?.file?.storage_url ||
+  item?.file?.storageKey ||
+  item?.file?.storage_key ||
+  item?.file?.assetStorageKey ||
+  item?.file?.asset_storage_key ||
+  "";
+function findLocalAccessoryMeta(sectionId, item) {
+  const sectionItems = BUNNY_ACCESSORY_LOCAL_META_BY_SECTION[sectionId] || [];
+  if (sectionItems.length === 0) return null;
+
+  const itemValues = [
+    getRawBackendId(item),
+    getRawItemType(item),
+    getRawItemTitle(item),
+    item?.code,
+    item?.slug,
+    item?.param,
+    item?.accessoryCode,
+    item?.accessory_code,
+    item?.shopItemCode,
+    item?.shop_item_code,
+  ].map(normalizeCompareValue);
 
   return (
-    section.items.find((localItem) => {
+    sectionItems.find((localItem) => {
       const localValues = [
         localItem.id,
         localItem.title,
@@ -202,7 +237,7 @@ function findLocalAccessoryMeta(sectionId, item) {
         ...(Array.isArray(localItem.backendKeys) ? localItem.backendKeys : []),
       ].map(normalizeCompareValue);
 
-      return localValues.includes(itemType) || localValues.includes(title) || localValues.includes(rawId);
+      return itemValues.some((value) => value && localValues.includes(value));
     }) || null
   );
 }
@@ -220,6 +255,25 @@ export function normalizeShopHexColor(value, fallback = "#f7eadf") {
   }
 
   return fallback;
+}
+
+export function normalizeBackendImageUrl(value) {
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+
+  if (trimmed.startsWith("//")) {
+    const protocol = typeof window !== "undefined" ? window.location.protocol : "https:";
+    return `${protocol}${trimmed}`;
+  }
+
+  const baseUrl = String(BUNNY_SHOP_API_BASE_URL || "").replace(/\/+$/, "");
+  const imagePath = trimmed.replace(/^\/+/, "");
+
+  return baseUrl ? `${baseUrl}/${imagePath}` : `/${imagePath}`;
 }
 
 export function normalizeShopButtonState(value, fallback = BUNNY_SHOP_BUTTON_STATES.BUY) {
@@ -285,22 +339,25 @@ export function normalizeBackendReusableShopItem(item, fallback = null) {
 export function normalizeBackendAccessoryShopItem(item, sectionId) {
   const localMeta = findLocalAccessoryMeta(sectionId, item);
   const backendId = getRawBackendId(item);
-  const itemType = getRawItemType(item) || localMeta?.backendKeys?.[0] || localMeta?.param || "";
+  const itemType = getRawItemType(item) || BUNNY_SHOP_SLOT_BY_SECTION[sectionId] || "";
   const title = getRawItemTitle(item) || localMeta?.title || "Предмет";
   const price = Number(item?.price ?? item?.cost ?? localMeta?.price ?? 0);
-  const id = localMeta?.id || `${sectionId}-${backendId ?? (itemType || title)}`;
+  const imageUrl = normalizeBackendImageUrl(getRawImageValue(item));
+  const id = backendId ?? localMeta?.id ?? `${sectionId}-${itemType || title}`;
 
   return {
     ...localMeta,
     ...item,
     id,
+    localId: localMeta?.id || null,
     backendId,
     title,
     name: title,
     itemType,
     sectionId,
-    slot: BUNNY_SHOP_SLOT_BY_SECTION[sectionId] || sectionId,
-    image: item?.image || item?.imageUrl || item?.image_url || localMeta?.image || "",
+    slot: item?.slot || item?.slotType || item?.slot_type || BUNNY_SHOP_SLOT_BY_SECTION[sectionId] || sectionId,
+    image: imageUrl,
+    imageUrl,
     param: item?.param || localMeta?.param || "",
     price: Number.isFinite(price) ? price : 0,
     buttonState: normalizeShopButtonState(
@@ -394,11 +451,11 @@ export function normalizeBunnyShopState(value, defaultName = "Банни") {
   const purchasedSet = new Set(purchasedItemIds);
   const equippedItems = { ...EMPTY_EQUIPPED_ITEMS };
 
-  for (const section of BUNNY_ACCESSORY_SECTIONS) {
-    const candidate = value.equippedItems?.[section.id] || null;
-    const isValidInSection = section.items.some((item) => item.id === candidate);
+  for (const sectionId of Object.keys(BUNNY_ACCESSORY_LOCAL_META_BY_SECTION)) {
+    const candidate = value.equippedItems?.[sectionId] || null;
+    const isValidInSection = BUNNY_ACCESSORY_LOCAL_META_BY_SECTION[sectionId].some((item) => item.id === candidate);
 
-    equippedItems[section.id] = isValidInSection && purchasedSet.has(candidate) ? candidate : null;
+    equippedItems[sectionId] = isValidInSection && purchasedSet.has(candidate) ? candidate : null;
   }
 
   const rawCoins = Number(value.coins ?? value.userCoinsBalance ?? fallback.coins);
