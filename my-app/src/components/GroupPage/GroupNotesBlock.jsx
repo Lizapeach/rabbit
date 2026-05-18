@@ -61,16 +61,17 @@ export default function GroupNotesBlock({
       <BorderGlow>
         <div
           ref={notesPanelRef}
-          className={`group-panel group-panel--notes ${isLocked ? "locked-feature locked-feature--locked" : ""}`}
+          className={`group-panel group-panel--notes locked-feature ${isLocked ? "locked-feature--locked" : ""}`}
           onPointerDown={isLocked ? undefined : onNotesBoardPointerDown}
           onPointerUp={isLocked ? undefined : onNotesBoardPointerUp}
           onContextMenu={isLocked ? undefined : onNotesBoardContextMenu}
           aria-label="Поле заметок группы"
         >
-          <h2 className="section-title">Поле для заметок</h2>
-          <p className="section-description">{notesDescription}</p>
+          <div className="locked-feature__content group-notes-content">
+            <h2 className="section-title">Поле для заметок</h2>
+            <p className="section-description">{notesDescription}</p>
 
-          <div className="group-notes-layer">
+            <div className="group-notes-layer">
             {notes.map((note) => {
               const noteAuthor =
                 friendsWithColors.find((friend) => String(friend.backendMemberId) === String(note.authorMemberId)) ||
@@ -132,6 +133,7 @@ export default function GroupNotesBlock({
                 </button>
               );
             })}
+            </div>
           </div>
 
           {isLocked && (

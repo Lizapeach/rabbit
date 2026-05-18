@@ -802,30 +802,84 @@
   border-radius: 24px;
 }
 
-.task-list-lock-shell .locked-feature__content {
-  height: auto;
-}
-
-.task-list-lock-shell .task-card:last-child {
-  margin-bottom: 0;
-}
-
-.task-list-lock-shell {
-  position: relative;
-  overflow: hidden;
-  border-radius: 24px;
-  margin-bottom: 12px;
-}
-
-.task-list-lock-shell--locked .locked-feature__overlay {
-  border-radius: inherit;
-}
-
-.special-task-card--locked {
-  min-height: 142px;
-  overflow: hidden;
-}
 
 .special-task-card--locked .locked-feature__overlay {
   border-radius: inherit;
+}
+
+
+.locked-feature__overlay {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.locked-feature__icon {
+  width: 50%;
+  height: 50%;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.locked-feature__title,
+.locked-feature__reason {
+  max-width: min(100%, 560px);
+  min-width: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.locked-feature__title {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.locked-feature__reason {
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Чтобы overlay не сжимался, если внутри мало заданий */
+.task-list-lock-shell--locked {
+  min-height: 190px;
+}
+
+/* Особое задание тоже может содержать длинный текст */
+.special-task-card--locked {
+  min-height: 190px;
+}
+
+@media (max-width: 760px) {
+  .locked-feature__overlay {
+    padding: 18px 14px;
+    gap: 7px;
+  }
+
+  .locked-feature__icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .locked-feature__title {
+    font-size: 14px;
+  }
+
+  .locked-feature__reason {
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  .task-list-lock-shell--locked,
+  .special-task-card--locked {
+    min-height: 210px;
+  }
 }

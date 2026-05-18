@@ -217,27 +217,27 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
 
   const commonNotesLockedReason = getFrontendLockReason(
     commonNotesAccess.reason,
-    "Общие заметки откроются после 10 дней серии."
+    "Общие заметки откроются после 10 дней непрерывной серии, но снова закроются, если после потери серии не восстановить её в течение 5 дней."
   );
 
   const viewOtherTasksLockedReason = getFrontendLockReason(
     viewOtherTasksAccess.reason,
-    "Просмотр чужих заданий откроется после выполнения условия доступа."
+    "Просмотр заданий других участников откроется после 5 дней непрерывной серии, но снова закроется, если после потери серии не восстановить её в течение 10 дней."
   );
 
   const weekStatsLockedReason = getFrontendLockReason(
     weekStatsAccess.reason,
-    "Недельная статистика пока закрыта для этого участника."
+    "Статистика недели откроется после 10 дней участия в группе."
   );
 
   const monthStatsLockedReason = getFrontendLockReason(
     monthStatsAccess.reason,
-    "Месячная статистика откроется после 30 дней участия в группе."
+    "Статистика месяца откроется после 30 дней участия в группе."
   );
 
   const specialTasksLockedReason = getFrontendLockReason(
     specialTasksAccess.reason,
-    "Особое задание откроется после выполнения условия доступа."
+    "Особое задание откроется после открытия просмотра чужих заданий."
   );
 
   const isFeatureAccessLoaded = featureAccess !== null;
@@ -2068,7 +2068,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
               notesRevealRef={notesRevealRef}
               isNotesPanelVisible={isNotesPanelVisible}
               notesPanelRef={notesPanelRef}
-              notesDescription={areCommonNotesUnlocked ? notesDescription : commonNotesLockedReason}
+              notesDescription={notesDescription}
               isLocked={isFeatureAccessLoaded && !areCommonNotesUnlocked}
               lockedReason={commonNotesLockedReason}
               notes={areCommonNotesUnlocked ? notes : []}
