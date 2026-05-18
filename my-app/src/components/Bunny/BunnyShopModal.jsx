@@ -50,6 +50,14 @@ function getButtonClassName(status) {
     .join(" ");
 }
 
+function BunnyShopLoadingState() {
+  return (
+    <div className="bunny-shop-window-loading" role="status" aria-live="polite">
+      <span>Загрузка...</span>
+    </div>
+  );
+}
+
 function BunnyNameActionCard({
   bunnyName,
   namePrice,
@@ -293,6 +301,8 @@ export default function BunnyShopModal({
           ×
         </button>
 
+        {isLoading && <BunnyShopLoadingState />}
+
         <div className="bunny-shop-modal__topbar">
           <div className="bunny-shop-modal__heading">
             <div className="bunny-shop-modal__title-row">
@@ -307,8 +317,6 @@ export default function BunnyShopModal({
         </div>
 
         <div className="bunny-shop-scroll">
-          {isLoading && <div className="bunny-shop-empty">Магазин загружается...</div>}
-
           {!isLoading && error && (
             <div className="bunny-shop-message bunny-shop-message--warning">
               {error}
