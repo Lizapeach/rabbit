@@ -1911,6 +1911,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
               selectedMemberStats={selectedMemberStats}
               visibleTasks={visibleTasks}
               selectedSpecialTask={selectedSpecialTask}
+              areSelectedMemberTasksLocked={selectedFriendId !== "me" && !canViewOtherTaskCompletions}
               isSpecialTasksLocked={isFeatureAccessLoaded && !areSpecialTasksUnlocked}
               specialTasksLockedReason={specialTasksLockedReason}
               otherTasksLockedReason={viewOtherTasksLockedReason}

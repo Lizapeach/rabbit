@@ -141,7 +141,7 @@ export function SpecialTaskCard({ taskState, disabled, isOwnTask, uploadStatus, 
   );
 }
 
-function LockedSpecialTaskCard({ reason }) {
+function LockedSpecialTaskCard({ reason, label = "Особое задание закрыто", description }) {
   return (
     <div className="special-task-card special-task-card--locked locked-feature locked-feature--locked">
       <div className="locked-feature__content special-task-card__content">
@@ -149,15 +149,17 @@ function LockedSpecialTaskCard({ reason }) {
           type="button"
           disabled
           className="special-task-card__button"
-          aria-label="Особое задание закрыто"
+          aria-label={label}
         />
 
         <div className="special-task-card__body">
           <div className="special-task-card__title">{uniqueTaskBase.title}</div>
-          <div className="special-task-card__desc">Блок особого задания откроется после выполнения условия доступа.</div>
+          <div className="special-task-card__desc">
+            {description || "Блок особого задания откроется после выполнения условия доступа."}
+          </div>
         </div>
       </div>
-      <LockedFeatureOverlay reason={reason || "Особое задание пока закрыто."} label="Особое задание закрыто" />
+      <LockedFeatureOverlay reason={reason || "Особое задание пока закрыто."} label={label} />
     </div>
   );
 }
@@ -180,6 +182,7 @@ export default function GroupOverviewBlock({
   selectedMemberStats,
   visibleTasks,
   selectedSpecialTask,
+  areSelectedMemberTasksLocked = false,
   isSpecialTasksLocked,
   specialTasksLockedReason,
   otherTasksLockedReason,
@@ -196,9 +199,14 @@ export default function GroupOverviewBlock({
 }) {
   const areVisibleTasksLocked =
     selectedFriendId !== "me" && visibleTasks.some((task) => task.isCompletionHidden);
+  const areMemberSpecialTasksLocked = selectedFriendId !== "me" && (areSelectedMemberTasksLocked || areVisibleTasksLocked);
   const visibleTasksForRender = areVisibleTasksLocked
     ? visibleTasks.map((task) => ({ ...task, isCompletionHidden: false }))
     : visibleTasks;
+  const shouldShowLockedSpecialTask = isSpecialTasksLocked || (areMemberSpecialTasksLocked && selectedSpecialTask);
+  const lockedSpecialTaskReason = areMemberSpecialTasksLocked
+    ? otherTasksLockedReason || "Просмотр особого задания этого участника пока закрыт."
+    : specialTasksLockedReason;
 
   return (
     <AnimatedContent distance={80} duration={0.8} delay={0.08}>
@@ -302,9 +310,19 @@ export default function GroupOverviewBlock({
                     </div>
                   )}
 
-                  {isSpecialTasksLocked && <LockedSpecialTaskCard reason={specialTasksLockedReason} />}
+                  {shouldShowLockedSpecialTask && (
+                    <LockedSpecialTaskCard
+                      reason={lockedSpecialTaskReason}
+                      label={areMemberSpecialTasksLocked ? "Особые задания участника закрыты" : "Особое задание закрыто"}
+                      description={
+                        areMemberSpecialTasksLocked
+                          ? "Особое задание этого участника скрыто вместе с его заданиями."
+                          : undefined
+                      }
+                    />
+                  )}
 
-                  {!isSpecialTasksLocked && selectedSpecialTask && (
+                  {!shouldShowLockedSpecialTask && selectedSpecialTask && (
                     <SpecialTaskCard
                       taskState={selectedSpecialTask}
                       disabled={selectedFriendId !== "me" || specialUploadStatus === "submitting"}
