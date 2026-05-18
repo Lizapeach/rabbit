@@ -12,6 +12,9 @@ const API_BASE_URL =
 
 const API_ROOT = API_BASE_URL.replace(/\/$/, "");
 
+const TOKEN_STORAGE_KEY = "habbit-auth-token";
+const NOTIFICATIONS_REFRESH_INTERVAL_MS = 5000;
+
 function CoinIcon() {
   return (
     <div className="coin-icon">
@@ -108,6 +111,7 @@ function getAuthToken() {
   }
 
   return (
+    localStorage.getItem(TOKEN_STORAGE_KEY) ||
     localStorage.getItem("token") ||
     localStorage.getItem("authToken") ||
     localStorage.getItem("accessToken") ||
@@ -269,49 +273,58 @@ export default function Header({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isCoinsOpen, setIsCoinsOpen] = useState(false);
 
-  useEffect(() => {
-    const controller = new AbortController();
+useEffect(() => {
+  let isMounted = true;
 
-    async function loadNotifications() {
-      const token = getAuthToken();
+  async function loadNotifications({ silent = false } = {}) {
+    const token = getAuthToken();
 
-      if (!token) {
+    if (!token) {
+      if (isMounted) {
         setNotifications([]);
         setUnreadCount(0);
+      }
+
+      return;
+    }
+
+    try {
+      const data = await requestNotifications("/api/notifications", {
+        method: "GET",
+      });
+
+      if (!isMounted) {
         return;
       }
 
-      try {
-        const data = await requestNotifications("/api/notifications", {
-          method: "GET",
-          signal: controller.signal,
-        });
+      const nextNotifications = Array.isArray(data.notifications)
+        ? data.notifications
+        : [];
 
-        const nextNotifications = Array.isArray(data.notifications)
-          ? data.notifications
-          : [];
-
-        setNotifications(nextNotifications);
-        setUnreadCount(
-          Number.isFinite(Number(data.unreadCount))
-            ? Number(data.unreadCount)
-            : nextNotifications.filter((item) => !isNotificationRead(item)).length
-        );
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          console.error("Не удалось загрузить уведомления:", error);
-          setNotifications([]);
-          setUnreadCount(0);
-        }
+      setNotifications(nextNotifications);
+      setUnreadCount(
+        Number.isFinite(Number(data.unreadCount))
+          ? Number(data.unreadCount)
+          : nextNotifications.filter((item) => !isNotificationRead(item)).length
+      );
+    } catch (error) {
+      if (!silent) {
+        console.error("Не удалось загрузить уведомления:", error);
       }
     }
+  }
 
-    loadNotifications();
+  loadNotifications();
 
-    return () => {
-      controller.abort();
-    };
-  }, []);
+  const intervalId = window.setInterval(() => {
+    loadNotifications({ silent: true });
+  }, NOTIFICATIONS_REFRESH_INTERVAL_MS);
+
+  return () => {
+    isMounted = false;
+    window.clearInterval(intervalId);
+  };
+}, []);
 
   useEffect(() => {
     const hasReturnTimer = notifications.some(
@@ -343,46 +356,7 @@ export default function Header({
     onProfileClick?.();
   };
 
-  const handleNotificationClick = async (notification) => {
-    if (!notification?.id || isNotificationRead(notification)) {
-      return;
-    }
-
-    try {
-      const data = await requestNotifications(
-        `/api/notifications/${notification.id}/read`,
-        {
-          method: "PATCH",
-        }
-      );
-
-      const updatedNotification = data?.notification;
-
-      setNotifications((currentNotifications) =>
-        currentNotifications.map((currentNotification) =>
-          currentNotification.id === notification.id
-            ? {
-                ...currentNotification,
-                ...(updatedNotification || {}),
-                isRead: true,
-                readAt:
-                  updatedNotification?.readAt ||
-                  currentNotification.readAt ||
-                  new Date().toISOString(),
-              }
-            : currentNotification
-        )
-      );
-
-      setUnreadCount((currentUnreadCount) =>
-        Math.max(currentUnreadCount - 1, 0)
-      );
-    } catch (error) {
-      console.error("Не удалось отметить уведомление прочитанным:", error);
-    }
-  };
-
-  const handleReadAllNotifications = async () => {
+  const markNotificationsAsReadOnOpen = async () => {
     if (unreadCount <= 0) {
       return;
     }
@@ -403,7 +377,17 @@ export default function Header({
       );
       setUnreadCount(0);
     } catch (error) {
-      console.error("Не удалось отметить все уведомления прочитанными:", error);
+      console.error("Не удалось отметить уведомления прочитанными:", error);
+    }
+  };
+
+  const handleNotificationsButtonClick = () => {
+    const shouldMarkAsRead = !isNotificationsOpen && unreadCount > 0;
+
+    setIsNotificationsOpen((prev) => !prev);
+
+    if (shouldMarkAsRead) {
+      void markNotificationsAsReadOnOpen();
     }
   };
 
@@ -450,7 +434,7 @@ export default function Header({
 
           <button
             type="button"
-            onClick={() => setIsNotificationsOpen((prev) => !prev)}
+            onClick={handleNotificationsButtonClick}
             className="icon-button"
             aria-label="Открыть уведомления"
           >
@@ -493,15 +477,13 @@ export default function Header({
                 const isRead = isNotificationRead(notification);
 
                 return (
-                  <button
+                  <article
                     key={notification.id}
-                    type="button"
                     className={`notifications__item ${
                       isRead
                         ? "notifications__item--read"
                         : "notifications__item--unread"
                     }`}
-                    onClick={() => handleNotificationClick(notification)}
                   >
                     <span className="notifications__item-text">
                       <strong className="notifications__item-title">
@@ -509,12 +491,19 @@ export default function Header({
                       </strong>
 
                       {notificationText.message && (
-                        <span className="notifications__item-message">
-                          {notificationText.message}
-                        </span>
+                        <>
+                          <span
+                            className="notifications__item-divider"
+                            aria-hidden="true"
+                          />
+
+                          <span className="notifications__item-message">
+                            {notificationText.message}
+                          </span>
+                        </>
                       )}
                     </span>
-                  </button>
+                  </article>
                 );
               })
             ) : (
@@ -524,16 +513,6 @@ export default function Header({
 
           {notifications.length > 0 && (
             <div className="notifications__footer">
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleReadAllNotifications}
-                  className="notifications__read-all-button"
-                >
-                  Прочитать все
-                </button>
-              )}
-
               <button
                 type="button"
                 onClick={handleClearNotifications}
