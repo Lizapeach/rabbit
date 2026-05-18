@@ -1,7 +1,7 @@
 import BorderGlow from "../Animation/BorderGlow";
 import {
-  LockedFeatureOverlay,
   USER,
+  LockedFeatureOverlay,
   getIsMobileViewport,
   hexToRgba,
   normalizeHexColor,
@@ -34,6 +34,7 @@ export default function GroupNotesBlock({
   noteElementsRef,
   notesMenu,
   activeNoteMenu,
+  noteEditor,
   isClearNotesConfirmOpen,
   onNotesBoardPointerDown,
   onNotesBoardPointerUp,
@@ -48,6 +49,9 @@ export default function GroupNotesBlock({
   onDeleteNote,
   onCloseClearNotesConfirm,
   onConfirmClearNotes,
+  onCloseNoteEditor,
+  onChangeNoteEditorText,
+  onSaveNote,
 }) {
   return (
     <div
@@ -57,17 +61,16 @@ export default function GroupNotesBlock({
       <BorderGlow>
         <div
           ref={notesPanelRef}
-          className={`group-panel group-panel--notes locked-feature ${isLocked ? "locked-feature--locked" : ""}`}
+          className={`group-panel group-panel--notes ${isLocked ? "locked-feature locked-feature--locked" : ""}`}
           onPointerDown={isLocked ? undefined : onNotesBoardPointerDown}
           onPointerUp={isLocked ? undefined : onNotesBoardPointerUp}
-          onContextMenu={isLocked ? (event) => event.preventDefault() : onNotesBoardContextMenu}
-          aria-label={isLocked ? "Поле заметок закрыто" : "Поле заметок группы"}
+          onContextMenu={isLocked ? undefined : onNotesBoardContextMenu}
+          aria-label="Поле заметок группы"
         >
-          <div className="locked-feature__content group-notes-content">
-            <h2 className="section-title">Поле для заметок</h2>
-            <p className="section-description">{notesDescription}</p>
+          <h2 className="section-title">Поле для заметок</h2>
+          <p className="section-description">{notesDescription}</p>
 
-            <div className="group-notes-layer">
+          <div className="group-notes-layer">
             {notes.map((note) => {
               const noteAuthor =
                 friendsWithColors.find((friend) => String(friend.backendMemberId) === String(note.authorMemberId)) ||
@@ -129,9 +132,16 @@ export default function GroupNotesBlock({
                 </button>
               );
             })}
-            </div>
+          </div>
 
-            {!isLocked && notesMenu && (
+          {isLocked && (
+            <LockedFeatureOverlay
+              reason={lockedReason || "Общие заметки пока закрыты."}
+              label="Заметки закрыты"
+            />
+          )}
+
+          {!isLocked && notesMenu && (
             <FloatingMenu x={notesMenu.x} y={notesMenu.y}>
               <button type="button" data-note-ui="true" onClick={onOpenNoteEditor} className="menu-item">
                 Написать записку
@@ -149,20 +159,12 @@ export default function GroupNotesBlock({
             </FloatingMenu>
           )}
 
-            {!isLocked && activeNoteMenu && (
+          {!isLocked && activeNoteMenu && (
             <FloatingMenu x={activeNoteMenu.x} y={activeNoteMenu.y}>
               <button type="button" data-note-ui="true" onClick={onDeleteNote} className="menu-item menu-item--danger">
                 Удалить записку
               </button>
             </FloatingMenu>
-            )}
-          </div>
-
-          {isLocked && (
-            <LockedFeatureOverlay
-              reason={lockedReason || "Общие заметки пока закрыты."}
-              label="Заметки закрыты"
-            />
           )}
         </div>
       </BorderGlow>
@@ -187,6 +189,29 @@ export default function GroupNotesBlock({
         </div>
       )}
 
+      {!isLocked && noteEditor && (
+        <div className="modal-backdrop modal-backdrop--note" data-note-ui="true" onClick={onCloseNoteEditor}>
+          <div className="note-editor" onClick={(event) => event.stopPropagation()}>
+            <div className="note-editor__title">Новая записка</div>
+
+            <textarea
+              autoFocus
+              maxLength={200}
+              value={noteEditor.text}
+              onChange={(event) => onChangeNoteEditorText(event.target.value)}
+              placeholder="Напиши, что хочешь сохранить для группы..."
+              className="note-editor__textarea"
+            />
+
+            <div className="note-editor__footer">
+              <div className="note-editor__count">{noteEditor.text.length}/200</div>
+              <button type="button" data-note-ui="true" onClick={onSaveNote} className="note-editor__button">
+                Готово
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
