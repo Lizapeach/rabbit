@@ -28,8 +28,8 @@ export default function GroupNotesBlock({
   notesDescription,
   isLocked = false,
   lockedReason = "",
-  notes,
-  friendsWithColors,
+  notes = [],
+  friendsWithColors = [],
   notesPanelScale,
   noteElementsRef,
   notesMenu,
@@ -53,6 +53,11 @@ export default function GroupNotesBlock({
   onChangeNoteEditorText,
   onSaveNote,
 }) {
+  const noteItems = Array.isArray(notes) ? notes : [];
+  const friendItems = Array.isArray(friendsWithColors) ? friendsWithColors : [];
+  const panelClassName = `group-panel group-panel--notes ${isLocked ? "locked-feature locked-feature--locked" : ""}`;
+  const contentClassName = isLocked ? "locked-feature__content group-notes-content" : "group-notes-content";
+
   return (
     <div
       ref={notesRevealRef}
@@ -61,78 +66,78 @@ export default function GroupNotesBlock({
       <BorderGlow>
         <div
           ref={notesPanelRef}
-          className={`group-panel group-panel--notes locked-feature ${isLocked ? "locked-feature--locked" : ""}`}
+          className={panelClassName}
           onPointerDown={isLocked ? undefined : onNotesBoardPointerDown}
           onPointerUp={isLocked ? undefined : onNotesBoardPointerUp}
           onContextMenu={isLocked ? undefined : onNotesBoardContextMenu}
           aria-label="Поле заметок группы"
         >
-          <div className="locked-feature__content group-notes-content">
+          <div className={contentClassName}>
             <h2 className="section-title">Поле для заметок</h2>
             <p className="section-description">{notesDescription}</p>
 
             <div className="group-notes-layer">
-            {notes.map((note) => {
-              const noteAuthor =
-                friendsWithColors.find((friend) => String(friend.backendMemberId) === String(note.authorMemberId)) ||
-                friendsWithColors.find((friend) => friend.id === note.authorId) ||
-                friendsWithColors[0] ||
-                {
-                  id: "unknown-note-author",
-                  name: note.authorName || note.authorLogin || "Участник",
-                  color: USER.avatarColor,
-                };
-              const noteAuthorColor = normalizeHexColor(noteAuthor?.color, USER.avatarColor);
-              const noteAuthorName = noteAuthor?.name || "Участник";
+              {noteItems.map((note) => {
+                const noteAuthor =
+                  friendItems.find((friend) => String(friend.backendMemberId) === String(note.authorMemberId)) ||
+                  friendItems.find((friend) => friend.id === note.authorId) ||
+                  friendItems[0] ||
+                  {
+                    id: "unknown-note-author",
+                    name: note.authorName || note.authorLogin || "Участник",
+                    color: USER.avatarColor,
+                  };
+                const noteAuthorColor = normalizeHexColor(noteAuthor?.color, USER.avatarColor);
+                const noteAuthorName = noteAuthor?.name || "Участник";
 
-              return (
-                <button
-                  key={note.id}
-                  ref={(node) => {
-                    if (node) {
-                      noteElementsRef.current.set(note.id, node);
-                    } else {
-                      noteElementsRef.current.delete(note.id);
-                    }
-                  }}
-                  type="button"
-                  data-note-item="true"
-                  className={`sticky-note ${note.dragging ? "sticky-note--dragging" : ""}`}
-                  style={{
-                    left: typeof note.x === "number" ? note.x : `${note.pinXPercent || 0}%`,
-                    top: typeof note.y === "number" ? note.y : `${note.pinYPercent || 0}%`,
-                    zIndex: note.dragging ? 200 : note.zIndex,
-                    minHeight: Math.max(96, 96 + Math.floor(note.text.length / 42) * 22),
-                    "--note-accent": noteAuthorColor,
-                    "--note-accent-soft": hexToRgba(noteAuthorColor, 0.22),
-                    "--note-tilt": `${note.tilt || 0}deg`,
-                    "--note-peel-x": `${note.peelX || 0}px`,
-                    "--note-peel-y": `${note.peelY || 0}px`,
-                    "--note-scale": notesPanelScale,
-                  }}
-                  onMouseDown={(event) => onNoteMouseDown(event, note.id)}
-                  onPointerDown={(event) => onNotePointerDown(event, note.id)}
-                  onPointerMove={onNotePointerMove}
-                  onPointerUp={onNotePointerUp}
-                  onPointerCancel={onNotePointerUp}
-                  onContextMenu={(event) => {
-                    if (getIsMobileViewport()) {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      return;
-                    }
+                return (
+                  <button
+                    key={note.id}
+                    ref={(node) => {
+                      if (node) {
+                        noteElementsRef.current.set(note.id, node);
+                      } else {
+                        noteElementsRef.current.delete(note.id);
+                      }
+                    }}
+                    type="button"
+                    data-note-item="true"
+                    className={`sticky-note ${note.dragging ? "sticky-note--dragging" : ""}`}
+                    style={{
+                      left: typeof note.x === "number" ? note.x : `${note.pinXPercent || 0}%`,
+                      top: typeof note.y === "number" ? note.y : `${note.pinYPercent || 0}%`,
+                      zIndex: note.dragging ? 200 : note.zIndex,
+                      minHeight: Math.max(96, 96 + Math.floor((note.text || "").length / 42) * 22),
+                      "--note-accent": noteAuthorColor,
+                      "--note-accent-soft": hexToRgba(noteAuthorColor, 0.22),
+                      "--note-tilt": `${note.tilt || 0}deg`,
+                      "--note-peel-x": `${note.peelX || 0}px`,
+                      "--note-peel-y": `${note.peelY || 0}px`,
+                      "--note-scale": notesPanelScale,
+                    }}
+                    onMouseDown={(event) => onNoteMouseDown(event, note.id)}
+                    onPointerDown={(event) => onNotePointerDown(event, note.id)}
+                    onPointerMove={onNotePointerMove}
+                    onPointerUp={onNotePointerUp}
+                    onPointerCancel={onNotePointerUp}
+                    onContextMenu={(event) => {
+                      if (getIsMobileViewport()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return;
+                      }
 
-                    onOpenNoteActions(event, note.id);
-                  }}
-                  aria-label={`Записка от ${noteAuthorName}: ${note.text}`}
-                  title={`Автор: ${noteAuthorName}`}
-                >
-                  {!note.dragging && <span className="sticky-note__pin" aria-hidden="true" />}
-                  <span className="sticky-note__text">{note.text}</span>
-                  <span className="sticky-note__fold" aria-hidden="true" />
-                </button>
-              );
-            })}
+                      onOpenNoteActions(event, note.id);
+                    }}
+                    aria-label={`Записка от ${noteAuthorName}: ${note.text}`}
+                    title={`Автор: ${noteAuthorName}`}
+                  >
+                    {!note.dragging && <span className="sticky-note__pin" aria-hidden="true" />}
+                    <span className="sticky-note__text">{note.text}</span>
+                    <span className="sticky-note__fold" aria-hidden="true" />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -148,7 +153,7 @@ export default function GroupNotesBlock({
               <button type="button" data-note-ui="true" onClick={onOpenNoteEditor} className="menu-item">
                 Написать записку
               </button>
-              {notes.length > 0 && (
+              {noteItems.length > 0 && (
                 <button
                   type="button"
                   data-note-ui="true"
