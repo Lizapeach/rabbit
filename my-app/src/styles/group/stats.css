@@ -1837,3 +1837,20 @@
 .analytics-card--locked .locked-feature__overlay {
   border-radius: inherit;
 }
+@media (max-width: 760px) {
+  .mobile-calendar-modal .round-control__arrow::before,
+  .group-panel--calendar .mobile-calendar-modal .round-control__arrow::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .mobile-calendar-modal .round-control__arrow::after,
+  .group-panel--calendar .mobile-calendar-modal .round-control__arrow::after {
+    left: 50% !important;
+    right: auto !important;
+    top: 50% !important;
+    width: 13px !important;
+    height: 13px !important;
+    transform: translate(-50%, -50%) rotate(45deg) !important;
+  }
+}
