@@ -616,8 +616,8 @@ export function doesSpecialSubmissionBelongToMember(submission, member) {
 }
 
 export function normalizeBackendPage(pageData) {
-  const currentMemberId = pageData?.currentMemberId;
-  const tasksByMemberId = pageData?.tasksByMemberId || {};
+  const currentMemberId = pageData?.currentMemberId ?? pageData?.current_member_id;
+  const tasksByMemberId = pageData?.tasksByMemberId || pageData?.tasks_by_member_id || {};
 
   const members = (pageData?.members || [])
     .filter((member) => !member?.status || member.status === "active")
@@ -663,8 +663,8 @@ export function normalizeBackendPage(pageData) {
     groupCode: pageData?.habit?.inviteCode || "",
     isOwner: Boolean(pageData?.isOwner),
     currentStreak: Number(pageData?.habit?.currentStreak || 0),
-    progress: pageData?.progress || null,
-    memberProgress: pageData?.memberProgress || {},
+    progress: pageData?.progress || pageData?.groupProgress || pageData?.group_progress || null,
+    memberProgress: pageData?.memberProgress || pageData?.member_progress || {},
     habit: pageData?.habit || null,
     featureAccess: pageData?.featureAccess || pageData?.feature_access || {},
     notes: Array.isArray(pageData?.notes) ? pageData.notes.map(normalizeBackendNote).filter(Boolean) : [],

@@ -67,6 +67,61 @@ import {
 import "../styles/global.css";
 import "../styles/group.css";
 
+
+function getProgressNumber(source, keys, fallback = 0) {
+  if (!source || typeof source !== "object") return fallback;
+
+  const key = keys.find((item) => source[item] !== undefined && source[item] !== null);
+  const value = key ? Number(source[key]) : Number.NaN;
+
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function getProgressPercent(source, completed, total) {
+  const fallback = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const percent = getProgressNumber(
+    source,
+    ["percent", "progressPercent", "progress_percent", "completionPercent", "completion_percent"],
+    fallback
+  );
+
+  return Math.min(100, Math.max(0, Math.round(percent)));
+}
+
+function findMemberProgress(memberProgress, member) {
+  if (!memberProgress || !member) return null;
+
+  const possibleKeys = [
+    member.backendMemberId,
+    member.memberId,
+    member.id,
+    member.userId,
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== "")
+    .map(String);
+
+  const matchesMember = (item) => {
+    if (!item || typeof item !== "object") return false;
+
+    const itemMemberId = item.habitMemberId ?? item.habit_member_id ?? item.memberId ?? item.member_id ?? item.id;
+    const itemUserId = item.userId ?? item.user_id;
+
+    return possibleKeys.some(
+      (key) => String(itemMemberId ?? "") === key || String(itemUserId ?? "") === key
+    );
+  };
+
+  if (Array.isArray(memberProgress)) {
+    return memberProgress.find(matchesMember) || null;
+  }
+
+  for (const key of possibleKeys) {
+    if (memberProgress[key]) return memberProgress[key];
+  }
+
+  return Object.values(memberProgress).find(matchesMember) || null;
+}
+
 export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoadingChange, pageLoadingRoute }) {
   const pageRef = useRef(null);
   const notesPanelRef = useRef(null);
@@ -89,6 +144,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
   const [calendarDays, setCalendarDays] = useState([]);
   const [weekStatsResponse, setWeekStatsResponse] = useState(null);
   const [monthStatsResponse, setMonthStatsResponse] = useState(null);
+  const [memberProgress, setMemberProgress] = useState({});
   const [featureAccess, setFeatureAccess] = useState(null);
 
   const [groupInfo, setGroupInfo] = useState(() => ({
@@ -328,6 +384,7 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       setAdminMemberId(normalized.ownerMemberUiId || "me");
       setBackendStreakDays(normalized.currentStreak);
       setGroupCreatedDateKey(extractHabitCreatedDateKey(normalized.habit));
+      setMemberProgress(normalized.memberProgress || {});
       setFeatureAccess(normalized.featureAccess || {});
       setSpecialTask(normalized.specialTask);
 
@@ -543,14 +600,54 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
 
   const groupStats = useMemo(() => {
     const members = friendsWithColors.map((friend) => {
-      const memberTasks = friend.id === "me" ? myTasks : friend.tasks;
-      const completed = memberTasks.filter((task) => task.done).length;
+      const memberTasks = friend.id === "me" ? myTasks : friend.tasks || [];
+      const fallbackCompleted = memberTasks.filter((task) => task.done).length;
+      const fallbackTotal = memberTasks.length;
+      const progressItem = friend.id === "me" ? null : findMemberProgress(memberProgress, friend);
+
+      const completed = friend.id === "me"
+        ? fallbackCompleted
+        : getProgressNumber(
+            progressItem,
+            [
+              "completedTasksCount",
+              "completed_tasks_count",
+              "completedCount",
+              "completed_count",
+              "completedTasks",
+              "completed_tasks",
+              "doneTasksCount",
+              "done_tasks_count",
+              "completed",
+            ],
+            fallbackCompleted
+          );
+      const total = friend.id === "me"
+        ? fallbackTotal
+        : getProgressNumber(
+            progressItem,
+            [
+              "totalTasksCount",
+              "total_tasks_count",
+              "totalCount",
+              "total_count",
+              "tasksTotal",
+              "tasks_total",
+              "totalTasks",
+              "total_tasks",
+              "total",
+            ],
+            fallbackTotal
+          );
 
       return {
         id: friend.id,
         name: friend.name,
         completed,
-        total: memberTasks.length,
+        total,
+        percent: friend.id === "me"
+          ? getProgressPercent(null, completed, total)
+          : getProgressPercent(progressItem, completed, total),
       };
     });
 
@@ -561,9 +658,9 @@ export default function GroupPage({ navigate, userProfile, userAvatar, onPageLoa
       members,
       completed,
       total,
-      percent: total > 0 ? Math.round((completed / total) * 100) : 0,
+      percent: getProgressPercent(null, completed, total),
     };
-  }, [friendsWithColors, myTasks]);
+  }, [friendsWithColors, memberProgress, myTasks]);
 
   const hasLoadedHabitProgress = backendStreakDays !== null;
   const groupMembersWithTasks = groupStats.members.filter(
