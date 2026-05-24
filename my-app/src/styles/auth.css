@@ -151,7 +151,7 @@
 }
 
 .auth-card {
-  width: 100%;
+  width: 450px;
   overflow: visible;
   border: 1px solid var(--auth-border);
   border-radius: 38px 32px 44px 34px / 32px 44px 34px 40px;
