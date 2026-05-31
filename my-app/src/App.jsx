@@ -6,9 +6,7 @@ import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://habbit-backend-k33d.onrender.com";
+  import.meta.env.VITE_API_URL
 
 const TOKEN_STORAGE_KEYS = [
   "habbit-auth-token",

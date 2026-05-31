@@ -2,8 +2,7 @@ export const BUNNY_SHOP_STORAGE_KEY = "quiet-pages-bunny-shop";
 
 export const BUNNY_SHOP_API_BASE_URL =
   import.meta.env?.VITE_API_BASE_URL ||
-  import.meta.env?.VITE_API_URL ||
-  "https://habbit-backend-k33d.onrender.com";
+  import.meta.env?.VITE_API_URL;
 
 export const DEFAULT_BUNNY_SHOP_COSTS = {
   name: 25,

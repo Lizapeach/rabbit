@@ -7,9 +7,7 @@ import BorderGlow from "../components/Animation/BorderGlow";
 import "../styles/auth.css";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://habbit-backend-k33d.onrender.com";
+  import.meta.env.VITE_API_URL ;
 const TOKEN_STORAGE_KEY = "habbit-auth-token";
 
 const AUTH_TABS = {

@@ -64,9 +64,7 @@ export const RECORD_STREAK = {
 export const TODAY_STREAK_PREVIEW_STORAGE_KEY = "habbit-today-streak-preview";
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://habbit-backend-k33d.onrender.com";
+  import.meta.env.VITE_API_URL;
 
 export function getDateKey(date = new Date()) {
   const safeDate = date instanceof Date ? date : new Date(date);

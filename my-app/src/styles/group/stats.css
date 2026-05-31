@@ -896,12 +896,19 @@
 }
 
 .calendar-day--today {
-  outline: 4px solid var(--selected-member-color, var(--color-action-primary));
-  outline-offset: 2px;
-  box-shadow: 0 0 0 3px var(--color-white),
-    0 12px 24px var(--color-shadow-soft);
   position: relative;
   z-index: 40;
+  box-shadow: 0 12px 24px var(--color-shadow-soft);
+}
+
+.calendar-day--today::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: 5;
+  border: 4px solid var(--selected-member-color, var(--color-action-primary));
+  border-radius: 12px;
+  pointer-events: none;
 }
 
 @media (min-width: 1024px) {
