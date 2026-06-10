@@ -10,8 +10,7 @@
 
   position: relative;
   min-height: 100vh;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--surface-page-gradient);
   color: var(--color-text-main);
 }
@@ -671,134 +670,54 @@
   }
 }
 
-/* === Auth mobile adaptation fix === */
-
-.auth-page {
-  min-height: 100dvh;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.auth-container {
-  min-height: 100dvh;
-}
-
-.auth-shell {
-  width: 100%;
-  max-width: 450px;
-  align-items: center;
-}
-
-.auth-shell > .border-glow {
-  width: 100%;
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 450px;
-  box-sizing: border-box;
-}
-
-.auth-card__form-side,
-.auth-field__input,
-.auth-submit,
-.auth-tabs {
-  box-sizing: border-box;
-}
+/* === Auth mobile proportional adaptation === */
 
 @media (max-width: 640px) {
+  .auth-page {
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .auth-container {
-    padding: 14px 12px 24px;
+    min-height: 100dvh;
+    padding: 18px 14px 28px;
   }
 
   .auth-main {
-    align-items: flex-start;
-    padding: 10px 0;
+    align-items: center;
+    padding: 14px 0;
   }
 
   .auth-shell {
-    max-width: 100%;
-    gap: 12px;
+    width: min(450px, 100%);
+    gap: 14px;
+  }
+
+  .auth-shell > .border-glow {
+    width: 100%;
   }
 
   .auth-tabs {
-    width: 100%;
+    width: min(430px, calc(100% - 20px));
     max-width: 100%;
-    padding: 5px;
-    border-radius: 24px;
-  }
-
-  .auth-tabs__thumb {
-    left: 5px;
-    top: 5px;
-    width: calc((100% - 10px) / 2);
-    height: calc(100% - 10px);
-    border-radius: 19px;
-  }
-
-  .auth-tabs__button {
-    min-height: 42px;
-    border-radius: 19px;
-    font-size: 13px;
+    box-sizing: border-box;
   }
 
   .auth-card {
     width: 100%;
-    max-width: 100%;
-    border-radius: 24px;
+    max-width: 450px;
+    box-sizing: border-box;
+    border-radius: 28px;
   }
 
   .auth-card__form-side {
-    padding: 20px 16px;
+    box-sizing: border-box;
+    padding: 22px;
   }
 
   .auth-form-head .section-title {
-    margin-top: 4px;
-    font-size: 1.55rem;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-  }
-
-  .auth-form-head .section-description {
-    margin-top: 8px;
-    font-size: 13px;
-    line-height: 1.45;
-  }
-
-  .auth-tab-contents {
-    margin-top: 8px;
-    padding-top: 16px;
-  }
-
-  .auth-form {
-    gap: 12px;
-  }
-
-  .auth-field {
-    gap: 6px;
-  }
-
-  .auth-field__label {
-    font-size: 13px;
-  }
-
-  .auth-field__input {
-    min-height: 48px;
-    padding: 0 14px;
-    border-radius: 16px;
-    font-size: 14px;
-  }
-
-  .auth-submit {
-    min-height: 48px;
-    padding: 12px 18px;
-    font-size: 14px;
-  }
-
-  .auth-message {
-    margin-top: 14px;
-    padding: 10px 12px;
-    font-size: 12px;
+    font-size: 1.75rem;
   }
 }
 
@@ -808,15 +727,29 @@
     padding-right: 10px;
   }
 
+  .auth-tabs {
+    width: min(430px, calc(100% - 12px));
+  }
+
   .auth-card__form-side {
     padding: 18px 14px;
   }
 
   .auth-form-head .section-title {
-    font-size: 1.4rem;
+    font-size: 1.55rem;
   }
 
-  .auth-tabs__button {
-    font-size: 12px;
+  .auth-form-head .section-description {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .auth-field__input {
+    min-height: 48px;
+    font-size: 14px;
+  }
+
+  .auth-submit {
+    min-height: 48px;
   }
 }
